@@ -1,0 +1,4 @@
+-- Xóa username và thêm is_verified
+ALTER TABLE users DROP COLUMN IF EXISTS username;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT FALSE NOT NULL;
+ALTER TABLE users ALTER COLUMN display_name DROP NOT NULL;

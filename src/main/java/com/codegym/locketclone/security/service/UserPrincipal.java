@@ -16,23 +16,27 @@ import java.util.UUID;
 @Getter
 public class UserPrincipal implements UserDetails {
     private final UUID id;
-    private final String phoneNumber;
+    private final String username;
+    private final String email;
     @JsonIgnore
-    private final   String password; // Locket dùng OTP/Phone nhưng Security vẫn cần field này
-    private Collection<? extends GrantedAuthority> authorities;
-    public UserPrincipal(UUID id,  String phoneNumber, String password, Collection<? extends GrantedAuthority> authorities) {
+    private final String password;
+    private final Collection<? extends GrantedAuthority> authorities;
+
+    public UserPrincipal(UUID id, String username, String email, String password, Collection<? extends GrantedAuthority> authorities) {
         this.id = id;
-        this.phoneNumber = phoneNumber;
+        this.username = username;
+        this.email = email;
         this.password = password;
         this.authorities = authorities;
     }
+
     public static UserPrincipal build(User user) {
-        // Hiện tại app Locket chưa phân quyền phức tạp, mặc định là ROLE_USER
         List<GrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_USER"));
 
         return new UserPrincipal(
                 user.getId(),
-                user.getPhoneNumber(), // Map chuẩn từ entity
+                user.getUsername(),
+                user.getEmail(),
                 user.getPassword(),
                 authorities
         );
@@ -50,7 +54,7 @@ public class UserPrincipal implements UserDetails {
 
     @Override
     public String getUsername() {
-        return phoneNumber;
+        return username;
     }
 
     @Override
@@ -64,6 +68,4 @@ public class UserPrincipal implements UserDetails {
 
     @Override
     public boolean isEnabled() { return true; }
-
-
 }

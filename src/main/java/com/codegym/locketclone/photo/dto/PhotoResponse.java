@@ -1,7 +1,10 @@
 package com.codegym.locketclone.photo.dto;
 
+import com.codegym.locketclone.expense.dto.CategoryResponse;
 import com.codegym.locketclone.user.User;
 import lombok.*;
+
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -11,5 +14,9 @@ public record PhotoResponse(
         UUID senderId,
         String imageUrl,
         String caption,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+
+        BigDecimal amount,
+        Boolean isPrivate,
+        CategoryResponse category
 ) {}

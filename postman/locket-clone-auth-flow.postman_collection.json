@@ -1,0 +1,348 @@
+{
+  "info": {
+    "name": "Locket Clone - Auth Flow",
+    "_postman_id": "e0a87d2e-7496-4b22-a1c3-a4f8b90f7501",
+    "description": "Flow test cho auth mới: Register -> Verify OTP -> Login -> Get Me -> Complete Profile.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "email",
+      "value": "khanhnguyenkim30825@gmail.com"
+    },
+    {
+      "key": "username",
+      "value": "khanhnguyenkim30825"
+    },
+    {
+      "key": "password",
+      "value": "SnapWidget@123"
+    },
+    {
+      "key": "otp",
+      "value": ""
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "userId",
+      "value": ""
+    },
+    {
+      "key": "firstName",
+      "value": "Khánh"
+    },
+    {
+      "key": "lastName",
+      "value": "Nguyễn Kim"
+    },
+    {
+      "key": "avatarUrl",
+      "value": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Register",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/register",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "register"
+          ]
+        },
+        "description": "Đăng ký tài khoản mới. Server sẽ lưu user với isVerified=false và gửi OTP qua email."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 201 or 400', function () {",
+              "    pm.expect([201, 400]).to.include(pm.response.code);",
+              "});",
+              "",
+              "if (pm.response.code === 201) {",
+              "    const data = pm.response.json();",
+              "    pm.test('Register response contains next step and message', function () {",
+              "        pm.expect(data.message).to.include('OTP');",
+              "        pm.expect(data.nextStep).to.eql('VERIFY_OTP');",
+              "    });",
+              "    if (data.email) {",
+              "        pm.collectionVariables.set('email', data.email);",
+              "    }",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Verify OTP",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"otp\": \"{{otp}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/verify",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "verify"
+          ]
+        },
+        "description": "Nhập OTP bạn nhận được trong email rồi chạy request này. Nếu đúng, Postman sẽ tự lưu token và userId."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "const data = pm.response.json();",
+              "if (data.token) {",
+              "    pm.collectionVariables.set('token', data.token);",
+              "}",
+              "if (data.id) {",
+              "    pm.collectionVariables.set('userId', data.id);",
+              "}",
+              "",
+              "pm.test('JWT token is returned', function () {",
+              "    pm.expect(data.token).to.be.a('string').and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Login",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"identifier\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "login"
+          ]
+        },
+        "description": "Đăng nhập bằng email hoặc username. Nếu chưa verify, backend sẽ trả 403 USER_NOT_VERIFIED."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200 or 403', function () {",
+              "    pm.expect([200, 403]).to.include(pm.response.code);",
+              "});",
+              "",
+              "if (pm.response.code === 200) {",
+              "    const data = pm.response.json();",
+              "    if (data.token) pm.collectionVariables.set('token', data.token);",
+              "    if (data.id) pm.collectionVariables.set('userId', data.id);",
+              "    pm.test('Login token exists', function () {",
+              "        pm.expect(data.token).to.be.a('string').and.not.empty;",
+              "    });",
+              "}",
+              "",
+              "if (pm.response.code === 403) {",
+              "    pm.test('Unverified user is rejected', function () {",
+              "        const data = pm.response.json();",
+              "        pm.expect(data.message).to.include('xác thực');",
+              "    });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Get Current User",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/users/me",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "users",
+            "me"
+          ]
+        },
+        "description": "Lấy thông tin user hiện tại bằng JWT đã lưu từ bước Verify hoặc Login."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Complete Profile",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"{{username}}\",\n  \"firstName\": \"{{firstName}}\",\n  \"lastName\": \"{{lastName}}\",\n  \"avatarUrl\": \"{{avatarUrl}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/users/me/profile",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "users",
+            "me",
+            "profile"
+          ]
+        },
+        "description": "Hoàn thiện profile sau khi đăng nhập thành công."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "const data = pm.response.json();",
+              "pm.test('Profile completed is true', function () {",
+              "    pm.expect(data.profileCompleted).to.eql(true);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Get Current User After Profile Update",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/users/me",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "users",
+            "me"
+          ]
+        },
+        "description": "Kiểm tra lại profile sau khi update để chắc chắn next flow của FE là HOME."
+      }
+    }
+  ]
+}

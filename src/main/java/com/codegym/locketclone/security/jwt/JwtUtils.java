@@ -42,6 +42,17 @@ public class JwtUtils {
                 .compact();
     }
 
+    public String generateTokenFromUserId(UUID userId) {
+        Date now = new Date();
+        Date expiryDate = new Date(now.getTime() + jwtExpirationMs);
+        return Jwts.builder()
+                .subject(userId.toString())
+                .issuedAt(now)
+                .expiration(expiryDate)
+                .signWith(getSigningKey())
+                .compact();
+    }
+
     public UUID getUserIdFromJWT(String token) {
         Claims claims = Jwts.parser()
                 .verifyWith(getSigningKey())

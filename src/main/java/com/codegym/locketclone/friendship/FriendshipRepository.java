@@ -7,14 +7,13 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.UUID;
-@Repository
-public interface FriendshipRepository extends JpaRepository<Friendship, FriendshipId> {
 
-    // Tìm tất cả mối quan hệ bạn bè của một User (cả khi là id1 hoặc id2)
-    @Query("SELECT f FROM Friendship f WHERE (f.userId1 = :userId OR f.userId2 = :userId) AND f.status = 'ACCEPTED'")
+@Repository
+public interface FriendshipRepository extends JpaRepository<Friendship, UUID> {
+
+    @Query("SELECT f FROM Friendship f WHERE (f.user.id = :userId OR f.friend.id = :userId) AND f.status = com.codegym.locketclone.friendship.FriendshipStatus.ACCEPTED")
     List<Friendship> findAllAcceptedFriends(@Param("userId") UUID userId);
 
-    // Đếm số lượng bạn bè để kiểm tra giới hạn 20 người
-    @Query("SELECT COUNT(f) FROM Friendship f WHERE (f.userId1 = :userId OR f.userId2 = :userId) AND f.status = 'ACCEPTED'")
+    @Query("SELECT COUNT(f) FROM Friendship f WHERE (f.user.id = :userId OR f.friend.id = :userId) AND f.status = com.codegym.locketclone.friendship.FriendshipStatus.ACCEPTED")
     long countFriends(@Param("userId") UUID userId);
 }
