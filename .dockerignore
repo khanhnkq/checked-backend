@@ -1,0 +1,15 @@
+.git
+.github
+.gradle
+.idea
+bin
+build
+out
+*.iml
+*.ipr
+*.iws
+.DS_Store
+**/.DS_Store
+.env
+src/main/resources/firebase-service-account.json
+
