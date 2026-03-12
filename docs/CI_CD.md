@@ -5,6 +5,8 @@ Repo này hiện đã có 2 workflow GitHub Actions:
 - `CI` — chạy khi có `pull_request` vào `main` hoặc `push` vào `main`
 - `Release` — chạy khi push tag theo format `v*.*.*`
 
+Ngoài ra, nếu bạn bật **GitHub Codespaces Prebuilds** trong phần repository settings cho branch `main`, GitHub sẽ dùng workflow do hệ thống quản lý để tự refresh prebuild sau mỗi lần push lên `main`.
+
 ---
 
 ## 1. CI workflow
@@ -158,7 +160,22 @@ Lúc đó nên thêm các secrets kiểu:
 
 ---
 
-## 7. Quy trình release đề xuất
+## 7. Codespaces và push lên `main`
+
+Nếu mục tiêu là "push code lên `main` thì Codespace cũng cập nhật luôn", cần phân biệt 2 trường hợp:
+
+1. **Codespace mới / Codespace rebuild lại**
+   - Có thể tự dùng môi trường mới nhất nếu bật **Codespaces Prebuilds** cho branch `main`
+   - GitHub sẽ tự update prebuild sau mỗi lần push
+   - Repo này đã có `onCreateCommand` và `updateContentCommand` để prebuild chạy sẵn bước chuẩn bị Gradle
+
+2. **Codespace đang mở sẵn**
+   - GitHub không tự động `git pull` commit mới vào Codespace đang chạy
+   - Bạn vẫn cần `git pull origin main`, **Rebuild Container**, hoặc tạo Codespace mới
+
+---
+
+## 8. Quy trình release đề xuất
 
 ```bash
 git checkout main

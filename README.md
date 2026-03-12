@@ -27,6 +27,22 @@ Spring Boot backend cho `locket-clone`, dùng Gradle, Java 21 và có sẵn `Doc
    > Nếu dùng shell khác, hãy export từng biến hoặc dùng plugin tương ứng.
 5. Codespace sẽ tự động forward cổng **8080**. Nhấn vào thông báo "Open in Browser" hoặc vào tab **PORTS** để mở API.
 
+### 🔄 Để Codespace cập nhật nhanh sau khi push lên `main`
+
+Nếu bạn muốn mỗi lần push lên `main` thì **Codespace tạo mới** hoặc **Codespace được rebuild** dùng ngay môi trường mới nhất, hãy bật:
+
+**GitHub → Repository Settings → Codespaces → Prebuild configurations**
+
+- tạo prebuild cho branch `main`
+- giữ trigger mặc định để GitHub tự update prebuild sau mỗi lần push
+
+Repo này đã được cấu hình `onCreateCommand` và `updateContentCommand` trong [`.devcontainer/devcontainer.json`](.devcontainer/devcontainer.json) để prebuild cũng tải sẵn Gradle dependencies khi code thay đổi.
+
+> **Lưu ý quan trọng:** GitHub **không tự động pull commit mới vào một Codespace đang mở sẵn**. Sau khi push lên `main`, Codespace cũ vẫn cần một trong các cách sau để lấy code mới:
+> - chạy `git pull origin main`
+> - hoặc dùng lệnh **Codespaces: Rebuild Container**
+> - hoặc tạo Codespace mới từ branch `main` để dùng prebuild mới nhất
+
 ### Biến môi trường bắt buộc
 
 | Biến | Mô tả |

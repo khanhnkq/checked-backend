@@ -46,6 +46,8 @@
   },
 
   // Lifecycle scripts
+  "onCreateCommand": "bash .devcontainer/prebuild.sh",
+  "updateContentCommand": "bash .devcontainer/prebuild.sh",
   "postCreateCommand": "bash .devcontainer/post-create.sh",
 
   "remoteUser": "vscode"
