@@ -16,4 +16,15 @@ public interface FriendshipRepository extends JpaRepository<Friendship, UUID> {
 
     @Query("SELECT COUNT(f) FROM Friendship f WHERE (f.user.id = :userId OR f.friend.id = :userId) AND f.status = com.codegym.locketclone.friendship.FriendshipStatus.ACCEPTED")
     long countFriends(@Param("userId") UUID userId);
+
+    @Query("""
+            SELECT DISTINCT CASE
+                WHEN f.user.id = :userId THEN f.friend.id
+                ELSE f.user.id
+            END
+            FROM Friendship f
+            WHERE (f.user.id = :userId OR f.friend.id = :userId)
+              AND f.status = com.codegym.locketclone.friendship.FriendshipStatus.ACCEPTED
+            """)
+    List<UUID> findAcceptedFriendIds(@Param("userId") UUID userId);
 }

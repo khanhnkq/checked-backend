@@ -1,12 +1,16 @@
 package com.codegym.locketclone.expense;
 
+import com.codegym.locketclone.user.User;
 import jakarta.persistence.*;
 import lombok.*;
 
 import java.util.UUID;
 
 @Entity
-@Table(name = "categories")
+@Table(
+        name = "categories",
+        uniqueConstraints = @UniqueConstraint(name = "uk_categories_owner_name", columnNames = {"user_id", "name"})
+)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -20,9 +24,21 @@ public class Category {
     @Column(nullable = false, length = 100)
     private String name;
 
-    @Column(name = "icon_name", length = 50)
-    private String iconName;
+    @Column(name = "icon", length = 50)
+    private String icon;
 
-    @Column(name = "color_code", length = 20)
-    private String colorCode;
+    @Column(name = "color", length = 20)
+    private String color;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
+
+    @Builder.Default
+    @Column(name = "is_default", nullable = false)
+    private Boolean isDefault = false;
+
+    @Builder.Default
+    @Column(name = "is_active", nullable = false)
+    private Boolean isActive = true;
 }

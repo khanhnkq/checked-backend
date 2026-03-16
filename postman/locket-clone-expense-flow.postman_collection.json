@@ -1,0 +1,410 @@
+{
+  "info": {
+    "name": "Locket Clone - Expense Flow",
+    "_postman_id": "1af6974c-3d31-4b4d-8c47-9519ee8f4f3f",
+    "description": "Collection test full expense endpoints: categories, budgets, entries, summary, and patch photo expense.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "email", "value": "khanhnguyenkim30825@gmail.com" },
+    { "key": "password", "value": "SnapWidget@123" },
+    { "key": "token", "value": "" },
+    { "key": "monthKey", "value": "202603" },
+    { "key": "budgetAmountLimit", "value": "5000000" },
+    { "key": "budgetAlertThresholdPct", "value": "80" },
+    { "key": "customCategoryName", "value": "Coffee" },
+    { "key": "customCategoryIcon", "value": "coffee" },
+    { "key": "customCategoryColor", "value": "#795548" },
+    { "key": "customCategoryId", "value": "" },
+    { "key": "expenseCategoryId", "value": "" },
+    { "key": "photoId", "value": "" },
+    { "key": "expenseAmount", "value": "65000" },
+    { "key": "expenseNote", "value": "Lunch with team" }
+  ],
+  "item": [
+    {
+      "name": "1. Login",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"identifier\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/login",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "auth", "login"]
+        },
+        "description": "Login first to obtain JWT token for expense endpoints."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "const data = pm.response.json();",
+              "pm.collectionVariables.set('token', data.token || '');",
+              "pm.test('Token exists', function () {",
+              "  pm.expect(data.token).to.be.a('string').and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Get Categories",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            { "key": "token", "value": "{{token}}", "type": "string" }
+          ]
+        },
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/expense/categories",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "expense", "categories"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "const data = pm.response.json();",
+              "pm.test('Categories is array', function () {",
+              "  pm.expect(data).to.be.an('array');",
+              "});",
+              "if (Array.isArray(data) && data.length > 0 && data[0].id) {",
+              "  pm.collectionVariables.set('expenseCategoryId', data[0].id);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Create Custom Category",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            { "key": "token", "value": "{{token}}", "type": "string" }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"{{customCategoryName}}\",\n  \"icon\": \"{{customCategoryIcon}}\",\n  \"color\": \"{{customCategoryColor}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/expense/categories",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "expense", "categories"]
+        },
+        "description": "Create user-owned category. If name duplicated, backend may return 400 CATEGORY_NAME_ALREADY_EXISTS."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 201 or 400', function () {",
+              "  pm.expect([201, 400]).to.include(pm.response.code);",
+              "});",
+              "if (pm.response.code === 201) {",
+              "  const data = pm.response.json();",
+              "  if (data.id) {",
+              "    pm.collectionVariables.set('customCategoryId', data.id);",
+              "    pm.collectionVariables.set('expenseCategoryId', data.id);",
+              "  }",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Update Custom Category",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            { "key": "token", "value": "{{token}}", "type": "string" }
+          ]
+        },
+        "method": "PATCH",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"{{customCategoryName}} Updated\",\n  \"icon\": \"coffee\",\n  \"color\": \"#6D4C41\",\n  \"isActive\": true\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/expense/categories/{{customCategoryId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "expense", "categories", "{{customCategoryId}}"]
+        },
+        "description": "Run after request 3. Skip if customCategoryId is empty."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (!pm.collectionVariables.get('customCategoryId')) {",
+              "  pm.test('Skip when customCategoryId missing', function () {",
+              "    pm.expect(true).to.eql(true);",
+              "  });",
+              "} else {",
+              "  pm.test('Status is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Upsert Monthly Budget",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            { "key": "token", "value": "{{token}}", "type": "string" }
+          ]
+        },
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"amountLimit\": {{budgetAmountLimit}},\n  \"alertThresholdPct\": {{budgetAlertThresholdPct}}\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/expense/budgets/{{monthKey}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "expense", "budgets", "{{monthKey}}"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Get Monthly Budget",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            { "key": "token", "value": "{{token}}", "type": "string" }
+          ]
+        },
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/expense/budgets/{{monthKey}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "expense", "budgets", "{{monthKey}}"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Get My Photos (for photoId)",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            { "key": "token", "value": "{{token}}", "type": "string" }
+          ]
+        },
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/photos/me?page=0&size=20",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "photos", "me"],
+          "query": [
+            { "key": "page", "value": "0" },
+            { "key": "size", "value": "20" }
+          ]
+        },
+        "description": "Capture first photoId from current user to run PATCH /photos/{photoId}/expense."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "const data = pm.response.json();",
+              "const first = data && data.content && data.content.length ? data.content[0] : null;",
+              "if (first && first.id) {",
+              "  pm.collectionVariables.set('photoId', first.id);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. Patch Photo Expense",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            { "key": "token", "value": "{{token}}", "type": "string" }
+          ]
+        },
+        "method": "PATCH",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"amount\": {{expenseAmount}},\n  \"note\": \"{{expenseNote}}\",\n  \"categoryId\": \"{{expenseCategoryId}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/photos/{{photoId}}/expense",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "photos", "{{photoId}}", "expense"]
+        },
+        "description": "Run request 7 first so photoId is not empty."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (!pm.collectionVariables.get('photoId')) {",
+              "  pm.test('Skip when photoId missing', function () {",
+              "    pm.expect(true).to.eql(true);",
+              "  });",
+              "} else {",
+              "  pm.test('Status is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "9. Get Expense Entries",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            { "key": "token", "value": "{{token}}", "type": "string" }
+          ]
+        },
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/expense/entries?monthKey={{monthKey}}&page=0&size=20",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "expense", "entries"],
+          "query": [
+            { "key": "monthKey", "value": "{{monthKey}}" },
+            { "key": "page", "value": "0" },
+            { "key": "size", "value": "20" }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10. Get Expense Summary",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            { "key": "token", "value": "{{token}}", "type": "string" }
+          ]
+        },
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/expense/summary?monthKey={{monthKey}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "expense", "summary"],
+          "query": [
+            { "key": "monthKey", "value": "{{monthKey}}" }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+

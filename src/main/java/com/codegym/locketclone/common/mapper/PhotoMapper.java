@@ -3,12 +3,32 @@ package com.codegym.locketclone.common.mapper;
 
 import com.codegym.locketclone.photo.Photo;
 import com.codegym.locketclone.photo.dto.PhotoResponse;
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
-import org.mapstruct.MappingConstants;
+import org.springframework.stereotype.Component;
 
-@Mapper(componentModel = MappingConstants.ComponentModel.SPRING)
-public interface PhotoMapper {
-    @Mapping(source = "sender.id", target = "senderId")
-    PhotoResponse toResponse(Photo photo);
+@Component
+public class PhotoMapper {
+    public PhotoResponse toResponse(Photo photo) {
+        return PhotoResponse.builder()
+                .id(photo.getId())
+                .senderId(photo.getSender().getId())
+                .senderDisplayName(photo.getSender().getDisplayName())
+                .senderAvatarUrl(photo.getSender().getAvatarUrl())
+                .imageUrl(photo.getImageUrl())
+                .thumbnailUrl(photo.getThumbnailUrl())
+                .caption(photo.getCaption())
+                .note(photo.getNote())
+                .amount(photo.getAmount())
+                .categoryId(photo.getCategory() != null ? photo.getCategory().getId() : null)
+                .categoryName(photo.getCategory() != null ? photo.getCategory().getName() : null)
+                .recipientScope(photo.getRecipientScope())
+                .recipientCount(photo.getRecipientCount())
+                .status(photo.getStatus())
+                .mimeType(photo.getMimeType())
+                .fileSize(photo.getFileSize())
+                .width(photo.getWidth())
+                .height(photo.getHeight())
+                .takenAt(photo.getTakenAt())
+                .createdAt(photo.getCreatedAt())
+                .build();
+    }
 }

@@ -656,3 +656,287 @@ Authorization: Bearer <JWT_TOKEN>
   "avatarUrl": "https://example.com/avatar.jpg"
 }
 ```
+
+---
+
+# 11. Photo send flow
+
+## Mục tiêu flow
+
+```text
+Login -> Capture Photo -> Choose audience (ALL_FRIENDS | SELECTED_FRIENDS) -> Optional amount -> Send -> Feed/My Photos
+```
+
+## Protected endpoints
+
+Tất cả API ảnh đều cần:
+
+```http
+Authorization: Bearer <JWT_TOKEN>
+```
+
+## `POST /api/v1/photos`
+
+### Content-Type
+
+```http
+multipart/form-data
+```
+
+### Form fields
+- `file`: bắt buộc, chỉ nhận `image/jpeg | image/png | image/webp`
+- `caption`: optional
+- `amount`: optional, số >= 0
+- `recipientScope`: optional, `ALL_FRIENDS | SELECTED_FRIENDS`
+- `audienceMode`: optional alias của `recipientScope` cho FE cũ
+- `recipientIds`: optional list UUID, bắt buộc khi `recipientScope=SELECTED_FRIENDS`
+- `takenAt`: optional, ISO datetime
+
+### Rule
+- nếu không truyền `recipientScope`/`audienceMode`, backend mặc định `ALL_FRIENDS`
+- backend luôn tự thêm chính sender vào danh sách recipients
+- `ALL_FRIENDS`: backend tự lấy toàn bộ bạn bè `ACCEPTED`, sau đó cộng thêm sender; nếu hiện chưa có bạn bè thì request vẫn thành công với `recipientCount = 1`
+- `SELECTED_FRIENDS`: chỉ chấp nhận `recipientIds` thuộc tập bạn bè `ACCEPTED`; sender vẫn được thêm tự động dù FE không truyền lên
+
+### Success response
+
+```json
+{
+  "id": "photo-uuid",
+  "senderId": "sender-uuid",
+  "senderDisplayName": "Khánh Nguyễn Kim",
+  "senderAvatarUrl": null,
+  "imageUrl": "https://res.cloudinary.com/.../photo.jpg",
+  "thumbnailUrl": "https://res.cloudinary.com/.../photo.jpg",
+  "caption": "Cafe sáng",
+  "amount": 45000,
+  "recipientScope": "ALL_FRIENDS",
+  "recipientCount": 3,
+  "status": "READY",
+  "mimeType": "image/jpeg",
+  "fileSize": 12345,
+  "width": 1080,
+  "height": 1920,
+  "takenAt": "2026-03-12T10:30:00",
+  "createdAt": "2026-03-12T10:30:01"
+}
+```
+
+### Error responses
+- `400`: `Ảnh tải lên không hợp lệ`
+- `400`: `Số tiền phải lớn hơn hoặc bằng 0`
+- `400`: `Vui lòng chọn ít nhất một người nhận`
+- `400`: `Danh sách người nhận không hợp lệ hoặc chưa là bạn bè`
+- `401`: token thiếu/sai
+
+## `GET /api/v1/photos/feed`
+
+Trả ảnh mà current user là recipient. Vì sender luôn là recipient, user cũng sẽ thấy chính ảnh mình vừa gửi trong feed nếu app dùng endpoint này.
+
+## `GET /api/v1/photos/{photoId}`
+
+Trả chi tiết của một ảnh nếu current user có quyền xem ảnh đó.
+
+### Rule truy cập
+- cho phép nếu current user là `sender`
+- cho phép nếu current user nằm trong `photo_recipients`
+- nếu ảnh không tồn tại, đã bị `DELETED`, hoặc current user không có quyền xem thì backend trả `404` để tránh lộ sự tồn tại của ảnh
+
+### Success response
+
+```json
+{
+  "id": "photo-uuid",
+  "senderId": "sender-uuid",
+  "senderDisplayName": "Khánh Nguyễn Kim",
+  "senderAvatarUrl": null,
+  "imageUrl": "https://res.cloudinary.com/.../photo.jpg",
+  "thumbnailUrl": "https://res.cloudinary.com/.../photo.jpg",
+  "caption": "Cafe sáng",
+  "amount": 45000,
+  "recipientScope": "SELECTED_FRIENDS",
+  "recipientCount": 2,
+  "status": "READY",
+  "mimeType": "image/jpeg",
+  "fileSize": 12345,
+  "width": 1080,
+  "height": 1920,
+  "takenAt": "2026-03-12T10:30:00",
+  "createdAt": "2026-03-12T10:30:01"
+}
+```
+
+### Error responses
+- `401`: token thiếu/sai
+- `404`: `Không tìm thấy ảnh`
+
+## `GET /api/v1/photos/my-photos`
+## `GET /api/v1/photos/me`
+
+Hai endpoint này cùng trả lịch sử ảnh user đã gửi.
+
+### Feed/My Photos response item
+
+```json
+{
+  "id": "photo-uuid",
+  "senderId": "sender-uuid",
+  "senderDisplayName": "Khánh Nguyễn Kim",
+  "senderAvatarUrl": null,
+  "imageUrl": "https://res.cloudinary.com/.../photo.jpg",
+  "thumbnailUrl": "https://res.cloudinary.com/.../photo.jpg",
+  "caption": "Cafe sáng",
+  "amount": 45000,
+  "recipientScope": "SELECTED_FRIENDS",
+  "recipientCount": 2,
+  "status": "READY",
+  "mimeType": "image/jpeg",
+  "fileSize": 12345,
+  "width": 1080,
+  "height": 1920,
+  "takenAt": "2026-03-12T10:30:00",
+  "createdAt": "2026-03-12T10:30:01"
+}
+```
+
+## `PATCH /api/v1/photos/{photoId}/expense`
+
+Cho phép chủ ảnh cập nhật metadata chi tiêu sau khi đã upload.
+
+### Request
+
+```http
+PATCH /api/v1/photos/{photoId}/expense
+Authorization: Bearer <JWT_TOKEN>
+Content-Type: application/json
+```
+
+```json
+{
+  "amount": 65000,
+  "note": "Lunch with team",
+  "categoryId": "0f663a5a-9a62-45a8-9f48-afe8ed3ca5ec"
+}
+```
+
+### Rule
+- chỉ chủ ảnh mới được cập nhật
+- `amount` nếu gửi lên phải >= 0
+- `categoryId` phải là category đang active và user có quyền dùng (default hoặc own)
+
+---
+
+# 12. Expense module (expanded)
+
+Base path: `/api/v1/expense`
+
+## `GET /api/v1/expense/categories`
+
+Trả danh sách category đang active gồm:
+- category hệ thống mặc định (`isDefault=true`, `user_id=null`)
+- category riêng của current user (`isDefault=false`)
+
+### Response item
+
+```json
+{
+  "id": "uuid",
+  "name": "Food",
+  "icon": "restaurant",
+  "color": "#FF8A65",
+  "isDefault": true,
+  "isActive": true
+}
+```
+
+## `POST /api/v1/expense/categories`
+
+Tạo category cá nhân.
+
+```json
+{
+  "name": "Coffee",
+  "icon": "coffee",
+  "color": "#795548"
+}
+```
+
+## `PATCH /api/v1/expense/categories/{categoryId}`
+
+Update category cá nhân (không update category mặc định hệ thống).
+
+```json
+{
+  "name": "Cafe",
+  "icon": "coffee",
+  "color": "#6D4C41",
+  "isActive": true
+}
+```
+
+## `GET /api/v1/expense/budgets/{monthKey}`
+
+`monthKey` theo định dạng `yyyyMM`, ví dụ `202603`.
+
+```json
+{
+  "monthKey": "202603",
+  "amountLimit": 5000000,
+  "alertThresholdPct": 80,
+  "spent": 1250000,
+  "remaining": 3750000,
+  "exceeded": false
+}
+```
+
+Nếu chưa set budget, `amountLimit/alertThresholdPct/remaining` sẽ là `null`.
+
+## `PUT /api/v1/expense/budgets/{monthKey}`
+
+```json
+{
+  "amountLimit": 5000000,
+  "alertThresholdPct": 80
+}
+```
+
+## `GET /api/v1/expense/entries?monthKey=202603`
+
+Trả page các khoản chi (dữ liệu lấy từ photo có `amount > 0`).
+
+### Response item
+
+```json
+{
+  "photoId": "uuid",
+  "imageUrl": "https://...",
+  "thumbnailUrl": "https://...",
+  "amount": 65000,
+  "note": "Lunch with team",
+  "categoryId": "uuid",
+  "categoryName": "Food",
+  "takenAt": "2026-03-16T12:30:00",
+  "createdAt": "2026-03-16T12:30:02"
+}
+```
+
+## `GET /api/v1/expense/summary?monthKey=202603`
+
+```json
+{
+  "monthKey": "202603",
+  "totalSpent": 1250000,
+  "budgetLimit": 5000000,
+  "remaining": 3750000,
+  "budgetExceeded": false,
+  "percentUsed": 25,
+  "byCategory": [
+    {
+      "categoryId": "uuid",
+      "categoryName": "Food",
+      "totalAmount": 650000
+    }
+  ]
+}
+```
+

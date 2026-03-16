@@ -1,10 +1,14 @@
 package com.codegym.locketclone.photo;
 
 import com.codegym.locketclone.photo.dto.PhotoResponse;
+import com.codegym.locketclone.photo.dto.UpdatePhotoExpenseRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 public interface PhotoService {
@@ -14,5 +18,17 @@ public interface PhotoService {
 
     Page<PhotoResponse> getMyPhotos(UUID userId, Pageable pageable);
 
-    PhotoResponse uploadPhoto(MultipartFile file, String caption, UUID senderId);
+    PhotoResponse getPhotoDetail(UUID userId, UUID photoId);
+
+    PhotoResponse uploadPhoto(MultipartFile file,
+                              String caption,
+                              BigDecimal amount,
+                              String note,
+                              UUID categoryId,
+                              RecipientScope recipientScope,
+                              List<UUID> recipientIds,
+                              LocalDateTime takenAt,
+                              UUID senderId);
+
+    PhotoResponse updatePhotoExpense(UUID userId, UUID photoId, UpdatePhotoExpenseRequest request);
 }

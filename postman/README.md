@@ -2,6 +2,7 @@
 
 ## Files
 - `locket-clone-auth-flow.postman_collection.json`
+- `locket-clone-expense-flow.postman_collection.json`
 - `locket-clone-local.postman_environment.json`
 
 ## Biến mặc định
@@ -23,4 +24,38 @@
 - Request `Verify OTP` và `Login` sẽ tự lưu `token` vào collection variable.
 - Nếu `Register` trả 400 vì email/username đã tồn tại, đổi `username` hoặc dùng account mới rồi chạy lại.
 - Nếu `Login` trả 403, nghĩa là account chưa verify OTP.
+
+---
+
+# Postman flow cho Expense module
+
+## Collection
+- `locket-clone-expense-flow.postman_collection.json`
+
+## Endpoints duoc cover
+- `GET /api/v1/expense/categories`
+- `POST /api/v1/expense/categories`
+- `PATCH /api/v1/expense/categories/{categoryId}`
+- `PUT /api/v1/expense/budgets/{monthKey}`
+- `GET /api/v1/expense/budgets/{monthKey}`
+- `GET /api/v1/expense/entries?monthKey=...`
+- `GET /api/v1/expense/summary?monthKey=...`
+- `PATCH /api/v1/photos/{photoId}/expense`
+
+## Thu tu chay de test full flow
+1. `1. Login`
+2. `2. Get Categories`
+3. `3. Create Custom Category`
+4. `4. Update Custom Category`
+5. `5. Upsert Monthly Budget`
+6. `6. Get Monthly Budget`
+7. `7. Get My Photos (for photoId)`
+8. `8. Patch Photo Expense`
+9. `9. Get Expense Entries`
+10. `10. Get Expense Summary`
+
+## Luu y bien
+- `monthKey`: dinh dang `yyyyMM`, vi du `202603`
+- `photoId`: request 7 se tu dong set tu anh dau tien trong `/photos/me`
+- `expenseCategoryId`: request 2 (hoac 3) se tu dong set
 

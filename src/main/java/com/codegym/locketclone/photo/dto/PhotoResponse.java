@@ -1,8 +1,8 @@
 package com.codegym.locketclone.photo.dto;
 
-import com.codegym.locketclone.expense.dto.CategoryResponse;
-import com.codegym.locketclone.user.User;
-import lombok.*;
+import com.codegym.locketclone.photo.PhotoStatus;
+import com.codegym.locketclone.photo.RecipientScope;
+import lombok.Builder;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -12,11 +12,22 @@ import java.util.UUID;
 public record PhotoResponse(
         UUID id,
         UUID senderId,
+        String senderDisplayName,
+        String senderAvatarUrl,
         String imageUrl,
+        String thumbnailUrl,
         String caption,
-        LocalDateTime createdAt,
-
+        String note,
         BigDecimal amount,
-        Boolean isPrivate,
-        CategoryResponse category
+        UUID categoryId,
+        String categoryName,
+        RecipientScope recipientScope,
+        Integer recipientCount,
+        PhotoStatus status,
+        String mimeType,
+        Long fileSize,
+        Integer width,
+        Integer height,
+        LocalDateTime takenAt,
+        LocalDateTime createdAt
 ) {}

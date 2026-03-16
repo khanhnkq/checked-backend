@@ -5,7 +5,9 @@ import java.util.UUID;
 public record CategoryResponse(
         UUID id,
         String name,
-        String iconName,
-        String colorCode
+        String icon,
+        String color,
+        Boolean isDefault,
+        Boolean isActive
 ){
 }
