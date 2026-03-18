@@ -4,6 +4,7 @@ import com.codegym.locketclone.photo.dto.PhotoResponse;
 import com.codegym.locketclone.photo.dto.UpdatePhotoExpenseRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
@@ -14,7 +15,7 @@ import java.util.UUID;
 public interface PhotoService {
 
     // Lấy danh sách ảnh mới nhất từ bạn bè để hiển thị trên Widget
-    Page<PhotoResponse> getFeedPhotos(UUID userId, Pageable pageable);
+    Slice<PhotoResponse> getFeedPhotos(UUID userId, Pageable pageable);
 
     Page<PhotoResponse> getMyPhotos(UUID userId, Pageable pageable);
 

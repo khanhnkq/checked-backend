@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.Slice;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -77,11 +78,11 @@ public class PhotoController {
     }
 
     @GetMapping("/feed")
-    public ResponseEntity<Page<PhotoResponse>> getFeedPhotos(
+    public ResponseEntity<Slice<PhotoResponse>> getFeedPhotos(
             @AuthenticationPrincipal UserPrincipal currentUser,
             @PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        Page<PhotoResponse> myPhotos = photoService.getFeedPhotos(currentUser.getId(), pageable);
-        return ResponseEntity.status(HttpStatus.OK).body(myPhotos);
+        Slice<PhotoResponse> feedPhotos = photoService.getFeedPhotos(currentUser.getId(), pageable);
+        return ResponseEntity.status(HttpStatus.OK).body(feedPhotos);
     }
 
     @PatchMapping("/{photoId}/expense")

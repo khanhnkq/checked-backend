@@ -15,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -43,7 +44,7 @@ public class PhotoServiceImpl implements PhotoService {
 
     @Override
     @Transactional
-    public Page<PhotoResponse> getFeedPhotos(UUID userId, Pageable pageable) {
+    public Slice<PhotoResponse> getFeedPhotos(UUID userId, Pageable pageable) {
         ensureUserExists(userId);
         return photoRepository.findFeedPhotos(userId, PhotoStatus.DELETED, pageable).map(photoMapper::toResponse);
     }
