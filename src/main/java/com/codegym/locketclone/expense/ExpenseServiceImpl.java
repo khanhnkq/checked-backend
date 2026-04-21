@@ -110,8 +110,8 @@ public class ExpenseServiceImpl implements ExpenseService {
         YearMonth yearMonth = parseMonthKey(monthKey);
         MonthRange monthRange = monthRange(yearMonth);
 
-        BigDecimal spent = safeAmount(photoRepository.sumExpenseAmountBySenderAndMonth(
-                userId, PhotoStatus.DELETED, monthRange.fromDate(), monthRange.toDate()
+        BigDecimal spent = safeAmount(photoRepository.sumTransactionAmountBySenderAndMonth(
+                userId, PhotoStatus.DELETED, TransactionType.EXPENSE, monthRange.fromDate(), monthRange.toDate()
         ));
 
         Budget budget = budgetRepository.findByUser_IdAndMonthKey(userId, yearMonth.format(MONTH_KEY_FORMATTER))
@@ -171,13 +171,20 @@ public class ExpenseServiceImpl implements ExpenseService {
     @Override
     @Transactional
     public Page<ExpenseItemResponse> getExpenseEntries(UUID userId, String monthKey, Pageable pageable) {
+        return getExpenseEntries(userId, monthKey, TransactionType.EXPENSE, pageable);
+    }
+
+    @Override
+    @Transactional
+    public Page<ExpenseItemResponse> getExpenseEntries(UUID userId, String monthKey, TransactionType type, Pageable pageable) {
         ensureUserExists(userId);
         YearMonth yearMonth = parseMonthKey(monthKey);
         MonthRange monthRange = monthRange(yearMonth);
 
-        return photoRepository.findExpensePhotosBySenderAndMonth(
+        return photoRepository.findTransactionPhotosBySenderAndMonth(
                         userId,
                         PhotoStatus.DELETED,
+                        type,
                         monthRange.fromDate(),
                         monthRange.toDate(),
                         pageable
@@ -193,8 +200,8 @@ public class ExpenseServiceImpl implements ExpenseService {
         MonthRange monthRange = monthRange(yearMonth);
         String normalizedMonthKey = yearMonth.format(MONTH_KEY_FORMATTER);
 
-        BigDecimal totalSpent = safeAmount(photoRepository.sumExpenseAmountBySenderAndMonth(
-                userId, PhotoStatus.DELETED, monthRange.fromDate(), monthRange.toDate()
+        BigDecimal totalSpent = safeAmount(photoRepository.sumTransactionAmountBySenderAndMonth(
+                userId, PhotoStatus.DELETED, TransactionType.EXPENSE, monthRange.fromDate(), monthRange.toDate()
         ));
 
         Budget budget = budgetRepository.findByUser_IdAndMonthKey(userId, normalizedMonthKey).orElse(null);
@@ -211,7 +218,7 @@ public class ExpenseServiceImpl implements ExpenseService {
         }
 
         List<CategorySpendResponse> byCategory = photoRepository
-                .summarizeExpenseByCategory(userId, PhotoStatus.DELETED, monthRange.fromDate(), monthRange.toDate())
+                .summarizeTransactionByCategory(userId, PhotoStatus.DELETED, TransactionType.EXPENSE, monthRange.fromDate(), monthRange.toDate())
                 .stream()
                 .map(this::toCategorySpendResponse)
                 .toList();
@@ -224,6 +231,68 @@ public class ExpenseServiceImpl implements ExpenseService {
                 budgetExceeded,
                 percentUsed,
                 byCategory
+        );
+    }
+
+    @Override
+    @Transactional
+    public CashflowSummaryResponse getCashflowSummary(UUID userId, String monthKey) {
+        ensureUserExists(userId);
+        YearMonth yearMonth = parseMonthKey(monthKey);
+        MonthRange monthRange = monthRange(yearMonth);
+        String normalizedMonthKey = yearMonth.format(MONTH_KEY_FORMATTER);
+
+        // Income
+        BigDecimal totalIncome = safeAmount(photoRepository.sumTransactionAmountBySenderAndMonth(
+                userId, PhotoStatus.DELETED, TransactionType.INCOME, monthRange.fromDate(), monthRange.toDate()
+        ));
+
+        // Expense
+        BigDecimal totalExpense = safeAmount(photoRepository.sumTransactionAmountBySenderAndMonth(
+                userId, PhotoStatus.DELETED, TransactionType.EXPENSE, monthRange.fromDate(), monthRange.toDate()
+        ));
+
+        // Cashflow
+        BigDecimal netCashflow = totalIncome.subtract(totalExpense);
+
+        // Budget
+        Budget budget = budgetRepository.findByUser_IdAndMonthKey(userId, normalizedMonthKey).orElse(null);
+        BigDecimal budgetLimit = budget != null ? budget.getAmountLimit() : null;
+        BigDecimal budgetRemaining = budgetLimit != null ? budgetLimit.subtract(totalExpense) : null;
+        boolean budgetExceeded = budgetRemaining != null && budgetRemaining.signum() < 0;
+
+        Integer budgetUsedPct = null;
+        if (budgetLimit != null && budgetLimit.signum() > 0) {
+            BigDecimal rawPercent = totalExpense
+                    .multiply(BigDecimal.valueOf(100))
+                    .divide(budgetLimit, 0, RoundingMode.HALF_UP);
+            budgetUsedPct = rawPercent.intValue();
+        }
+
+        // By category
+        List<CategorySpendResponse> incomeByCategory = photoRepository
+                .summarizeTransactionByCategory(userId, PhotoStatus.DELETED, TransactionType.INCOME, monthRange.fromDate(), monthRange.toDate())
+                .stream()
+                .map(this::toCategorySpendResponse)
+                .toList();
+
+        List<CategorySpendResponse> expenseByCategory = photoRepository
+                .summarizeTransactionByCategory(userId, PhotoStatus.DELETED, TransactionType.EXPENSE, monthRange.fromDate(), monthRange.toDate())
+                .stream()
+                .map(this::toCategorySpendResponse)
+                .toList();
+
+        return new CashflowSummaryResponse(
+                normalizedMonthKey,
+                totalIncome,
+                totalExpense,
+                netCashflow,
+                budgetLimit,
+                budgetRemaining,
+                budgetUsedPct,
+                budgetExceeded,
+                incomeByCategory,
+                expenseByCategory
         );
     }
 

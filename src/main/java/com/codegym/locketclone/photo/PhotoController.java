@@ -1,6 +1,9 @@
 package com.codegym.locketclone.photo;
 
 import com.codegym.locketclone.photo.dto.PhotoResponse;
+import com.codegym.locketclone.photo.dto.PhotoReactionResponse;
+import com.codegym.locketclone.photo.dto.PhotoReactionSummaryResponse;
+import com.codegym.locketclone.photo.dto.UpsertPhotoReactionRequest;
 import com.codegym.locketclone.photo.dto.UpdatePhotoExpenseRequest;
 import com.codegym.locketclone.security.service.UserPrincipal;
 import jakarta.validation.Valid;
@@ -80,8 +83,9 @@ public class PhotoController {
     @GetMapping("/feed")
     public ResponseEntity<Slice<PhotoResponse>> getFeedPhotos(
             @AuthenticationPrincipal UserPrincipal currentUser,
+            @RequestParam(value = "friendId", required = false) UUID friendId,
             @PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        Slice<PhotoResponse> feedPhotos = photoService.getFeedPhotos(currentUser.getId(), pageable);
+        Slice<PhotoResponse> feedPhotos = photoService.getFeedPhotos(currentUser.getId(), friendId, pageable);
         return ResponseEntity.status(HttpStatus.OK).body(feedPhotos);
     }
 
@@ -92,6 +96,34 @@ public class PhotoController {
             @Valid @RequestBody UpdatePhotoExpenseRequest request
     ) {
         PhotoResponse response = photoService.updatePhotoExpense(currentUser.getId(), photoId, request);
+        return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/{photoId}/reactions/me")
+    public ResponseEntity<PhotoReactionResponse> upsertMyReaction(
+            @PathVariable UUID photoId,
+            @AuthenticationPrincipal UserPrincipal currentUser,
+            @Valid @RequestBody UpsertPhotoReactionRequest request
+    ) {
+        PhotoReactionResponse response = photoService.upsertReaction(currentUser.getId(), photoId, request);
+        return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/{photoId}/reactions/me")
+    public ResponseEntity<Void> removeMyReaction(
+            @PathVariable UUID photoId,
+            @AuthenticationPrincipal UserPrincipal currentUser
+    ) {
+        photoService.removeReaction(currentUser.getId(), photoId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{photoId}/reactions/summary")
+    public ResponseEntity<PhotoReactionSummaryResponse> getReactionSummary(
+            @PathVariable UUID photoId,
+            @AuthenticationPrincipal UserPrincipal currentUser
+    ) {
+        PhotoReactionSummaryResponse response = photoService.getReactionSummary(currentUser.getId(), photoId);
         return ResponseEntity.ok(response);
     }
 }

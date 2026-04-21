@@ -3,6 +3,7 @@
 ## Files
 - `locket-clone-auth-flow.postman_collection.json`
 - `locket-clone-expense-flow.postman_collection.json`
+- `locket-clone-friend-invite-flow.postman_collection.json`
 - `locket-clone-local.postman_environment.json`
 
 ## Biến mặc định
@@ -58,4 +59,36 @@
 - `monthKey`: dinh dang `yyyyMM`, vi du `202603`
 - `photoId`: request 7 se tu dong set tu anh dau tien trong `/photos/me`
 - `expenseCategoryId`: request 2 (hoac 3) se tu dong set
+
+---
+
+# Postman flow cho Friend Invite Link module
+
+## Collection
+- `locket-clone-friend-invite-flow.postman_collection.json`
+
+## Endpoints duoc cover
+- `POST /api/v1/friend-invite-links`
+- `GET /api/v1/friend-invite-links/current`
+- `DELETE /api/v1/friend-invite-links/current`
+- `POST /api/v1/friend-invite-links/accept`
+
+## Thu tu chay de test full flow
+1. `1. Login owner A`
+2. `2. Create or rotate invite link (A)`
+3. `3. Get current invite link (A)`
+4. `4. Login user B`
+5. `5. Accept link by user B (happy path)`
+6. `6. Accept invalid token (expect 400)`
+7. `7. Revoke current link (A)`
+8. `8. Accept revoked token (expect 410)`
+
+## Hardening cases (manual prep)
+- `9. Accept expired token (manual prep, expect 410)`
+- `10. Accept max uses reached (manual prep, expect 409)`
+
+## Luu y
+- Collection dung hai account: owner A va user B.
+- User B can ton tai va da verify OTP truoc khi chay step 4.
+- Step 9/10 can update DB truoc khi chay request (da ghi SQL mau trong description cua request).
 

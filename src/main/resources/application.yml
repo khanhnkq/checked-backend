@@ -8,6 +8,10 @@ locket:
   mail:
     from: ${MAIL_FROM:${MAIL_USERNAME}}
 
+app:
+  friend-invite:
+    base-url: ${FRIEND_INVITE_BASE_URL:https://192.168.1.143/friend/accept}
+
 cloudinary:
   cloud-name: ${CLOUDINARY_CLOUD_NAME}
   api-key: ${CLOUDINARY_API_KEY}
@@ -16,11 +20,19 @@ cloudinary:
 spring:
   application:
     name: locket-clone-api
+  main:
+    lazy-initialization: ${SPRING_LAZY_INIT:true}
   datasource:
     url: ${DB_URL}
     username: ${DB_USER}
     password: ${DB_PASS}
     driver-class-name: org.postgresql.Driver
+  docker:
+    compose:
+      enabled: ${SPRING_DOCKER_COMPOSE_ENABLED:true}
+  devtools:
+    restart:
+      enabled: ${SPRING_DEVTOOLS_RESTART_ENABLED:false}
   mail:
     host: ${MAIL_HOST}
     port: ${MAIL_PORT:587}
@@ -38,10 +50,10 @@ spring:
           writetimeout: ${MAIL_SMTP_WRITE_TIMEOUT:5000}
 
   jpa:
-    show-sql: true
+    show-sql: ${JPA_SHOW_SQL:false}
     properties:
       hibernate:
-        format_sql: true
+        format_sql: ${JPA_FORMAT_SQL:false}
     hibernate:
       ddl-auto: validate
 
@@ -53,3 +65,8 @@ spring:
     multipart:
       max-file-size: 10MB
       max-request-size: 10MB
+
+logging:
+  level:
+    org.hibernate.SQL: ${LOG_SQL_LEVEL:WARN}
+    org.hibernate.orm.jdbc.bind: ${LOG_SQL_BIND_LEVEL:WARN}

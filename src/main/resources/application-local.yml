@@ -1,0 +1,27 @@
+# Lightweight local profile for development
+# Activate with: SPRING_PROFILES_ACTIVE=local
+
+spring:
+  main:
+    lazy-initialization: true
+
+  docker:
+    compose:
+      enabled: true
+
+  devtools:
+    restart:
+      enabled: false
+
+  jpa:
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+
+logging:
+  level:
+    root: INFO
+    org.hibernate.SQL: WARN
+    org.hibernate.orm.jdbc.bind: WARN
+

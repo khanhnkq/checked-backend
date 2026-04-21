@@ -22,6 +22,11 @@ public enum ErrorCode {
     CATEGORY_NAME_ALREADY_EXISTS(HttpStatus.BAD_REQUEST, "Tên danh mục đã tồn tại"),
     RECIPIENTS_REQUIRED(HttpStatus.BAD_REQUEST, "Vui lòng chọn ít nhất một người nhận"),
     INVALID_RECIPIENT_SELECTION(HttpStatus.BAD_REQUEST, "Danh sách người nhận không hợp lệ hoặc chưa là bạn bè"),
+    INVALID_FRIEND_INVITE_TTL(HttpStatus.BAD_REQUEST, "TTL của link kết bạn không hợp lệ"),
+    INVALID_FRIEND_INVITE_TOKEN(HttpStatus.BAD_REQUEST, "Token link kết bạn không hợp lệ"),
+    CANNOT_ADD_SELF_AS_FRIEND(HttpStatus.BAD_REQUEST, "Bạn không thể tự kết bạn với chính mình"),
+    INVALID_REACTION_TYPE(HttpStatus.BAD_REQUEST, "Loại reaction không hợp lệ"),
+    CANNOT_REACT_OWN_PHOTO(HttpStatus.BAD_REQUEST, "Bạn không thể reaction ảnh của chính mình"),
 
     // 401 Unauthorized
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "Bạn chưa đăng nhập hoặc token không hợp lệ"),
@@ -34,6 +39,11 @@ public enum ErrorCode {
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy người dùng"),
     PHOTO_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy ảnh"),
     CATEGORY_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy danh mục"),
+    FRIEND_INVITE_LINK_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy link mời kết bạn đang hoạt động"),
+    FRIEND_INVITE_LINK_EXPIRED(HttpStatus.GONE, "Link mời kết bạn đã hết hạn"),
+    FRIEND_INVITE_LINK_REVOKED(HttpStatus.GONE, "Link mời kết bạn đã bị thu hồi"),
+    FRIEND_INVITE_LINK_MAX_USES_REACHED(HttpStatus.CONFLICT, "Link mời kết bạn đã đạt số lượt sử dụng tối đa"),
+    FRIEND_ALREADY_EXISTS(HttpStatus.CONFLICT, "Hai người dùng đã là bạn bè"),
 
     // 500 Internal Server Error
     UNCATEGORIZED_EXCEPTION(HttpStatus.INTERNAL_SERVER_ERROR, "Lỗi hệ thống không xác định");

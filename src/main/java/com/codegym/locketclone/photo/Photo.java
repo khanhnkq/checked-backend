@@ -1,6 +1,7 @@
 package com.codegym.locketclone.photo;
 
 import com.codegym.locketclone.expense.Category;
+import com.codegym.locketclone.expense.TransactionType;
 import com.codegym.locketclone.user.User;
 import jakarta.persistence.*;
 import lombok.*;
@@ -20,6 +21,14 @@ import java.util.UUID;
 @Builder
 @EntityListeners(AuditingEntityListener.class)
 public class Photo {
+    // ...existing code...
+
+    @PrePersist
+    protected void ensureOccurredAt() {
+        if (this.occurredAt == null) {
+            this.occurredAt = this.takenAt != null ? this.takenAt : LocalDateTime.now();
+        }
+    }
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
@@ -77,6 +86,14 @@ public class Photo {
 
     @Column(name = "taken_at")
     private LocalDateTime takenAt;
+
+    @Column(name = "occurred_at", nullable = false)
+    private LocalDateTime occurredAt;
+
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(name = "transaction_type", nullable = false, length = 20)
+    private TransactionType transactionType = TransactionType.EXPENSE;
 
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)

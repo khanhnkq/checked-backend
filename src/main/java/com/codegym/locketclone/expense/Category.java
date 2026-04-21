@@ -41,4 +41,9 @@ public class Category {
     @Builder.Default
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
+
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(name = "transaction_type", nullable = false, length = 20)
+    private TransactionType transactionType = TransactionType.EXPENSE;
 }

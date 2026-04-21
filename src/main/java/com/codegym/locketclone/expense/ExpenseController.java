@@ -65,9 +65,13 @@ public class ExpenseController {
     public ResponseEntity<Page<ExpenseItemResponse>> getExpenseEntries(
             @AuthenticationPrincipal UserPrincipal currentUser,
             @RequestParam String monthKey,
+            @RequestParam(required = false) TransactionType type,
             @PageableDefault(size = 20) Pageable pageable
     ) {
-        return ResponseEntity.ok(expenseService.getExpenseEntries(currentUser.getId(), monthKey, pageable));
+        if (type == null) {
+            return ResponseEntity.ok(expenseService.getExpenseEntries(currentUser.getId(), monthKey, pageable));
+        }
+        return ResponseEntity.ok(expenseService.getExpenseEntries(currentUser.getId(), monthKey, type, pageable));
     }
 
     @GetMapping("/summary")
@@ -76,6 +80,14 @@ public class ExpenseController {
             @RequestParam String monthKey
     ) {
         return ResponseEntity.ok(expenseService.getExpenseSummary(currentUser.getId(), monthKey));
+    }
+
+    @GetMapping("/cashflow")
+    public ResponseEntity<CashflowSummaryResponse> getCashflowSummary(
+            @AuthenticationPrincipal UserPrincipal currentUser,
+            @RequestParam String monthKey
+    ) {
+        return ResponseEntity.ok(expenseService.getCashflowSummary(currentUser.getId(), monthKey));
     }
 }
 

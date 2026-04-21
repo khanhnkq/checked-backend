@@ -13,6 +13,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.SliceImpl;
 import org.springframework.mock.web.MockMultipartFile;
 
 import java.math.BigDecimal;
@@ -24,6 +26,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -37,6 +40,8 @@ class PhotoServiceImplTest {
     private PhotoRepository photoRepository;
     @Mock
     private PhotoRecipientRepository photoRecipientRepository;
+    @Mock
+    private PhotoReactionRepository photoReactionRepository;
     @Mock
     private UserRepository userRepository;
     @Mock
@@ -53,6 +58,7 @@ class PhotoServiceImplTest {
         photoService = new PhotoServiceImpl(
                 photoRepository,
                 photoRecipientRepository,
+                photoReactionRepository,
                 userRepository,
                 categoryRepository,
                 friendshipRepository,
@@ -62,23 +68,18 @@ class PhotoServiceImplTest {
     }
 
     @Test
-    void uploadPhoto_allFriends_savesPhotoAndRecipients() throws Exception {
+    void uploadPhoto_allFriends_savesPhotoAndSenderRecipientOnly() throws Exception {
         UUID senderId = UUID.randomUUID();
-        UUID friendAId = UUID.randomUUID();
-        UUID friendBId = UUID.randomUUID();
         User sender = user(senderId, "sender@example.com", "sender", "Sender User");
-        User friendA = user(friendAId, "a@example.com", "friend_a", "Friend A");
-        User friendB = user(friendBId, "b@example.com", "friend_b", "Friend B");
         MockMultipartFile file = new MockMultipartFile("file", "photo.jpg", "image/jpeg", "data".getBytes());
         LocalDateTime takenAt = LocalDateTime.of(2026, 3, 12, 10, 30);
 
         when(userRepository.findById(senderId)).thenReturn(Optional.of(sender));
-        when(friendshipRepository.findAcceptedFriendIds(senderId)).thenReturn(List.of(friendAId, friendBId));
         when(userRepository.findAllById(argThat(ids -> {
             java.util.Set<UUID> collected = new java.util.LinkedHashSet<>();
             ids.forEach(collected::add);
-            return collected.equals(new java.util.LinkedHashSet<>(List.of(friendAId, friendBId, senderId)));
-        }))).thenReturn(List.of(friendA, friendB, sender));
+            return collected.equals(java.util.Set.of(senderId));
+        }))).thenReturn(List.of(sender));
         when(cloudinaryService.uploadImage(file)).thenReturn(new UploadedImage(
                 "https://cdn.example.com/photo.jpg",
                 "https://cdn.example.com/photo_thumb.jpg",
@@ -109,7 +110,7 @@ class PhotoServiceImplTest {
 
         assertNotNull(response.id());
         assertEquals(RecipientScope.ALL_FRIENDS, response.recipientScope());
-        assertEquals(3, response.recipientCount());
+        assertEquals(1, response.recipientCount());
         assertEquals(new BigDecimal("45000"), response.amount());
         assertEquals("Sender User", response.senderDisplayName());
         assertEquals("https://cdn.example.com/photo.jpg", response.imageUrl());
@@ -117,13 +118,13 @@ class PhotoServiceImplTest {
         ArgumentCaptor<Photo> photoCaptor = ArgumentCaptor.forClass(Photo.class);
         verify(photoRepository).save(photoCaptor.capture());
         assertEquals(PhotoStatus.READY, photoCaptor.getValue().getStatus());
-        assertEquals(3, photoCaptor.getValue().getRecipientCount());
+        assertEquals(1, photoCaptor.getValue().getRecipientCount());
         assertEquals(takenAt, photoCaptor.getValue().getTakenAt());
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<List<PhotoRecipient>> recipientsCaptor = ArgumentCaptor.forClass(List.class);
         verify(photoRecipientRepository).saveAll(recipientsCaptor.capture());
-        assertEquals(3, recipientsCaptor.getValue().size());
+        assertEquals(1, recipientsCaptor.getValue().size());
     }
 
     @Test
@@ -133,7 +134,6 @@ class PhotoServiceImplTest {
         MockMultipartFile file = new MockMultipartFile("file", "photo.jpg", "image/jpeg", "data".getBytes());
 
         when(userRepository.findById(senderId)).thenReturn(Optional.of(sender));
-        when(friendshipRepository.findAcceptedFriendIds(senderId)).thenReturn(List.of());
         when(userRepository.findAllById(argThat(ids -> {
             java.util.Set<UUID> collected = new java.util.LinkedHashSet<>();
             ids.forEach(collected::add);
@@ -254,6 +254,124 @@ class PhotoServiceImplTest {
         AppException exception = assertThrows(AppException.class, () -> photoService.getPhotoDetail(userId, photoId));
 
         assertEquals(ErrorCode.PHOTO_NOT_FOUND, exception.getErrorCode());
+    }
+
+    @Test
+    void getFeedPhotos_withoutFriendFilter_returnsRecipientFeed() {
+        UUID userId = UUID.randomUUID();
+        User currentUser = user(userId, "viewer@example.com", "viewer", "Viewer User");
+
+        Photo photo = Photo.builder()
+                .id(UUID.randomUUID())
+                .sender(currentUser)
+                .imageUrl("https://cdn.example.com/feed.jpg")
+                .recipientScope(RecipientScope.ALL_FRIENDS)
+                .recipientCount(1)
+                .status(PhotoStatus.READY)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(currentUser));
+        when(photoRepository.findFeedPhotos(userId, PhotoStatus.DELETED, Pageable.unpaged()))
+                .thenReturn(new SliceImpl<>(List.of(photo)));
+
+        var result = photoService.getFeedPhotos(userId, null, Pageable.unpaged());
+
+        assertEquals(1, result.getContent().size());
+        verify(photoRepository).findFeedPhotos(userId, PhotoStatus.DELETED, Pageable.unpaged());
+    }
+
+    @Test
+    void getFeedPhotos_withFriendFilter_returnsOnlyFriendPhotos() {
+        UUID userId = UUID.randomUUID();
+        UUID friendId = UUID.randomUUID();
+        User currentUser = user(userId, "viewer@example.com", "viewer", "Viewer User");
+        User friend = user(friendId, "friend@example.com", "friend", "Friend User");
+
+        Photo photo = Photo.builder()
+                .id(UUID.randomUUID())
+                .sender(friend)
+                .imageUrl("https://cdn.example.com/friend-feed.jpg")
+                .recipientScope(RecipientScope.ALL_FRIENDS)
+                .recipientCount(2)
+                .status(PhotoStatus.READY)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(currentUser));
+        when(userRepository.findById(friendId)).thenReturn(Optional.of(friend));
+        when(photoRepository.findFeedPhotosBySender(userId, friendId, PhotoStatus.DELETED, Pageable.unpaged()))
+                .thenReturn(new SliceImpl<>(List.of(photo)));
+
+        var result = photoService.getFeedPhotos(userId, friendId, Pageable.unpaged());
+
+        assertEquals(1, result.getContent().size());
+        assertTrue(result.getContent().stream().allMatch(p -> friendId.equals(p.senderId())));
+        verify(photoRepository).findFeedPhotosBySender(userId, friendId, PhotoStatus.DELETED, Pageable.unpaged());
+    }
+
+    @Test
+    void upsertReaction_rejectsOwnPhoto() {
+        UUID userId = UUID.randomUUID();
+        UUID photoId = UUID.randomUUID();
+        User sender = user(userId, "me@example.com", "me", "Me User");
+        Photo photo = Photo.builder()
+                .id(photoId)
+                .sender(sender)
+                .status(PhotoStatus.READY)
+                .recipientScope(RecipientScope.ALL_FRIENDS)
+                .recipientCount(1)
+                .build();
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(sender));
+        when(photoRepository.findAccessiblePhotoById(photoId, userId, PhotoStatus.DELETED)).thenReturn(Optional.of(photo));
+
+        AppException exception = assertThrows(AppException.class,
+                () -> photoService.upsertReaction(userId, photoId, new com.codegym.locketclone.photo.dto.UpsertPhotoReactionRequest("LIKE")));
+
+        assertEquals(ErrorCode.CANNOT_REACT_OWN_PHOTO, exception.getErrorCode());
+    }
+
+    @Test
+    void upsertReaction_savesAndSummaryReturnsCounts() {
+        UUID userId = UUID.randomUUID();
+        UUID senderId = UUID.randomUUID();
+        UUID photoId = UUID.randomUUID();
+        User viewer = user(userId, "viewer@example.com", "viewer", "Viewer User");
+        User sender = user(senderId, "sender@example.com", "sender", "Sender User");
+        Photo photo = Photo.builder()
+                .id(photoId)
+                .sender(sender)
+                .status(PhotoStatus.READY)
+                .recipientScope(RecipientScope.ALL_FRIENDS)
+                .recipientCount(1)
+                .build();
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(viewer));
+        when(photoRepository.findAccessiblePhotoById(photoId, userId, PhotoStatus.DELETED)).thenReturn(Optional.of(photo));
+        when(photoReactionRepository.findByPhotoIdAndUserId(photoId, userId)).thenReturn(Optional.empty());
+        when(photoReactionRepository.save(any(PhotoReaction.class))).thenAnswer(invocation -> {
+            PhotoReaction reaction = invocation.getArgument(0);
+            reaction.setId(UUID.randomUUID());
+            reaction.setCreatedAt(LocalDateTime.now());
+            return reaction;
+        });
+
+        var upsert = photoService.upsertReaction(userId, photoId, new com.codegym.locketclone.photo.dto.UpsertPhotoReactionRequest("like"));
+
+        assertEquals("LIKE", upsert.type());
+        verify(photoReactionRepository).save(any(PhotoReaction.class));
+
+        when(photoReactionRepository.summarizeByPhotoId(photoId)).thenReturn(List.of(new Object[]{"LIKE", 2L}, new Object[]{"LOVE", 1L}));
+        when(photoReactionRepository.findByPhotoIdAndUserId(photoId, userId)).thenReturn(Optional.of(
+                PhotoReaction.builder().photo(photo).user(viewer).reactionType("LIKE").build()
+        ));
+
+        var summary = photoService.getReactionSummary(userId, photoId);
+
+        assertEquals(3L, summary.totalCount());
+        assertEquals("LIKE", summary.myReaction());
+        assertEquals(2L, summary.countsByType().get("LIKE"));
     }
 
     private User user(UUID id, String email, String username, String displayName) {

@@ -1,0 +1,559 @@
+{
+  "info": {
+    "name": "Locket Clone - Friend Invite Link Flow",
+    "_postman_id": "8c4e8b37-2f8f-4205-a7f8-40c2f6eb8b2b",
+    "description": "Friend invite link flow: login A/B, create link, accept link, and hardening checks (invalid/revoked/expired/maxUses).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "emailA",
+      "value": "khanhnguyenkim30825@gmail.com"
+    },
+    {
+      "key": "passwordA",
+      "value": "SnapWidget@123"
+    },
+    {
+      "key": "emailB",
+      "value": "friend.test.01@example.com"
+    },
+    {
+      "key": "passwordB",
+      "value": "SnapWidget@123"
+    },
+    {
+      "key": "tokenA",
+      "value": ""
+    },
+    {
+      "key": "tokenB",
+      "value": ""
+    },
+    {
+      "key": "inviteUrl",
+      "value": ""
+    },
+    {
+      "key": "inviteToken",
+      "value": ""
+    },
+    {
+      "key": "ttlMinutes",
+      "value": "10"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Login owner A",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"identifier\": \"{{emailA}}\",\n  \"password\": \"{{passwordA}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "login"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "const data = pm.response.json();",
+              "pm.collectionVariables.set('tokenA', data.token || '');",
+              "pm.test('tokenA exists', function () {",
+              "  pm.expect(pm.collectionVariables.get('tokenA')).to.not.eql('');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Create or rotate invite link (A)",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{tokenA}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"ttlMinutes\": {{ttlMinutes}}\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/friend-invite-links",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "friend-invite-links"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 201', function () {",
+              "  pm.response.to.have.status(201);",
+              "});",
+              "const data = pm.response.json();",
+              "pm.collectionVariables.set('inviteUrl', data.inviteUrl || '');",
+              "",
+              "let token = '';",
+              "if (data.inviteUrl) {",
+              "  const url = new URL(data.inviteUrl);",
+              "  token = url.searchParams.get('token') || '';",
+              "}",
+              "pm.collectionVariables.set('inviteToken', token);",
+              "",
+              "pm.test('invite token extracted', function () {",
+              "  pm.expect(pm.collectionVariables.get('inviteToken')).to.not.eql('');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Get current invite link (A)",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{tokenA}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/friend-invite-links/current",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "friend-invite-links",
+            "current"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "const data = pm.response.json();",
+              "pm.test('current link is active', function () {",
+              "  pm.expect(data.status).to.eql('ACTIVE');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Login user B",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"identifier\": \"{{emailB}}\",\n  \"password\": \"{{passwordB}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "auth",
+            "login"
+          ]
+        },
+        "description": "User B must exist and be verified before running this request."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "const data = pm.response.json();",
+              "pm.collectionVariables.set('tokenB', data.token || '');",
+              "pm.test('tokenB exists', function () {",
+              "  pm.expect(pm.collectionVariables.get('tokenB')).to.not.eql('');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Accept link by user B (happy path)",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{tokenB}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"token\": \"{{inviteToken}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/friend-invite-links/accept",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "friend-invite-links",
+            "accept"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "const data = pm.response.json();",
+              "pm.test('friendship accepted', function () {",
+              "  pm.expect(data.status).to.eql('ACCEPTED');",
+              "  pm.expect(data.friendshipId).to.be.a('string');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Accept invalid token (expect 400)",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{tokenB}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"token\": \"invalid-token-123\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/friend-invite-links/accept",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "friend-invite-links",
+            "accept"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 400', function () {",
+              "  pm.response.to.have.status(400);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Revoke current link (A)",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{tokenA}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/friend-invite-links/current",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "friend-invite-links",
+            "current"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 204', function () {",
+              "  pm.response.to.have.status(204);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. Accept revoked token (expect 410)",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{tokenB}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"token\": \"{{inviteToken}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/friend-invite-links/accept",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "friend-invite-links",
+            "accept"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 410', function () {",
+              "  pm.response.to.have.status(410);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "9. Accept expired token (manual prep, expect 410)",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{tokenB}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"token\": \"{{inviteToken}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/friend-invite-links/accept",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "friend-invite-links",
+            "accept"
+          ]
+        },
+        "description": "Manual prep: update DB so this token is expired, then run this request. SQL example: UPDATE friend_invite_links SET expires_at = NOW() - INTERVAL '1 minute' WHERE token = '<inviteToken>';"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 410', function () {",
+              "  pm.response.to.have.status(410);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10. Accept max uses reached (manual prep, expect 409)",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{tokenB}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"token\": \"{{inviteToken}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/friend-invite-links/accept",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "friend-invite-links",
+            "accept"
+          ]
+        },
+        "description": "Manual prep: update DB so this token reached max uses, then run this request. SQL example: UPDATE friend_invite_links SET max_uses = 1, used_count = 1 WHERE token = '<inviteToken>';"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 409', function () {",
+              "  pm.response.to.have.status(409);",
+              "});"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+

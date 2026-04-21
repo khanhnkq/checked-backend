@@ -6,6 +6,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
@@ -27,4 +28,19 @@ public interface FriendshipRepository extends JpaRepository<Friendship, UUID> {
               AND f.status = com.codegym.locketclone.friendship.FriendshipStatus.ACCEPTED
             """)
     List<UUID> findAcceptedFriendIds(@Param("userId") UUID userId);
+
+    @Query("""
+            SELECT f FROM Friendship f
+            WHERE (f.user.id = :userA AND f.friend.id = :userB)
+               OR (f.user.id = :userB AND f.friend.id = :userA)
+            """)
+    List<Friendship> findBetweenUsers(@Param("userA") UUID userA, @Param("userB") UUID userB);
+
+    @Query("""
+            SELECT f FROM Friendship f
+            WHERE ((f.user.id = :userA AND f.friend.id = :userB)
+               OR (f.user.id = :userB AND f.friend.id = :userA))
+              AND f.status = com.codegym.locketclone.friendship.FriendshipStatus.ACCEPTED
+            """)
+    Optional<Friendship> findAcceptedBetweenUsers(@Param("userA") UUID userA, @Param("userB") UUID userB);
 }

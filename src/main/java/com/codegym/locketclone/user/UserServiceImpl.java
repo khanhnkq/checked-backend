@@ -3,6 +3,7 @@ package com.codegym.locketclone.user;
 import com.codegym.locketclone.common.exception.AppException;
 import com.codegym.locketclone.common.exception.ErrorCode;
 import com.codegym.locketclone.common.mapper.UserMapper;
+import com.codegym.locketclone.user.dto.UpdatePersonalInfoRequest;
 import com.codegym.locketclone.user.dto.UpdateProfileRequest;
 import com.codegym.locketclone.user.dto.UserResponse;
 import jakarta.transaction.Transactional;
@@ -65,5 +66,17 @@ public class UserServiceImpl implements UserService {
 
         userRepository.save(user);
         return userMapper.toResponse(user);
+    }
+
+    @Override
+    @Transactional
+    public UserResponse updatePersonalInfo(UUID userId, UpdatePersonalInfoRequest request) {
+        UpdateProfileRequest mappedRequest = new UpdateProfileRequest(
+                request.username(),
+                request.firstName(),
+                request.lastName(),
+                request.avatarUrl()
+        );
+        return updateCurrentUserProfile(userId, mappedRequest);
     }
 }

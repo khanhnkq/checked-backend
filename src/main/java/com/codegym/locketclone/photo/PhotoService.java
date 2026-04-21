@@ -1,6 +1,9 @@
 package com.codegym.locketclone.photo;
 
 import com.codegym.locketclone.photo.dto.PhotoResponse;
+import com.codegym.locketclone.photo.dto.PhotoReactionResponse;
+import com.codegym.locketclone.photo.dto.PhotoReactionSummaryResponse;
+import com.codegym.locketclone.photo.dto.UpsertPhotoReactionRequest;
 import com.codegym.locketclone.photo.dto.UpdatePhotoExpenseRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -14,8 +17,8 @@ import java.util.UUID;
 
 public interface PhotoService {
 
-    // Lấy danh sách ảnh mới nhất từ bạn bè để hiển thị trên Widget
-    Slice<PhotoResponse> getFeedPhotos(UUID userId, Pageable pageable);
+    // Lấy feed ảnh; có thể filter theo 1 người bạn (friendId)
+    Slice<PhotoResponse> getFeedPhotos(UUID userId, UUID friendId, Pageable pageable);
 
     Page<PhotoResponse> getMyPhotos(UUID userId, Pageable pageable);
 
@@ -32,4 +35,10 @@ public interface PhotoService {
                               UUID senderId);
 
     PhotoResponse updatePhotoExpense(UUID userId, UUID photoId, UpdatePhotoExpenseRequest request);
+
+    PhotoReactionResponse upsertReaction(UUID userId, UUID photoId, UpsertPhotoReactionRequest request);
+
+    void removeReaction(UUID userId, UUID photoId);
+
+    PhotoReactionSummaryResponse getReactionSummary(UUID userId, UUID photoId);
 }

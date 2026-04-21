@@ -6,7 +6,10 @@ import com.codegym.locketclone.common.mapper.PhotoMapper;
 import com.codegym.locketclone.expense.Category;
 import com.codegym.locketclone.expense.CategoryRepository;
 import com.codegym.locketclone.friendship.FriendshipRepository;
+import com.codegym.locketclone.photo.dto.PhotoReactionResponse;
+import com.codegym.locketclone.photo.dto.PhotoReactionSummaryResponse;
 import com.codegym.locketclone.photo.dto.PhotoResponse;
+import com.codegym.locketclone.photo.dto.UpsertPhotoReactionRequest;
 import com.codegym.locketclone.photo.dto.UpdatePhotoExpenseRequest;
 import com.codegym.locketclone.user.User;
 import com.codegym.locketclone.user.UserRepository;
@@ -22,8 +25,10 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -32,9 +37,11 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class PhotoServiceImpl implements PhotoService {
     private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of("image/jpeg", "image/png", "image/webp");
+    private static final Set<String> ALLOWED_REACTION_TYPES = Set.of("LIKE", "LOVE", "HAHA", "WOW", "SAD", "ANGRY");
 
     private final PhotoRepository photoRepository;
     private final PhotoRecipientRepository photoRecipientRepository;
+    private final PhotoReactionRepository photoReactionRepository;
     private final UserRepository userRepository;
     private final CategoryRepository categoryRepository;
     private final FriendshipRepository friendshipRepository;
@@ -44,9 +51,15 @@ public class PhotoServiceImpl implements PhotoService {
 
     @Override
     @Transactional
-    public Slice<PhotoResponse> getFeedPhotos(UUID userId, Pageable pageable) {
+    public Slice<PhotoResponse> getFeedPhotos(UUID userId, UUID friendId, Pageable pageable) {
         ensureUserExists(userId);
-        return photoRepository.findFeedPhotos(userId, PhotoStatus.DELETED, pageable).map(photoMapper::toResponse);
+        if (friendId == null) {
+            return photoRepository.findFeedPhotos(userId, PhotoStatus.DELETED, pageable).map(photoMapper::toResponse);
+        }
+
+        ensureUserExists(friendId);
+        return photoRepository.findFeedPhotosBySender(userId, friendId, PhotoStatus.DELETED, pageable)
+                .map(photoMapper::toResponse);
     }
 
     @Override
@@ -146,9 +159,74 @@ public class PhotoServiceImpl implements PhotoService {
         return photoMapper.toResponse(saved);
     }
 
+    @Override
+    @Transactional
+    public PhotoReactionResponse upsertReaction(UUID userId, UUID photoId, UpsertPhotoReactionRequest request) {
+        ensureUserExists(userId);
+        Photo photo = requireAccessiblePhoto(photoId, userId);
+        if (photo.getSender().getId().equals(userId)) {
+            throw new AppException(ErrorCode.CANNOT_REACT_OWN_PHOTO);
+        }
+
+        String normalizedType = normalizeReactionType(request.type());
+        PhotoReaction reaction = photoReactionRepository.findByPhotoIdAndUserId(photoId, userId)
+                .orElseGet(() -> PhotoReaction.builder().photo(photo).user(findUserById(userId)).build());
+
+        reaction.setReactionType(normalizedType);
+        PhotoReaction saved = photoReactionRepository.save(reaction);
+
+        return new PhotoReactionResponse(saved.getPhoto().getId(), saved.getUser().getId(), saved.getReactionType(), saved.getCreatedAt());
+    }
+
+    @Override
+    @Transactional
+    public void removeReaction(UUID userId, UUID photoId) {
+        ensureUserExists(userId);
+        Photo photo = requireAccessiblePhoto(photoId, userId);
+        if (photo.getSender().getId().equals(userId)) {
+            throw new AppException(ErrorCode.CANNOT_REACT_OWN_PHOTO);
+        }
+
+        photoReactionRepository.deleteByPhotoIdAndUserId(photoId, userId);
+    }
+
+    @Override
+    @Transactional
+    public PhotoReactionSummaryResponse getReactionSummary(UUID userId, UUID photoId) {
+        ensureUserExists(userId);
+        requireAccessiblePhoto(photoId, userId);
+
+        List<Object[]> groupedRows = photoReactionRepository.summarizeByPhotoId(photoId);
+        Map<String, Long> countsByType = new LinkedHashMap<>();
+        long totalCount = 0L;
+        for (Object[] row : groupedRows) {
+            String type = (String) row[0];
+            Long count = (Long) row[1];
+            long safeCount = count == null ? 0L : count;
+            countsByType.put(type, safeCount);
+            totalCount += safeCount;
+        }
+
+        String myReaction = photoReactionRepository.findByPhotoIdAndUserId(photoId, userId)
+                .map(PhotoReaction::getReactionType)
+                .orElse(null);
+
+        return new PhotoReactionSummaryResponse(photoId, totalCount, myReaction, countsByType);
+    }
+
     private User ensureUserExists(UUID userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+    }
+
+    private User findUserById(UUID userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+    }
+
+    private Photo requireAccessiblePhoto(UUID photoId, UUID userId) {
+        return photoRepository.findAccessiblePhotoById(photoId, userId, PhotoStatus.DELETED)
+                .orElseThrow(() -> new AppException(ErrorCode.PHOTO_NOT_FOUND));
     }
 
     private void validateFile(MultipartFile file) {
@@ -183,13 +261,25 @@ public class PhotoServiceImpl implements PhotoService {
         return normalized.isEmpty() ? null : normalized;
     }
 
-    private List<User> resolveRecipients(UUID senderId, RecipientScope scope, List<UUID> recipientIds) {
-        Set<UUID> acceptedFriendIds = new LinkedHashSet<>(friendshipRepository.findAcceptedFriendIds(senderId));
+    private String normalizeReactionType(String type) {
+        if (type == null) {
+            throw new AppException(ErrorCode.INVALID_REACTION_TYPE);
+        }
+        String normalized = type.trim().toUpperCase();
+        if (!ALLOWED_REACTION_TYPES.contains(normalized)) {
+            throw new AppException(ErrorCode.INVALID_REACTION_TYPE);
+        }
+        return normalized;
+    }
 
+    private List<User> resolveRecipients(UUID senderId, RecipientScope scope, List<UUID> recipientIds) {
         Set<UUID> resolvedIds = new LinkedHashSet<>();
         if (scope == RecipientScope.ALL_FRIENDS) {
-            resolvedIds.addAll(acceptedFriendIds);
+            // ALL_FRIENDS is evaluated at read-time using current friendships.
+            // Persist only sender to avoid snapshot recipient conflicts.
+            resolvedIds.add(senderId);
         } else {
+            Set<UUID> acceptedFriendIds = new LinkedHashSet<>(friendshipRepository.findAcceptedFriendIds(senderId));
             if (recipientIds == null || recipientIds.isEmpty()) {
                 throw new AppException(ErrorCode.RECIPIENTS_REQUIRED);
             }
@@ -198,9 +288,8 @@ public class PhotoServiceImpl implements PhotoService {
             if (!acceptedFriendIds.containsAll(resolvedIds)) {
                 throw new AppException(ErrorCode.INVALID_RECIPIENT_SELECTION);
             }
+            resolvedIds.add(senderId);
         }
-
-        resolvedIds.add(senderId);
 
         List<User> recipients = userRepository.findAllById(resolvedIds);
         if (recipients.size() != resolvedIds.size()) {

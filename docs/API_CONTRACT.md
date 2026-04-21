@@ -1,47 +1,48 @@
-# API Contract - Auth & Profile Flow (Flutter-ready)
+# API Contract v2 - Locket Clone Backend (Flutter-ready)
 
-Contract này bám theo backend hiện tại của `locket-clone` và khớp với `DioClient` phía Flutter.
+Tai lieu nay mo ta contract API hien tai theo code backend da implement.
 
-## Mục tiêu flow
+## 1) Tong quan
 
-```text
-Register -> Verify OTP -> Login (hoặc dùng token trả về từ Verify) -> Get Me -> Complete Profile -> Home
-```
-
-## Base URL
-
-Local:
+- Base URL local:
 
 ```text
 http://localhost:8080
 ```
 
-Flutter device/emulator dùng IP LAN của máy backend, ví dụ:
+- Base URL tren dien thoai/emulator (vi du):
 
 ```text
 http://192.168.1.60:8080
 ```
 
----
+- Prefix API:
 
-# 1. Auth contract tổng quát
+```text
+/api/v1
+```
 
-## Public endpoints
-Các API này **không cần Bearer token**:
-- `POST /api/v1/auth/register`
-- `POST /api/v1/auth/verify`
-- `POST /api/v1/auth/login`
-
-## Protected endpoints
-Các API còn lại cần header:
+- Kieu auth:
 
 ```http
 Authorization: Bearer <JWT_TOKEN>
 ```
 
-## Response model dùng chung
+## 2) Security va pham vi endpoint
 
-### `JwtResponse`
+### Public endpoints (khong can token)
+- `POST /api/v1/auth/register`
+- `POST /api/v1/auth/verify`
+- `POST /api/v1/auth/login`
+
+### Protected endpoints (can token)
+- Tat ca endpoint con lai trong `users`, `photos`, `expense`, `friend-invite-links`, `friendships`.
+
+---
+
+## 3) Response models dung chung
+
+### 3.1 `JwtResponse`
 
 ```json
 {
@@ -58,7 +59,17 @@ Authorization: Bearer <JWT_TOKEN>
 }
 ```
 
-### `UserResponse`
+### 3.2 `RegisterResponse`
+
+```json
+{
+  "message": "Dang ky thanh cong, vui long kiem tra email de lay ma OTP",
+  "email": "khanhnguyenkim30825@gmail.com",
+  "nextStep": "VERIFY_OTP"
+}
+```
+
+### 3.3 `UserResponse`
 
 ```json
 {
@@ -75,7 +86,7 @@ Authorization: Bearer <JWT_TOKEN>
 }
 ```
 
-### `ErrorResponse`
+### 3.4 `ErrorResponse`
 
 ```json
 {
@@ -86,28 +97,13 @@ Authorization: Bearer <JWT_TOKEN>
 }
 ```
 
-### `RegisterResponse`
-
-```json
-{
-  "message": "Đăng ký thành công, vui lòng kiểm tra email để lấy mã OTP",
-  "email": "khanhnguyenkim30825@gmail.com",
-  "nextStep": "VERIFY_OTP"
-}
-```
-
 ---
 
-# 2. Register
+## 4) Auth module
 
-## Endpoint
+## `POST /api/v1/auth/register`
 
-```http
-POST /api/v1/auth/register
-Content-Type: application/json
-```
-
-## Request body
+### Request
 
 ```json
 {
@@ -117,81 +113,18 @@ Content-Type: application/json
 }
 ```
 
-## Validation
-- `email`: bắt buộc, đúng định dạng email
-- `username`: bắt buộc, không blank, tối đa 50 ký tự
-- `password`: bắt buộc, tối thiểu 6 ký tự
+### Success
+- `201 Created` -> `RegisterResponse`
 
-## Backend behavior
-- backend normalize `email` về lowercase + trim
-- backend normalize `username` về lowercase + trim
-- nếu email đã tồn tại nhưng **chưa verify**, backend sẽ refresh OTP và cập nhật lại `username/password`
-- nếu email đã tồn tại và **đã verify**, backend trả lỗi `EMAIL_ALREADY_EXISTS`
-
-## Success response
-
-### HTTP 201
-
-```json
-{
-  "message": "Đăng ký thành công, vui lòng kiểm tra email để lấy mã OTP",
-  "email": "khanhnguyenkim30825@gmail.com",
-  "nextStep": "VERIFY_OTP"
-}
-```
-
-## Error responses
-
-### HTTP 400 - email đã được dùng
-
-```json
-{
-  "timestamp": "2026-03-12 09:20:00",
-  "status": 400,
-  "message": "Email đã được sử dụng",
-  "path": ""
-}
-```
-
-### HTTP 400 - username đã được dùng
-
-```json
-{
-  "timestamp": "2026-03-12 09:20:00",
-  "status": 400,
-  "message": "Username đã được sử dụng",
-  "path": ""
-}
-```
-
-### HTTP 400 - validate fail
-
-```json
-{
-  "timestamp": "2026-03-12 09:20:00",
-  "status": 400,
-  "message": "{email=Email không đúng định dạng}",
-  "path": ""
-}
-```
-
-## FE action
-- hiển thị toast/snackbar thành công từ `message`
-- điều hướng sang màn nhập OTP
-- lưu `email` từ response hoặc từ input hiện tại để verify OTP
+### Loi thuong gap
+- `400`: email/username da ton tai
+- `400`: validate fail
 
 ---
 
-# 3. Verify OTP
+## `POST /api/v1/auth/verify`
 
-## Endpoint
-
-```http
-POST /api/v1/auth/verify
-Content-Type: application/json
-```
-
-## Request body
+### Request
 
 ```json
 {
@@ -200,84 +133,18 @@ Content-Type: application/json
 }
 ```
 
-## Validation
-- `email`: bắt buộc, đúng định dạng email
-- `otp`: bắt buộc, đúng 6 chữ số
+### Success
+- `200 OK` -> `JwtResponse`
 
-## Success response
-
-### HTTP 200
-
-```json
-{
-  "token": "<JWT_TOKEN>",
-  "type": "Bearer",
-  "id": "3cda5f64-7ca2-4d6e-9fd1-6b9c2c3b67b8",
-  "email": "khanhnguyenkim30825@gmail.com",
-  "username": "khanhnguyenkim30825",
-  "isVerified": true,
-  "profileCompleted": false,
-  "displayName": "khanhnguyenkim30825",
-  "avatarUrl": null,
-  "nextStep": "COMPLETE_PROFILE"
-}
-```
-
-## FE action
-- lưu `token`
-- lưu `id` nếu cần
-- nếu `nextStep == COMPLETE_PROFILE` thì sang màn hoàn thiện hồ sơ
-- nếu `nextStep == HOME` thì vào home luôn
-
-## Error responses
-
-### HTTP 400 - OTP sai
-
-```json
-{
-  "timestamp": "2026-03-12 09:21:00",
-  "status": 400,
-  "message": "Mã OTP không chính xác",
-  "path": ""
-}
-```
-
-### HTTP 400 - OTP hết hạn
-
-```json
-{
-  "timestamp": "2026-03-12 09:21:00",
-  "status": 400,
-  "message": "Mã OTP đã hết hạn",
-  "path": ""
-}
-```
-
-### HTTP 404 - không tìm thấy người dùng
-
-```json
-{
-  "timestamp": "2026-03-12 09:21:00",
-  "status": 404,
-  "message": "Không tìm thấy người dùng",
-  "path": ""
-}
-```
+### Loi thuong gap
+- `400`: OTP sai hoac het han
+- `404`: user khong ton tai
 
 ---
 
-# 4. Login
+## `POST /api/v1/auth/login`
 
-## Endpoint
-
-```http
-POST /api/v1/auth/login
-Content-Type: application/json
-```
-
-## Request body
-
-> `identifier` có thể là `email` hoặc `username`
+### Request
 
 ```json
 {
@@ -286,394 +153,251 @@ Content-Type: application/json
 }
 ```
 
-hoặc
+### Success
+- `200 OK` -> `JwtResponse`
 
-```json
-{
-  "identifier": "khanhnguyenkim30825",
-  "password": "SnapWidget@123"
-}
-```
-
-## Validation
-- `identifier`: bắt buộc
-- `password`: bắt buộc
-
-## Backend behavior
-- backend normalize `identifier` về lowercase + trim
-- login **chỉ thành công khi user đã verify email**
-- response trả về `nextStep` để FE quyết định vào home hay màn complete profile
-
-## Success response
-
-### HTTP 200
-
-```json
-{
-  "token": "<JWT_TOKEN>",
-  "type": "Bearer",
-  "id": "3cda5f64-7ca2-4d6e-9fd1-6b9c2c3b67b8",
-  "email": "khanhnguyenkim30825@gmail.com",
-  "username": "khanhnguyenkim30825",
-  "isVerified": true,
-  "profileCompleted": true,
-  "displayName": "Khánh Nguyễn Kim",
-  "avatarUrl": "https://example.com/avatar.jpg",
-  "nextStep": "HOME"
-}
-```
-
-## Error responses
-
-### HTTP 403 - chưa verify email
-
-```json
-{
-  "timestamp": "2026-03-12 09:22:00",
-  "status": 403,
-  "message": "Tài khoản chưa được xác thực email",
-  "path": ""
-}
-```
-
-### HTTP 404 - không tìm thấy người dùng
-
-```json
-{
-  "timestamp": "2026-03-12 09:22:00",
-  "status": 404,
-  "message": "Không tìm thấy người dùng",
-  "path": ""
-}
-```
-
-### HTTP 401 - sai mật khẩu / token auth nội bộ không hợp lệ
-
-```json
-{
-  "timestamp": "2026-03-12 09:22:00",
-  "status": 401,
-  "message": "Bạn chưa đăng nhập hoặc token không hợp lệ",
-  "path": ""
-}
-```
-
-> Lưu ý: với login sai mật khẩu, backend hiện đang map về message chung `Bạn chưa đăng nhập hoặc token không hợp lệ`.
-
-## FE action
-- `200`: lưu token, điều hướng theo `nextStep`
-- `403`: điều hướng về màn OTP verify và giữ lại `email`
-- `404`: báo tài khoản không tồn tại
-- `401`: báo email/username hoặc mật khẩu không đúng
+### Loi thuong gap
+- `401`: sai thong tin dang nhap
+- `403`: chua verify OTP
+- `404`: user khong ton tai
 
 ---
 
-# 5. Get Current User
+## 5) User/Profile module
 
-## Endpoint
-
-```http
-GET /api/v1/users/me
-Authorization: Bearer <JWT_TOKEN>
-```
-
-## Success response
-
-### HTTP 200
-
-```json
-{
-  "id": "3cda5f64-7ca2-4d6e-9fd1-6b9c2c3b67b8",
-  "email": "khanhnguyenkim30825@gmail.com",
-  "username": "khanhnguyenkim30825",
-  "firstName": "Khánh",
-  "lastName": "Nguyễn Kim",
-  "displayName": "Khánh Nguyễn Kim",
-  "avatarUrl": "https://example.com/avatar.jpg",
-  "isVerified": true,
-  "isGoldMember": false,
-  "profileCompleted": true
-}
-```
-
-## Error response
-
-### HTTP 401 - token thiếu / sai / hết hạn
-
-```json
-{
-  "timestamp": "2026-03-12 09:23:00",
-  "status": 401,
-  "message": "Bạn chưa đăng nhập hoặc token không hợp lệ",
-  "path": ""
-}
-```
-
-## FE action
-- gọi sau `verify` hoặc `login` nếu muốn đồng bộ user state đầy đủ
-- nếu `profileCompleted == false` thì đi màn complete profile
-- nếu `profileCompleted == true` thì vào home
+## `GET /api/v1/users/me`
+- Tra user hien tai.
+- `200 OK` -> `UserResponse`
+- `401`: token thieu/sai/het han
 
 ---
 
-# 6. Complete Profile
+## `PATCH /api/v1/users/me/profile`
 
-## Endpoint
-
-```http
-PATCH /api/v1/users/me/profile
-Authorization: Bearer <JWT_TOKEN>
-Content-Type: application/json
-```
-
-## Request body
+### Request (tat ca field optional, nhung neu gui len thi khong duoc blank)
 
 ```json
 {
   "username": "khanhnguyenkim30825",
-  "firstName": "Khánh",
-  "lastName": "Nguyễn Kim",
+  "firstName": "Khanh",
+  "lastName": "Nguyen Kim",
   "avatarUrl": "https://example.com/avatar.jpg"
 }
 ```
 
-## Validation
-- `username`: optional nhưng nếu gửi lên thì không được blank, max 50
-- `firstName`: optional nhưng nếu gửi lên thì không được blank, max 50
-- `lastName`: optional nhưng nếu gửi lên thì không được blank, max 50
-- `avatarUrl`: optional nhưng nếu gửi lên thì không được blank, max 255
+### Success
+- `200 OK` -> `UserResponse`
 
-## Backend behavior
-- `username`, `firstName`, `lastName`, `avatarUrl` đều là optional field
-- backend trim dữ liệu trước khi lưu
-- backend chỉ xem profile là hoàn tất khi có đủ:
-  - `username`
-  - `firstName`
-  - `lastName`
-- `avatarUrl` **không bắt buộc** để `profileCompleted = true`
-- nếu đổi `username` sang giá trị đã tồn tại, backend hiện trả message `Người dùng đã tồn tại`
+### Loi thuong gap
+- `400`: validate fail hoac username trung
+- `401`: token khong hop le
 
-## Success response
-
-### HTTP 200
-
-```json
-{
-  "id": "3cda5f64-7ca2-4d6e-9fd1-6b9c2c3b67b8",
-  "email": "khanhnguyenkim30825@gmail.com",
-  "username": "khanhnguyenkim30825",
-  "firstName": "Khánh",
-  "lastName": "Nguyễn Kim",
-  "displayName": "Khánh Nguyễn Kim",
-  "avatarUrl": "https://example.com/avatar.jpg",
-  "isVerified": true,
-  "isGoldMember": false,
-  "profileCompleted": true
-}
-```
-
-## Error responses
-
-### HTTP 400 - username trùng
-
-```json
-{
-  "timestamp": "2026-03-12 09:24:00",
-  "status": 400,
-  "message": "Người dùng đã tồn tại",
-  "path": ""
-}
-```
-
-### HTTP 400 - request không hợp lệ
-
-```json
-{
-  "timestamp": "2026-03-12 09:24:00",
-  "status": 400,
-  "message": "{firstName=First name không được để trống nếu được cung cấp}",
-  "path": ""
-}
-```
-
-### HTTP 401 - token sai / hết hạn
-
-```json
-{
-  "timestamp": "2026-03-12 09:24:00",
-  "status": 401,
-  "message": "Bạn chưa đăng nhập hoặc token không hợp lệ",
-  "path": ""
-}
-```
-
-## FE action
-- sau khi update thành công, cập nhật local state từ response hoặc gọi lại `GET /api/v1/users/me`
-- nếu `profileCompleted == true` thì đi `HomeScreen`
+> Ghi chu: endpoint nay duoc uu tien cho onboarding sau dang nhap lan dau.
 
 ---
 
-# 7. FE state machine đề xuất
-
-## Auth states
-- `unauthenticated`
-- `otpPending`
-- `authenticatedProfileIncomplete`
-- `authenticatedReady`
-
-## Rule mapping
-- register thành công -> `otpPending`
-- verify/login thành công + `nextStep == COMPLETE_PROFILE` -> `authenticatedProfileIncomplete`
-- verify/login thành công + `nextStep == HOME` -> `authenticatedReady`
-- `GET /users/me` trả `profileCompleted == false` -> `authenticatedProfileIncomplete`
-- `GET /users/me` trả `profileCompleted == true` -> `authenticatedReady`
+## `GET /api/v1/users/{id}`
+- Tra thong tin user theo id.
+- `200 OK` -> `UserResponse`
+- `404`: user khong ton tai
 
 ---
 
-# 8. Mapping cho Flutter `DioClient`
-
-Đoạn client hiện tại đang đúng hướng với backend:
-- public endpoint list đúng: `/api/v1/auth/login`, `/api/v1/auth/register`, `/api/v1/auth/verify`
-- protected endpoint sẽ tự gắn `Authorization: Bearer <token>`
-- khi gặp `401` ở protected API thì có thể clear local auth state
-
-## Lưu ý quan trọng cho FE
-- register response là **JSON object**, không còn là plain string
-- dùng `response.data['message']`, `response.data['email']`, `response.data['nextStep']`
-- **không clear token khi gặp `403` ở login**; đây là case `USER_NOT_VERIFIED`, cần đưa user về màn OTP
-- login request dùng field `identifier`, không phải `email`
-- `nextStep` là field quan trọng nhất sau verify/login để điều hướng màn hình
-- nếu app gọi `GET /users/me` khi app khởi động và bị `401`, hãy logout local và về login screen
-
-## Public endpoint list khuyến nghị
-
-```dart
-final publicEndpoints = [
-  '/api/v1/auth/login',
-  '/api/v1/auth/register',
-  '/api/v1/auth/verify',
-];
-```
+## `GET /api/v1/users/me/settings/personal-info`
+- Endpoint cho man hinh Settings -> Personal info lay du lieu hien tai.
+- `200 OK` -> `UserResponse`
+- `401`: token thieu/sai/het han
 
 ---
 
-# 9. DTO gợi ý cho Flutter
+## `PATCH /api/v1/users/me/settings/personal-info`
 
-## RegisterRequest
-
-```json
-{
-  "email": "string",
-  "username": "string",
-  "password": "string"
-}
-```
-
-## RegisterResponse
-
-```json
-{
-  "message": "string",
-  "email": "string",
-  "nextStep": "VERIFY_OTP"
-}
-```
-
-## VerifyOtpRequest
-
-```json
-{
-  "email": "string",
-  "otp": "string"
-}
-```
-
-## LoginRequest
-
-```json
-{
-  "identifier": "string",
-  "password": "string"
-}
-```
-
----
-
-# 10. Ready-to-test examples
-
-## Register
-
-```http
-POST /api/v1/auth/register
-```
-
-```json
-{
-  "email": "khanhnguyenkim30825@gmail.com",
-  "username": "khanhnguyenkim30825",
-  "password": "SnapWidget@123"
-}
-```
-
-## Verify
-
-```http
-POST /api/v1/auth/verify
-```
-
-```json
-{
-  "email": "khanhnguyenkim30825@gmail.com",
-  "otp": "482910"
-}
-```
-
-## Login
-
-```http
-POST /api/v1/auth/login
-```
-
-```json
-{
-  "identifier": "khanhnguyenkim30825@gmail.com",
-  "password": "SnapWidget@123"
-}
-```
-
-## Complete Profile
-
-```http
-PATCH /api/v1/users/me/profile
-Authorization: Bearer <JWT_TOKEN>
-```
+### Request (tat ca field optional, neu gui len thi khong duoc blank)
 
 ```json
 {
   "username": "khanhnguyenkim30825",
-  "firstName": "Khánh",
-  "lastName": "Nguyễn Kim",
-  "avatarUrl": "https://example.com/avatar.jpg"
+  "firstName": "Khanh",
+  "lastName": "Nguyen Kim"
 }
 ```
 
+### Success
+- `200 OK` -> `UserResponse`
+
+### Loi thuong gap
+- `400`: validate fail hoac username trung
+- `401`: token khong hop le
+
+> Ghi chu: de cap nhat avatar, FE dung endpoint upload file ben duoi thay vi gui `avatarUrl`.
+
 ---
 
-# 11. Photo send flow
+## `PATCH /api/v1/users/me/settings/avatar`
 
-## Mục tiêu flow
-
-```text
-Login -> Capture Photo -> Choose audience (ALL_FRIENDS | SELECTED_FRIENDS) -> Optional amount -> Send -> Feed/My Photos
-```
-
-## Protected endpoints
-
-Tất cả API ảnh đều cần:
+### Content-Type
 
 ```http
-Authorization: Bearer <JWT_TOKEN>
+multipart/form-data
 ```
+
+### Form fields
+- `file` (bat buoc): `image/jpeg | image/png | image/webp`
+
+### Success
+- `200 OK` -> `UserResponse` (da cap nhat `avatarUrl` moi)
+
+### Loi thuong gap
+- `400`: file khong hop le
+- `401`: token khong hop le
+- `500`: upload storage that bai
+
+---
+
+## 6) Friendship invite link module (Sprint 1)
+
+Tat ca endpoint friend invite link deu la protected endpoint.
+
+## `POST /api/v1/friend-invite-links`
+
+Tao link moi (dong thoi revoke link active cu neu co).
+
+### Request
+
+```json
+{
+  "ttlMinutes": 10080
+}
+```
+
+`ttlMinutes` optional, mac dinh 10080 (7 ngay), range hop le: `10..43200`.
+
+### Success
+- `201 Created` -> `FriendInviteLinkResponse`
+
+### `FriendInviteLinkResponse`
+
+```json
+{
+  "id": "uuid",
+  "inviteUrl": "https://locket-clone.app/friend/accept?token=...",
+  "tokenPreview": "abcdefghij...",
+  "maxUses": 50,
+  "usedCount": 0,
+  "expiresAt": "2026-03-31T10:00:00",
+  "revokedAt": null,
+  "status": "ACTIVE"
+}
+```
+
+### Loi thuong gap
+- `400`: TTL khong hop le
+- `404`: user khong ton tai
+
+---
+
+## `GET /api/v1/friend-invite-links/current`
+
+Lay link active hien tai cua user dang dang nhap.
+
+### Success
+- `200 OK` -> `FriendInviteLinkResponse`
+
+### Loi thuong gap
+- `404`: khong co link active
+
+---
+
+## `DELETE /api/v1/friend-invite-links/current`
+
+Revoke link active hien tai.
+
+### Success
+- `204 No Content`
+
+### Loi thuong gap
+- `404`: khong co link active
+
+---
+
+## `POST /api/v1/friend-invite-links/accept`
+
+Chap nhan ket ban bang token trong link moi.
+
+### Request
+
+```json
+{
+  "token": "string"
+}
+```
+
+### Success
+- `200 OK`
+
+```json
+{
+  "friendshipId": "uuid",
+  "status": "ACCEPTED",
+  "friend": {
+    "id": "uuid",
+    "email": "string",
+    "username": "string",
+    "firstName": "string | null",
+    "lastName": "string | null",
+    "displayName": "string",
+    "avatarUrl": "string | null",
+    "isVerified": true,
+    "isGoldMember": false,
+    "profileCompleted": true
+  },
+  "acceptedAt": "2026-03-24T11:30:00"
+}
+```
+
+### Loi thuong gap
+- `400`: token trong request khong hop le/bi rong
+- `400`: tu ket ban voi chinh minh
+- `404`: user khong ton tai
+- `410`: link het han hoac da revoke
+- `409`: link dat max uses
+
+---
+
+## `GET /api/v1/friendships`
+
+Lay danh sach ban be da `ACCEPTED` cua current user.
+
+### Success
+- `200 OK` -> `List<UserResponse>`
+
+### Sample response
+
+```json
+[
+  {
+    "id": "uuid",
+    "email": "friend1@example.com",
+    "username": "friend_1",
+    "firstName": "Friend",
+    "lastName": "One",
+    "displayName": "Friend One",
+    "avatarUrl": null,
+    "isVerified": true,
+    "isGoldMember": false,
+    "profileCompleted": true
+  }
+]
+```
+
+### Loi thuong gap
+- `401`: token khong hop le
+
+---
+
+## 7) Photo module
+
+Tat ca endpoint photo deu la protected endpoint.
 
 ## `POST /api/v1/photos`
 
@@ -684,132 +408,98 @@ multipart/form-data
 ```
 
 ### Form fields
-- `file`: bắt buộc, chỉ nhận `image/jpeg | image/png | image/webp`
-- `caption`: optional
-- `amount`: optional, số >= 0
-- `recipientScope`: optional, `ALL_FRIENDS | SELECTED_FRIENDS`
-- `audienceMode`: optional alias của `recipientScope` cho FE cũ
-- `recipientIds`: optional list UUID, bắt buộc khi `recipientScope=SELECTED_FRIENDS`
-- `takenAt`: optional, ISO datetime
+- `file` (bat buoc): `image/jpeg | image/png | image/webp`
+- `caption` (optional)
+- `amount` (optional, >= 0)
+- `note` (optional)
+- `categoryId` (optional, UUID)
+- `recipientScope` (optional): `ALL_FRIENDS | SELECTED_FRIENDS`
+- `audienceMode` (optional): alias cua `recipientScope` cho FE cu
+- `recipientIds` (optional list UUID, bat buoc neu `SELECTED_FRIENDS`)
+- `takenAt` (optional, ISO datetime)
+- `transactionType` (optional): `INCOME | EXPENSE`, mac dinh `EXPENSE`
 
-### Rule
-- nếu không truyền `recipientScope`/`audienceMode`, backend mặc định `ALL_FRIENDS`
-- backend luôn tự thêm chính sender vào danh sách recipients
-- `ALL_FRIENDS`: backend tự lấy toàn bộ bạn bè `ACCEPTED`, sau đó cộng thêm sender; nếu hiện chưa có bạn bè thì request vẫn thành công với `recipientCount = 1`
-- `SELECTED_FRIENDS`: chỉ chấp nhận `recipientIds` thuộc tập bạn bè `ACCEPTED`; sender vẫn được thêm tự động dù FE không truyền lên
+### Rules
+- Neu khong truyen `recipientScope`/`audienceMode` -> mac dinh `ALL_FRIENDS`.
+- Neu khong truyen `transactionType` -> mac dinh `EXPENSE`.
+- Sender luon duoc them vao recipients.
+- `ALL_FRIENDS`: realtime theo friendship hien tai khi doc feed (khong fan-out recipients tai thoi diem upload).
+- `SELECTED_FRIENDS`: chi nhan `recipientIds` nam trong danh sach friend ACCEPTED.
 
-### Success response
+### Success
+- `201 Created` -> `PhotoResponse`
 
-```json
-{
-  "id": "photo-uuid",
-  "senderId": "sender-uuid",
-  "senderDisplayName": "Khánh Nguyễn Kim",
-  "senderAvatarUrl": null,
-  "imageUrl": "https://res.cloudinary.com/.../photo.jpg",
-  "thumbnailUrl": "https://res.cloudinary.com/.../photo.jpg",
-  "caption": "Cafe sáng",
-  "amount": 45000,
-  "recipientScope": "ALL_FRIENDS",
-  "recipientCount": 3,
-  "status": "READY",
-  "mimeType": "image/jpeg",
-  "fileSize": 12345,
-  "width": 1080,
-  "height": 1920,
-  "takenAt": "2026-03-12T10:30:00",
-  "createdAt": "2026-03-12T10:30:01"
-}
-```
+### Loi thuong gap
+- `400`: file khong hop le
+- `400`: amount < 0
+- `400`: recipientIds khong hop le
+- `401`: token khong hop le
 
-### Error responses
-- `400`: `Ảnh tải lên không hợp lệ`
-- `400`: `Số tiền phải lớn hơn hoặc bằng 0`
-- `400`: `Vui lòng chọn ít nhất một người nhận`
-- `400`: `Danh sách người nhận không hợp lệ hoặc chưa là bạn bè`
-- `401`: token thiếu/sai
+---
 
 ## `GET /api/v1/photos/feed`
+- Tra feed ma current user la recipient.
+- **Pagination type: `Slice`** (da toi uu cho infinite scroll).
+- Ho tro filter theo tung ban: `friendId` (optional UUID).
+- Voi `ALL_FRIENDS`, quyen xem duoc tinh realtime theo friendship `ACCEPTED` hien tai.
 
-Trả ảnh mà current user là recipient. Vì sender luôn là recipient, user cũng sẽ thấy chính ảnh mình vừa gửi trong feed nếu app dùng endpoint này.
+### Success
+- `200 OK` -> `Slice<PhotoResponse>`
 
-## `GET /api/v1/photos/{photoId}`
+### Query params
+- `friendId` (optional): chi lay anh trong feed duoc gui boi user nay.
 
-Trả chi tiết của một ảnh nếu current user có quyền xem ảnh đó.
-
-### Rule truy cập
-- cho phép nếu current user là `sender`
-- cho phép nếu current user nằm trong `photo_recipients`
-- nếu ảnh không tồn tại, đã bị `DELETED`, hoặc current user không có quyền xem thì backend trả `404` để tránh lộ sự tồn tại của ảnh
-
-### Success response
+### Sample response (rut gon)
 
 ```json
 {
-  "id": "photo-uuid",
-  "senderId": "sender-uuid",
-  "senderDisplayName": "Khánh Nguyễn Kim",
-  "senderAvatarUrl": null,
-  "imageUrl": "https://res.cloudinary.com/.../photo.jpg",
-  "thumbnailUrl": "https://res.cloudinary.com/.../photo.jpg",
-  "caption": "Cafe sáng",
-  "amount": 45000,
-  "recipientScope": "SELECTED_FRIENDS",
-  "recipientCount": 2,
-  "status": "READY",
-  "mimeType": "image/jpeg",
-  "fileSize": 12345,
-  "width": 1080,
-  "height": 1920,
-  "takenAt": "2026-03-12T10:30:00",
-  "createdAt": "2026-03-12T10:30:01"
+  "content": [
+    {
+      "id": "photo-uuid",
+      "senderId": "sender-uuid",
+      "imageUrl": "https://...",
+      "thumbnailUrl": "https://...",
+      "caption": "Cafe sang",
+      "amount": 45000,
+      "recipientScope": "ALL_FRIENDS",
+      "recipientCount": 3,
+      "status": "READY",
+      "takenAt": "2026-03-12T10:30:00",
+      "createdAt": "2026-03-12T10:30:01"
+    }
+  ],
+  "number": 0,
+  "size": 20,
+  "first": true,
+  "last": false,
+  "numberOfElements": 1,
+  "empty": false
 }
 ```
 
-### Error responses
-- `401`: token thiếu/sai
-- `404`: `Không tìm thấy ảnh`
+> Luu y: voi `Slice`, FE khong dua vao `totalElements/totalPages`.
+
+---
+
+## `GET /api/v1/photos/{photoId}`
+- Tra chi tiet anh neu current user co quyen (sender hoac recipient).
+- `200 OK` -> `PhotoResponse`
+- `404`: khong ton tai/khong co quyen/xoa mem
+
+---
 
 ## `GET /api/v1/photos/my-photos`
 ## `GET /api/v1/photos/me`
+- Hai endpoint alias, cung tra lich su anh da gui.
+- **Pagination type: `Page`**.
+- `200 OK` -> `Page<PhotoResponse>`
 
-Hai endpoint này cùng trả lịch sử ảnh user đã gửi.
-
-### Feed/My Photos response item
-
-```json
-{
-  "id": "photo-uuid",
-  "senderId": "sender-uuid",
-  "senderDisplayName": "Khánh Nguyễn Kim",
-  "senderAvatarUrl": null,
-  "imageUrl": "https://res.cloudinary.com/.../photo.jpg",
-  "thumbnailUrl": "https://res.cloudinary.com/.../photo.jpg",
-  "caption": "Cafe sáng",
-  "amount": 45000,
-  "recipientScope": "SELECTED_FRIENDS",
-  "recipientCount": 2,
-  "status": "READY",
-  "mimeType": "image/jpeg",
-  "fileSize": 12345,
-  "width": 1080,
-  "height": 1920,
-  "takenAt": "2026-03-12T10:30:00",
-  "createdAt": "2026-03-12T10:30:01"
-}
-```
+---
 
 ## `PATCH /api/v1/photos/{photoId}/expense`
-
-Cho phép chủ ảnh cập nhật metadata chi tiêu sau khi đã upload.
+- Cap nhat metadata chi tieu cho anh (chi chu anh).
 
 ### Request
-
-```http
-PATCH /api/v1/photos/{photoId}/expense
-Authorization: Bearer <JWT_TOKEN>
-Content-Type: application/json
-```
 
 ```json
 {
@@ -819,24 +509,107 @@ Content-Type: application/json
 }
 ```
 
-### Rule
-- chỉ chủ ảnh mới được cập nhật
-- `amount` nếu gửi lên phải >= 0
-- `categoryId` phải là category đang active và user có quyền dùng (default hoặc own)
+### Rules
+- Chi sender moi duoc cap nhat.
+- `amount` neu co phai >= 0.
+- `categoryId` phai active va user co quyen dung.
+
+### Success
+- `200 OK` -> `PhotoResponse`
 
 ---
 
-# 12. Expense module (expanded)
+## `PUT /api/v1/photos/{photoId}/reactions/me`
+
+Them hoac cap nhat reaction cua current user cho photo.
+
+### Request
+
+```json
+{
+  "type": "LIKE"
+}
+```
+
+### Allowed types
+- `LIKE`, `LOVE`, `HAHA`, `WOW`, `SAD`, `ANGRY`
+
+### Success
+- `200 OK`
+
+```json
+{
+  "photoId": "uuid",
+  "userId": "uuid",
+  "type": "LIKE",
+  "createdAt": "2026-03-24T12:00:00"
+}
+```
+
+### Loi thuong gap
+- `400`: reaction type khong hop le
+- `400`: khong duoc reaction anh cua chinh minh
+- `404`: photo khong ton tai hoac ban khong co quyen
+
+---
+
+## `DELETE /api/v1/photos/{photoId}/reactions/me`
+
+Xoa reaction cua current user tren photo.
+
+### Success
+- `204 No Content`
+
+### Loi thuong gap
+- `400`: khong duoc thao tac reaction tren anh cua chinh minh
+- `404`: photo khong ton tai hoac ban khong co quyen
+
+---
+
+## `GET /api/v1/photos/{photoId}/reactions/summary`
+
+Lay tong quan reaction cua photo.
+
+- Truong `reactors` chi tra toi da 5 nguoi reaction moi nhat.
+
+### Success
+- `200 OK`
+
+```json
+{
+  "photoId": "uuid",
+  "totalCount": 3,
+  "myReaction": "LIKE",
+  "countsByType": {
+    "LIKE": 2,
+    "LOVE": 1
+  },
+  "reactors": [
+    {
+      "userId": "uuid",
+      "displayName": "Friend One",
+      "avatarUrl": "https://cdn.example.com/avatar-1.jpg",
+      "type": "LIKE",
+      "reactedAt": "2026-03-24T12:05:00"
+    }
+  ]
+}
+```
+
+### Loi thuong gap
+- `404`: photo khong ton tai hoac ban khong co quyen
+
+---
+
+## 7) Expense module
 
 Base path: `/api/v1/expense`
 
 ## `GET /api/v1/expense/categories`
+- Tra danh sach category active (default + user own).
+- `200 OK` -> `List<CategoryResponse>`
 
-Trả danh sách category đang active gồm:
-- category hệ thống mặc định (`isDefault=true`, `user_id=null`)
-- category riêng của current user (`isDefault=false`)
-
-### Response item
+### `CategoryResponse`
 
 ```json
 {
@@ -849,9 +622,11 @@ Trả danh sách category đang active gồm:
 }
 ```
 
+---
+
 ## `POST /api/v1/expense/categories`
 
-Tạo category cá nhân.
+### Request
 
 ```json
 {
@@ -861,9 +636,14 @@ Tạo category cá nhân.
 }
 ```
 
+### Success
+- `201 Created` -> `CategoryResponse`
+
+---
+
 ## `PATCH /api/v1/expense/categories/{categoryId}`
 
-Update category cá nhân (không update category mặc định hệ thống).
+### Request
 
 ```json
 {
@@ -874,9 +654,16 @@ Update category cá nhân (không update category mặc định hệ thống).
 }
 ```
 
-## `GET /api/v1/expense/budgets/{monthKey}`
+### Success
+- `200 OK` -> `CategoryResponse`
 
-`monthKey` theo định dạng `yyyyMM`, ví dụ `202603`.
+---
+
+## `GET /api/v1/expense/budgets/{monthKey}`
+- `monthKey` format: `yyyyMM` (vi du `202603`).
+- `200 OK` -> `BudgetResponse`
+
+### Sample
 
 ```json
 {
@@ -889,9 +676,13 @@ Update category cá nhân (không update category mặc định hệ thống).
 }
 ```
 
-Nếu chưa set budget, `amountLimit/alertThresholdPct/remaining` sẽ là `null`.
+> Neu chua set budget thi mot so field co the `null`.
+
+---
 
 ## `PUT /api/v1/expense/budgets/{monthKey}`
+
+### Request
 
 ```json
 {
@@ -900,11 +691,18 @@ Nếu chưa set budget, `amountLimit/alertThresholdPct/remaining` sẽ là `null
 }
 ```
 
-## `GET /api/v1/expense/entries?monthKey=202603`
+### Success
+- `200 OK` -> `BudgetResponse`
 
-Trả page các khoản chi (dữ liệu lấy từ photo có `amount > 0`).
+---
 
-### Response item
+## `GET /api/v1/expense/entries?monthKey=202603&type=EXPENSE|INCOME|ALL`
+- Tra page danh sach khoan chi/thu trong thang.
+- Du lieu nguon tu photo co `amount > 0`.
+- `type` optional, mac dinh `EXPENSE`. Cho phep: `EXPENSE`, `INCOME`, `ALL` (chua ho tro, can GUI tung loai).
+- `200 OK` -> `Page<ExpenseItemResponse>`
+
+### Expense item sample
 
 ```json
 {
@@ -920,7 +718,13 @@ Trả page các khoản chi (dữ liệu lấy từ photo có `amount > 0`).
 }
 ```
 
+---
+
 ## `GET /api/v1/expense/summary?monthKey=202603`
+- Tra tong quan chi tieu theo thang (chi tra EXPENSE).
+- `200 OK` -> `ExpenseSummaryResponse`
+
+### Sample
 
 ```json
 {
@@ -940,3 +744,94 @@ Trả page các khoản chi (dữ liệu lấy từ photo có `amount > 0`).
 }
 ```
 
+---
+
+## `GET /api/v1/expense/cashflow?monthKey=202603`
+- Tra tong quan tien vao + tien ra theo thang (INCOME + EXPENSE + NET).
+- `200 OK` -> `CashflowSummaryResponse`
+
+### Sample
+
+```json
+{
+  "monthKey": "202603",
+  "totalIncome": 2000000,
+  "totalExpense": 1250000,
+  "netCashflow": 750000,
+  "budgetLimit": 5000000,
+  "budgetRemaining": 3750000,
+  "budgetUsedPct": 25,
+  "budgetExceeded": false,
+  "incomeByCategory": [
+    {
+      "categoryId": "uuid",
+      "categoryName": "Salary",
+      "totalAmount": 2000000
+    }
+  ],
+  "expenseByCategory": [
+    {
+      "categoryId": "uuid",
+      "categoryName": "Food",
+      "totalAmount": 650000
+    }
+  ]
+}
+```
+
+---
+
+## 8) End-to-end flow de test nhanh
+
+## Flow A - Onboarding
+1. `POST /auth/register`
+2. `POST /auth/verify`
+3. `GET /users/me`
+4. Neu `profileCompleted=false` -> `PATCH /users/me/profile`
+
+## Flow A2 - Settings: Personal info
+1. `GET /users/me/settings/personal-info`
+2. User sua thong tin tren man hinh settings
+3. `PATCH /users/me/settings/personal-info`
+4. Neu user doi avatar -> `PATCH /users/me/settings/avatar` (multipart, chi gui file)
+5. FE cap nhat state local tu `UserResponse`
+
+## Flow B - Photo
+1. `POST /photos` (multipart)
+2. `GET /photos/feed` (Slice)
+3. `GET /photos/{photoId}`
+4. `PATCH /photos/{photoId}/expense` (optional)
+
+## Flow C - Expense
+1. `GET /expense/categories`
+2. `PUT /expense/budgets/{monthKey}`
+3. `GET /expense/entries?monthKey=yyyyMM`
+4. `GET /expense/summary?monthKey=yyyyMM`
+
+---
+
+## 9) Flutter Dio mapping goi y
+
+Public endpoints (khong gan token):
+- `/api/v1/auth/register`
+- `/api/v1/auth/verify`
+- `/api/v1/auth/login`
+
+Con lai phai gan:
+
+```http
+Authorization: Bearer <token>
+```
+
+Khuyen nghi FE cho pagination:
+- Feed (`/photos/feed`): dung `Slice` theo `last=false` de load more.
+- My Photos / Expense entries: dung `Page` neu can thong tin tong so trang.
+
+---
+
+## 10) Ghi chu version
+
+- Ban nay da cap nhat dung implementation hien tai:
+  - `GET /photos/feed` dung `Slice`
+  - `GET /photos/my-photos` va `GET /photos/me` dung `Page`
+  - Expense theo `monthKey=yyyyMM`

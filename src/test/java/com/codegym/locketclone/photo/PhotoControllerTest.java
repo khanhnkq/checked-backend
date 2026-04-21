@@ -1,6 +1,9 @@
 package com.codegym.locketclone.photo;
 
 import com.codegym.locketclone.photo.dto.PhotoResponse;
+import com.codegym.locketclone.photo.dto.PhotoReactionResponse;
+import com.codegym.locketclone.photo.dto.PhotoReactionSummaryResponse;
+import com.codegym.locketclone.photo.dto.UpsertPhotoReactionRequest;
 import com.codegym.locketclone.security.service.UserPrincipal;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -9,6 +12,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.SliceImpl;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 
@@ -152,6 +156,95 @@ class PhotoControllerTest {
         assertEquals(200, actual.getStatusCode().value());
         assertEquals(response, actual.getBody());
         verify(photoService).getPhotoDetail(userId, photoId);
+    }
+
+    @Test
+    void getFeedPhotos_passesOptionalFriendIdToService() {
+        UUID userId = UUID.randomUUID();
+        UUID friendId = UUID.randomUUID();
+        UserPrincipal principal = new UserPrincipal(
+                userId,
+                "khanh_dev",
+                "khanh@example.com",
+                "secret",
+                org.springframework.security.core.authority.AuthorityUtils.createAuthorityList("ROLE_USER")
+        );
+        var slice = new SliceImpl<>(List.of(PhotoResponse.builder().id(UUID.randomUUID()).senderId(friendId).build()));
+
+        when(photoService.getFeedPhotos(userId, friendId, Pageable.unpaged())).thenReturn(slice);
+
+        var actual = photoController.getFeedPhotos(principal, friendId, Pageable.unpaged());
+
+        assertEquals(200, actual.getStatusCode().value());
+        assertEquals(slice, actual.getBody());
+        verify(photoService).getFeedPhotos(userId, friendId, Pageable.unpaged());
+    }
+
+    @Test
+    void upsertMyReaction_returnsServiceResult() {
+        UUID userId = UUID.randomUUID();
+        UUID photoId = UUID.randomUUID();
+        UserPrincipal principal = new UserPrincipal(
+                userId,
+                "khanh_dev",
+                "khanh@example.com",
+                "secret",
+                org.springframework.security.core.authority.AuthorityUtils.createAuthorityList("ROLE_USER")
+        );
+        UpsertPhotoReactionRequest request = new UpsertPhotoReactionRequest("LIKE");
+        PhotoReactionResponse response = new PhotoReactionResponse(photoId, userId, "LIKE", LocalDateTime.now());
+
+        when(photoService.upsertReaction(userId, photoId, request)).thenReturn(response);
+
+        var actual = photoController.upsertMyReaction(photoId, principal, request);
+
+        assertEquals(200, actual.getStatusCode().value());
+        assertEquals(response, actual.getBody());
+        verify(photoService).upsertReaction(userId, photoId, request);
+    }
+
+    @Test
+    void removeMyReaction_returnsNoContent() {
+        UUID userId = UUID.randomUUID();
+        UUID photoId = UUID.randomUUID();
+        UserPrincipal principal = new UserPrincipal(
+                userId,
+                "khanh_dev",
+                "khanh@example.com",
+                "secret",
+                org.springframework.security.core.authority.AuthorityUtils.createAuthorityList("ROLE_USER")
+        );
+
+        var actual = photoController.removeMyReaction(photoId, principal);
+
+        assertEquals(204, actual.getStatusCode().value());
+        verify(photoService).removeReaction(userId, photoId);
+    }
+
+    @Test
+    void getReactionSummary_returnsServiceResult() {
+        UUID userId = UUID.randomUUID();
+        UUID photoId = UUID.randomUUID();
+        UserPrincipal principal = new UserPrincipal(
+                userId,
+                "khanh_dev",
+                "khanh@example.com",
+                "secret",
+                org.springframework.security.core.authority.AuthorityUtils.createAuthorityList("ROLE_USER")
+        );
+        PhotoReactionSummaryResponse response = new PhotoReactionSummaryResponse(
+                photoId,
+                2,
+                "LIKE",
+                java.util.Map.of("LIKE", 2L)
+        );
+        when(photoService.getReactionSummary(userId, photoId)).thenReturn(response);
+
+        var actual = photoController.getReactionSummary(photoId, principal);
+
+        assertEquals(200, actual.getStatusCode().value());
+        assertEquals(response, actual.getBody());
+        verify(photoService).getReactionSummary(userId, photoId);
     }
 }
 
