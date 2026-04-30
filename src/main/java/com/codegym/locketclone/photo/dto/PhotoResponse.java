@@ -1,5 +1,6 @@
 package com.codegym.locketclone.photo.dto;
 
+import com.codegym.locketclone.expense.TransactionType;
 import com.codegym.locketclone.photo.PhotoStatus;
 import com.codegym.locketclone.photo.RecipientScope;
 import lombok.Builder;
@@ -19,6 +20,7 @@ public record PhotoResponse(
         String caption,
         String note,
         BigDecimal amount,
+        TransactionType transactionType,
         UUID categoryId,
         String categoryName,
         RecipientScope recipientScope,

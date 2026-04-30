@@ -5,18 +5,22 @@ import com.codegym.locketclone.common.exception.ErrorCode;
 import com.codegym.locketclone.common.mapper.PhotoMapper;
 import com.codegym.locketclone.expense.Category;
 import com.codegym.locketclone.expense.CategoryRepository;
+import com.codegym.locketclone.expense.TransactionType;
 import com.codegym.locketclone.friendship.FriendshipRepository;
 import com.codegym.locketclone.photo.dto.PhotoReactionResponse;
 import com.codegym.locketclone.photo.dto.PhotoReactionSummaryResponse;
+import com.codegym.locketclone.photo.dto.PhotoReactorResponse;
 import com.codegym.locketclone.photo.dto.PhotoResponse;
 import com.codegym.locketclone.photo.dto.UpsertPhotoReactionRequest;
 import com.codegym.locketclone.photo.dto.UpdatePhotoExpenseRequest;
+import com.codegym.locketclone.photo.dto.UpdatePhotoTransactionRequest;
 import com.codegym.locketclone.user.User;
 import com.codegym.locketclone.user.UserRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
@@ -38,6 +42,7 @@ import java.util.UUID;
 public class PhotoServiceImpl implements PhotoService {
     private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of("image/jpeg", "image/png", "image/webp");
     private static final Set<String> ALLOWED_REACTION_TYPES = Set.of("LIKE", "LOVE", "HAHA", "WOW", "SAD", "ANGRY");
+    private static final int REACTION_SUMMARY_REACTORS_LIMIT = 5;
 
     private final PhotoRepository photoRepository;
     private final PhotoRecipientRepository photoRecipientRepository;
@@ -83,6 +88,7 @@ public class PhotoServiceImpl implements PhotoService {
     public PhotoResponse uploadPhoto(MultipartFile file,
                                      String caption,
                                      BigDecimal amount,
+                                     String transactionType,
                                      String note,
                                      UUID categoryId,
                                      RecipientScope recipientScope,
@@ -93,9 +99,10 @@ public class PhotoServiceImpl implements PhotoService {
         validateAmount(amount);
 
         User sender = ensureUserExists(senderId);
-        Category category = resolveCategory(senderId, categoryId);
         RecipientScope effectiveScope = recipientScope == null ? RecipientScope.ALL_FRIENDS : recipientScope;
         List<User> recipients = resolveRecipients(senderId, effectiveScope, recipientIds);
+        TransactionType type = resolveTransactionType(transactionType);
+        Category category = resolveCategory(senderId, categoryId, type);
 
         try {
             log.info("Bắt đầu upload ảnh lên Cloudinary cho user: {} với scope: {}", senderId, effectiveScope);
@@ -108,6 +115,7 @@ public class PhotoServiceImpl implements PhotoService {
                     .publicId(uploadedImage.publicId())
                     .caption(caption)
                     .amount(amount)
+                    .transactionType(type)
                     .note(normalizeNote(note))
                     .category(category)
                     .recipientScope(effectiveScope)
@@ -152,7 +160,7 @@ public class PhotoServiceImpl implements PhotoService {
         }
 
         if (request.categoryId() != null) {
-            photo.setCategory(resolveCategory(userId, request.categoryId()));
+            photo.setCategory(resolveCategory(userId, request.categoryId(), photo.getTransactionType()));
         }
 
         Photo saved = photoRepository.save(photo);
@@ -211,7 +219,89 @@ public class PhotoServiceImpl implements PhotoService {
                 .map(PhotoReaction::getReactionType)
                 .orElse(null);
 
-        return new PhotoReactionSummaryResponse(photoId, totalCount, myReaction, countsByType);
+        List<PhotoReactorResponse> reactors = photoReactionRepository
+                .findAllByPhotoIdWithUserOrderByCreatedAtDesc(photoId, PageRequest.of(0, REACTION_SUMMARY_REACTORS_LIMIT))
+                .stream()
+                .map(reaction -> new PhotoReactorResponse(
+                        reaction.getUser().getId(),
+                        reaction.getUser().getDisplayName(),
+                        reaction.getUser().getAvatarUrl(),
+                        reaction.getReactionType(),
+                        reaction.getCreatedAt()
+                ))
+                .toList();
+
+        return new PhotoReactionSummaryResponse(photoId, totalCount, myReaction, countsByType, reactors);
+    }
+
+    @Override
+    @Transactional
+    public PhotoResponse updatePhotoTransaction(UUID userId, UUID photoId, UpdatePhotoTransactionRequest request) {
+        ensureUserExists(userId);
+        Photo photo = photoRepository.findById(photoId)
+                .orElseThrow(() -> new AppException(ErrorCode.PHOTO_NOT_FOUND));
+
+        if (photo.getStatus() == PhotoStatus.DELETED || !photo.getSender().getId().equals(userId)) {
+            throw new AppException(ErrorCode.PHOTO_NOT_FOUND);
+        }
+
+        if (request.caption() != null) {
+            photo.setCaption(normalizeCaption(request.caption()));
+        }
+
+        if (request.amount() != null) {
+            validateAmount(request.amount());
+            photo.setAmount(request.amount());
+        }
+
+        if (request.note() != null) {
+            photo.setNote(normalizeNote(request.note()));
+        }
+
+        TransactionType effectiveType = request.transactionType() != null
+                ? request.transactionType()
+                : photo.getTransactionType();
+
+        if (request.transactionType() != null) {
+            photo.setTransactionType(request.transactionType());
+        }
+
+        if (Boolean.TRUE.equals(request.clearCategory())) {
+            photo.setCategory(null);
+        } else if (request.categoryId() != null) {
+            photo.setCategory(resolveCategory(userId, request.categoryId(), effectiveType));
+        } else if (request.transactionType() != null && photo.getCategory() != null
+                && photo.getCategory().getTransactionType() != null
+                && photo.getCategory().getTransactionType() != effectiveType) {
+            // Keep data consistent when type changes but category is no longer valid.
+            throw new AppException(ErrorCode.CATEGORY_TRANSACTION_TYPE_MISMATCH);
+        }
+
+        if (request.takenAt() != null) {
+            photo.setTakenAt(request.takenAt());
+        }
+
+        if (request.occurredAt() != null) {
+            photo.setOccurredAt(request.occurredAt());
+        }
+
+        Photo saved = photoRepository.save(photo);
+        return photoMapper.toResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public void deleteTransaction(UUID userId, UUID photoId) {
+        ensureUserExists(userId);
+        Photo photo = photoRepository.findById(photoId)
+                .orElseThrow(() -> new AppException(ErrorCode.PHOTO_NOT_FOUND));
+
+        if (photo.getStatus() == PhotoStatus.DELETED || !photo.getSender().getId().equals(userId)) {
+            throw new AppException(ErrorCode.PHOTO_NOT_FOUND);
+        }
+
+        photo.setStatus(PhotoStatus.DELETED);
+        photoRepository.save(photo);
     }
 
     private User ensureUserExists(UUID userId) {
@@ -245,12 +335,16 @@ public class PhotoServiceImpl implements PhotoService {
         }
     }
 
-    private Category resolveCategory(UUID userId, UUID categoryId) {
+    private Category resolveCategory(UUID userId, UUID categoryId, TransactionType transactionType) {
         if (categoryId == null) {
             return null;
         }
-        return categoryRepository.findActiveVisibleById(categoryId, userId)
+        Category category = categoryRepository.findActiveVisibleById(categoryId, userId)
                 .orElseThrow(() -> new AppException(ErrorCode.CATEGORY_NOT_FOUND));
+        if (transactionType != null && category.getTransactionType() != null && category.getTransactionType() != transactionType) {
+            throw new AppException(ErrorCode.CATEGORY_TRANSACTION_TYPE_MISMATCH);
+        }
+        return category;
     }
 
     private String normalizeNote(String note) {
@@ -258,6 +352,11 @@ public class PhotoServiceImpl implements PhotoService {
             return null;
         }
         String normalized = note.trim();
+        return normalized.isEmpty() ? null : normalized;
+    }
+
+    private String normalizeCaption(String caption) {
+        String normalized = caption.trim();
         return normalized.isEmpty() ? null : normalized;
     }
 
@@ -270,6 +369,17 @@ public class PhotoServiceImpl implements PhotoService {
             throw new AppException(ErrorCode.INVALID_REACTION_TYPE);
         }
         return normalized;
+    }
+
+    private TransactionType resolveTransactionType(String transactionType) {
+        if (transactionType == null || transactionType.trim().isEmpty()) {
+            return TransactionType.EXPENSE;
+        }
+        try {
+            return TransactionType.valueOf(transactionType.trim().toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            throw new AppException(ErrorCode.INVALID_TRANSACTION_TYPE);
+        }
     }
 
     private List<User> resolveRecipients(UUID senderId, RecipientScope scope, List<UUID> recipientIds) {

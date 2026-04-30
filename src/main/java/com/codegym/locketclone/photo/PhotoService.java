@@ -5,6 +5,7 @@ import com.codegym.locketclone.photo.dto.PhotoReactionResponse;
 import com.codegym.locketclone.photo.dto.PhotoReactionSummaryResponse;
 import com.codegym.locketclone.photo.dto.UpsertPhotoReactionRequest;
 import com.codegym.locketclone.photo.dto.UpdatePhotoExpenseRequest;
+import com.codegym.locketclone.photo.dto.UpdatePhotoTransactionRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -27,6 +28,7 @@ public interface PhotoService {
     PhotoResponse uploadPhoto(MultipartFile file,
                               String caption,
                               BigDecimal amount,
+                              String transactionType,
                               String note,
                               UUID categoryId,
                               RecipientScope recipientScope,
@@ -35,6 +37,10 @@ public interface PhotoService {
                               UUID senderId);
 
     PhotoResponse updatePhotoExpense(UUID userId, UUID photoId, UpdatePhotoExpenseRequest request);
+
+    PhotoResponse updatePhotoTransaction(UUID userId, UUID photoId, UpdatePhotoTransactionRequest request);
+
+    void deleteTransaction(UUID userId, UUID photoId);
 
     PhotoReactionResponse upsertReaction(UUID userId, UUID photoId, UpsertPhotoReactionRequest request);
 

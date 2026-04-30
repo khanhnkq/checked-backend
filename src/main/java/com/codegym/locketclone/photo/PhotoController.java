@@ -5,6 +5,7 @@ import com.codegym.locketclone.photo.dto.PhotoReactionResponse;
 import com.codegym.locketclone.photo.dto.PhotoReactionSummaryResponse;
 import com.codegym.locketclone.photo.dto.UpsertPhotoReactionRequest;
 import com.codegym.locketclone.photo.dto.UpdatePhotoExpenseRequest;
+import com.codegym.locketclone.photo.dto.UpdatePhotoTransactionRequest;
 import com.codegym.locketclone.security.service.UserPrincipal;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +38,7 @@ public class PhotoController {
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "caption", required = false) String caption,
             @RequestParam(value = "amount", required = false) BigDecimal amount,
+            @RequestParam(value = "transactionType", required = false) String transactionType,
             @RequestParam(value = "note", required = false) String note,
             @RequestParam(value = "categoryId", required = false) UUID categoryId,
             @RequestParam(value = "recipientScope", required = false) RecipientScope recipientScope,
@@ -53,6 +55,7 @@ public class PhotoController {
                 file,
                 caption,
                 amount,
+                transactionType,
                 note,
                 categoryId,
                 effectiveScope,
@@ -125,5 +128,24 @@ public class PhotoController {
     ) {
         PhotoReactionSummaryResponse response = photoService.getReactionSummary(currentUser.getId(), photoId);
         return ResponseEntity.ok(response);
+    }
+
+    @PatchMapping("/{photoId}/transaction")
+    public ResponseEntity<PhotoResponse> updatePhotoTransaction(
+            @PathVariable UUID photoId,
+            @AuthenticationPrincipal UserPrincipal currentUser,
+            @Valid @RequestBody UpdatePhotoTransactionRequest request
+    ) {
+        PhotoResponse response = photoService.updatePhotoTransaction(currentUser.getId(), photoId, request);
+        return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/{photoId}")
+    public ResponseEntity<Void> deleteTransaction(
+            @PathVariable UUID photoId,
+            @AuthenticationPrincipal UserPrincipal currentUser
+    ) {
+        photoService.deleteTransaction(currentUser.getId(), photoId);
+        return ResponseEntity.noContent().build();
     }
 }

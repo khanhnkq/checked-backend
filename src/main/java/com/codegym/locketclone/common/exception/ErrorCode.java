@@ -20,6 +20,8 @@ public enum ErrorCode {
     INVALID_BUDGET_LIMIT(HttpStatus.BAD_REQUEST, "Ngân sách tháng phải lớn hơn 0"),
     INVALID_ALERT_THRESHOLD(HttpStatus.BAD_REQUEST, "Ngưỡng cảnh báo phải trong khoảng 1-100"),
     CATEGORY_NAME_ALREADY_EXISTS(HttpStatus.BAD_REQUEST, "Tên danh mục đã tồn tại"),
+    INVALID_TRANSACTION_TYPE(HttpStatus.BAD_REQUEST, "Loại giao dịch không hợp lệ"),
+    CATEGORY_TRANSACTION_TYPE_MISMATCH(HttpStatus.BAD_REQUEST, "Danh mục không khớp với loại giao dịch"),
     RECIPIENTS_REQUIRED(HttpStatus.BAD_REQUEST, "Vui lòng chọn ít nhất một người nhận"),
     INVALID_RECIPIENT_SELECTION(HttpStatus.BAD_REQUEST, "Danh sách người nhận không hợp lệ hoặc chưa là bạn bè"),
     INVALID_FRIEND_INVITE_TTL(HttpStatus.BAD_REQUEST, "TTL của link kết bạn không hợp lệ"),

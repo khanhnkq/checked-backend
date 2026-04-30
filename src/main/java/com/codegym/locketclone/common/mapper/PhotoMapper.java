@@ -18,6 +18,7 @@ public class PhotoMapper {
                 .caption(photo.getCaption())
                 .note(photo.getNote())
                 .amount(photo.getAmount())
+                .transactionType(photo.getTransactionType())
                 .categoryId(photo.getCategory() != null ? photo.getCategory().getId() : null)
                 .categoryName(photo.getCategory() != null ? photo.getCategory().getName() : null)
                 .recipientScope(photo.getRecipientScope())

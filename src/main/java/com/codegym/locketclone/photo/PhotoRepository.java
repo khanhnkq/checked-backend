@@ -279,5 +279,74 @@ public interface PhotoRepository extends JpaRepository<Photo, UUID> {
                                                   @Param("fromDate") LocalDateTime fromDate,
                                                   @Param("toDate") LocalDateTime toDate);
 
+    @Query(
+            value = """
+                    SELECT p
+                    FROM Photo p
+                    LEFT JOIN FETCH p.category
+                    WHERE p.sender.id = :senderId
+                      AND p.status <> :deletedStatus
+                      AND p.amount IS NOT NULL
+                      AND p.amount > 0
+                      AND (:transactionType IS NULL OR p.transactionType = :transactionType)
+                      AND COALESCE(p.occurredAt, p.takenAt, p.createdAt) >= :fromDate
+                      AND COALESCE(p.occurredAt, p.takenAt, p.createdAt) < :toDate
+                    ORDER BY COALESCE(p.occurredAt, p.takenAt, p.createdAt) DESC
+                    """,
+            countQuery = """
+                    SELECT COUNT(p)
+                    FROM Photo p
+                    WHERE p.sender.id = :senderId
+                      AND p.status <> :deletedStatus
+                      AND p.amount IS NOT NULL
+                      AND p.amount > 0
+                      AND (:transactionType IS NULL OR p.transactionType = :transactionType)
+                      AND COALESCE(p.occurredAt, p.takenAt, p.createdAt) >= :fromDate
+                      AND COALESCE(p.occurredAt, p.takenAt, p.createdAt) < :toDate
+                    """
+    )
+    Page<Photo> findTransactionPhotosBySenderAndRange(@Param("senderId") UUID senderId,
+                                                       @Param("deletedStatus") PhotoStatus deletedStatus,
+                                                       @Param("transactionType") TransactionType transactionType,
+                                                       @Param("fromDate") LocalDateTime fromDate,
+                                                       @Param("toDate") LocalDateTime toDate,
+                                                       Pageable pageable);
+
+    @Query("""
+            SELECT COALESCE(SUM(p.amount), 0)
+            FROM Photo p
+            WHERE p.sender.id = :senderId
+              AND p.status <> :deletedStatus
+              AND p.amount IS NOT NULL
+              AND p.amount > 0
+              AND (:transactionType IS NULL OR p.transactionType = :transactionType)
+              AND COALESCE(p.occurredAt, p.takenAt, p.createdAt) >= :fromDate
+              AND COALESCE(p.occurredAt, p.takenAt, p.createdAt) < :toDate
+            """)
+    BigDecimal sumTransactionAmountBySenderInRange(@Param("senderId") UUID senderId,
+                                                   @Param("deletedStatus") PhotoStatus deletedStatus,
+                                                   @Param("transactionType") TransactionType transactionType,
+                                                   @Param("fromDate") LocalDateTime fromDate,
+                                                   @Param("toDate") LocalDateTime toDate);
+
+    @Query("""
+            SELECT p.category.id, COALESCE(p.category.name, 'Uncategorized'), COALESCE(SUM(p.amount), 0)
+            FROM Photo p
+            WHERE p.sender.id = :senderId
+              AND p.status <> :deletedStatus
+              AND p.amount IS NOT NULL
+              AND p.amount > 0
+              AND (:transactionType IS NULL OR p.transactionType = :transactionType)
+              AND COALESCE(p.occurredAt, p.takenAt, p.createdAt) >= :fromDate
+              AND COALESCE(p.occurredAt, p.takenAt, p.createdAt) < :toDate
+            GROUP BY p.category.id, p.category.name
+            ORDER BY COALESCE(SUM(p.amount), 0) DESC
+            """)
+    List<Object[]> summarizeTransactionByCategoryInRange(@Param("senderId") UUID senderId,
+                                                         @Param("deletedStatus") PhotoStatus deletedStatus,
+                                                         @Param("transactionType") TransactionType transactionType,
+                                                         @Param("fromDate") LocalDateTime fromDate,
+                                                         @Param("toDate") LocalDateTime toDate);
+
     long countBySenderId(UUID senderId);
 }

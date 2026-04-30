@@ -17,10 +17,13 @@ import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -33,6 +36,7 @@ public class ExpenseServiceImpl implements ExpenseService {
     private final UserRepository userRepository;
     private final CategoryRepository categoryRepository;
     private final BudgetRepository budgetRepository;
+    private final SavingsGoalRepository savingsGoalRepository;
     private final PhotoRepository photoRepository;
 
     @Override
@@ -62,6 +66,7 @@ public class ExpenseServiceImpl implements ExpenseService {
                 .user(user)
                 .isDefault(false)
                 .isActive(true)
+                .transactionType(request.transactionType() == null ? TransactionType.EXPENSE : request.transactionType())
                 .build();
 
         return toCategoryResponse(categoryRepository.save(category));
@@ -98,6 +103,10 @@ public class ExpenseServiceImpl implements ExpenseService {
 
         if (request.isActive() != null) {
             category.setIsActive(request.isActive());
+        }
+
+        if (request.transactionType() != null) {
+            category.setTransactionType(request.transactionType());
         }
 
         return toCategoryResponse(categoryRepository.save(category));
@@ -187,6 +196,34 @@ public class ExpenseServiceImpl implements ExpenseService {
                         type,
                         monthRange.fromDate(),
                         monthRange.toDate(),
+                        pageable
+                )
+                .map(this::toExpenseItemResponse);
+    }
+
+    @Override
+    @Transactional
+    public Page<ExpenseItemResponse> getExpenseEntriesByPeriod(
+            UUID userId,
+            EntryPeriod period,
+            LocalDate referenceDate,
+            TransactionFilterType type,
+            Pageable pageable
+    ) {
+        ensureUserExists(userId);
+        if (referenceDate == null || period == null) {
+            throw new AppException(ErrorCode.INVALID_REQUEST);
+        }
+
+        DateRange range = resolveDateRange(period, referenceDate);
+        TransactionType transactionType = toTransactionTypeOrNull(type);
+
+        return photoRepository.findTransactionPhotosBySenderAndRange(
+                        userId,
+                        PhotoStatus.DELETED,
+                        transactionType,
+                        range.fromDate(),
+                        range.toDate(),
                         pageable
                 )
                 .map(this::toExpenseItemResponse);
@@ -296,6 +333,146 @@ public class ExpenseServiceImpl implements ExpenseService {
         );
     }
 
+    @Override
+    @Transactional
+    public YearlyCashflowSummaryResponse getYearlyCashflowSummary(UUID userId, Integer year) {
+        ensureUserExists(userId);
+        if (year == null || year < 1970 || year > 3000) {
+            throw new AppException(ErrorCode.INVALID_REQUEST);
+        }
+
+        List<MonthlyCashflowItemResponse> months = new ArrayList<>();
+        BigDecimal totalIncome = BigDecimal.ZERO;
+        BigDecimal totalExpense = BigDecimal.ZERO;
+
+        for (int month = 1; month <= 12; month++) {
+            YearMonth ym = YearMonth.of(year, month);
+            MonthRange monthRange = monthRange(ym);
+
+            BigDecimal income = safeAmount(photoRepository.sumTransactionAmountBySenderAndMonth(
+                    userId, PhotoStatus.DELETED, TransactionType.INCOME, monthRange.fromDate(), monthRange.toDate()
+            ));
+            BigDecimal expense = safeAmount(photoRepository.sumTransactionAmountBySenderAndMonth(
+                    userId, PhotoStatus.DELETED, TransactionType.EXPENSE, monthRange.fromDate(), monthRange.toDate()
+            ));
+            BigDecimal net = income.subtract(expense);
+
+            totalIncome = totalIncome.add(income);
+            totalExpense = totalExpense.add(expense);
+
+            months.add(new MonthlyCashflowItemResponse(
+                    ym.format(MONTH_KEY_FORMATTER),
+                    income,
+                    expense,
+                    net
+            ));
+        }
+
+        return new YearlyCashflowSummaryResponse(
+                year,
+                totalIncome,
+                totalExpense,
+                totalIncome.subtract(totalExpense),
+                months
+        );
+    }
+
+    @Override
+    @Transactional
+    public List<TopCategoryResponse> getTopCategories(
+            UUID userId,
+            String monthKey,
+            Integer year,
+            TransactionFilterType type,
+            Integer limit
+    ) {
+        ensureUserExists(userId);
+        if (limit == null || limit <= 0) {
+            throw new AppException(ErrorCode.INVALID_REQUEST);
+        }
+
+        DateRange range;
+        if (monthKey != null && !monthKey.isBlank()) {
+            range = DateRange.fromMonth(parseMonthKey(monthKey));
+        } else if (year != null) {
+            if (year < 1970 || year > 3000) {
+                throw new AppException(ErrorCode.INVALID_REQUEST);
+            }
+            range = DateRange.of(LocalDateTime.of(year, 1, 1, 0, 0), LocalDateTime.of(year + 1, 1, 1, 0, 0));
+        } else {
+            range = DateRange.fromMonth(YearMonth.now());
+        }
+
+        TransactionType transactionType = toTransactionTypeOrNull(type);
+
+        BigDecimal total = safeAmount(photoRepository.sumTransactionAmountBySenderInRange(
+                userId,
+                PhotoStatus.DELETED,
+                transactionType,
+                range.fromDate(),
+                range.toDate()
+        ));
+
+        List<Object[]> rows = photoRepository.summarizeTransactionByCategoryInRange(
+                userId,
+                PhotoStatus.DELETED,
+                transactionType,
+                range.fromDate(),
+                range.toDate()
+        );
+
+        return rows.stream()
+                .limit(limit)
+                .map(row -> {
+                    UUID categoryId = (UUID) row[0];
+                    String categoryName = (String) row[1];
+                    BigDecimal amount = safeAmount((BigDecimal) row[2]);
+                    Integer percentage = null;
+                    if (total.signum() > 0) {
+                        percentage = amount.multiply(BigDecimal.valueOf(100))
+                                .divide(total, 0, RoundingMode.HALF_UP)
+                                .intValue();
+                    }
+                    return new TopCategoryResponse(categoryId, categoryName, amount, percentage);
+                })
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public SavingsGoalResponse getSavingsGoal(UUID userId, String monthKey) {
+        ensureUserExists(userId);
+        YearMonth yearMonth = parseMonthKey(monthKey);
+        String normalizedMonthKey = yearMonth.format(MONTH_KEY_FORMATTER);
+
+        SavingsGoal goal = savingsGoalRepository.findByUser_IdAndMonthKey(userId, normalizedMonthKey).orElse(null);
+        BigDecimal target = goal != null ? goal.getTargetAmount() : null;
+        BigDecimal currentSaved = currentSavedForMonth(userId, yearMonth);
+
+        return toSavingsGoalResponse(normalizedMonthKey, target, currentSaved);
+    }
+
+    @Override
+    @Transactional
+    public SavingsGoalResponse upsertSavingsGoal(UUID userId, String monthKey, SavingsGoalUpsertRequest request) {
+        User user = ensureUserExists(userId);
+        YearMonth yearMonth = parseMonthKey(monthKey);
+        String normalizedMonthKey = yearMonth.format(MONTH_KEY_FORMATTER);
+
+        if (request.targetAmount() == null || request.targetAmount().signum() <= 0) {
+            throw new AppException(ErrorCode.INVALID_REQUEST);
+        }
+
+        SavingsGoal goal = savingsGoalRepository.findByUser_IdAndMonthKey(userId, normalizedMonthKey)
+                .orElseGet(() -> SavingsGoal.builder().user(user).monthKey(normalizedMonthKey).build());
+
+        goal.setTargetAmount(request.targetAmount());
+        savingsGoalRepository.save(goal);
+
+        BigDecimal currentSaved = currentSavedForMonth(userId, yearMonth);
+        return toSavingsGoalResponse(normalizedMonthKey, goal.getTargetAmount(), currentSaved);
+    }
+
     private User ensureUserExists(UUID userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
@@ -322,6 +499,27 @@ public class ExpenseServiceImpl implements ExpenseService {
         return new MonthRange(from, to);
     }
 
+    private DateRange resolveDateRange(EntryPeriod period, LocalDate referenceDate) {
+        return switch (period) {
+            case DAY -> DateRange.of(referenceDate.atStartOfDay(), referenceDate.plusDays(1).atStartOfDay());
+            case WEEK -> {
+                LocalDate start = referenceDate.with(DayOfWeek.MONDAY);
+                yield DateRange.of(start.atStartOfDay(), start.plusDays(7).atStartOfDay());
+            }
+            case MONTH -> {
+                YearMonth ym = YearMonth.from(referenceDate);
+                yield DateRange.fromMonth(ym);
+            }
+        };
+    }
+
+    private TransactionType toTransactionTypeOrNull(TransactionFilterType type) {
+        if (type == null || type == TransactionFilterType.ALL) {
+            return null;
+        }
+        return TransactionType.valueOf(type.name());
+    }
+
     private CategoryResponse toCategoryResponse(Category category) {
         return new CategoryResponse(
                 category.getId(),
@@ -329,7 +527,8 @@ public class ExpenseServiceImpl implements ExpenseService {
                 category.getIcon(),
                 category.getColor(),
                 category.getIsDefault(),
-                category.getIsActive()
+                category.getIsActive(),
+                category.getTransactionType()
         );
     }
 
@@ -342,6 +541,7 @@ public class ExpenseServiceImpl implements ExpenseService {
                 photo.getNote(),
                 photo.getCategory() != null ? photo.getCategory().getId() : null,
                 photo.getCategory() != null ? photo.getCategory().getName() : null,
+                photo.getTransactionType(),
                 photo.getTakenAt(),
                 photo.getCreatedAt()
         );
@@ -356,6 +556,35 @@ public class ExpenseServiceImpl implements ExpenseService {
 
     private BigDecimal safeAmount(BigDecimal amount) {
         return amount == null ? BigDecimal.ZERO : amount;
+    }
+
+    private BigDecimal currentSavedForMonth(UUID userId, YearMonth yearMonth) {
+        MonthRange monthRange = monthRange(yearMonth);
+        BigDecimal income = safeAmount(photoRepository.sumTransactionAmountBySenderAndMonth(
+                userId, PhotoStatus.DELETED, TransactionType.INCOME, monthRange.fromDate(), monthRange.toDate()
+        ));
+        BigDecimal expense = safeAmount(photoRepository.sumTransactionAmountBySenderAndMonth(
+                userId, PhotoStatus.DELETED, TransactionType.EXPENSE, monthRange.fromDate(), monthRange.toDate()
+        ));
+        BigDecimal net = income.subtract(expense);
+        return net.signum() > 0 ? net : BigDecimal.ZERO;
+    }
+
+    private SavingsGoalResponse toSavingsGoalResponse(String monthKey, BigDecimal targetAmount, BigDecimal currentSaved) {
+        if (targetAmount == null) {
+            return new SavingsGoalResponse(monthKey, null, currentSaved, null, null, false);
+        }
+
+        BigDecimal remaining = targetAmount.subtract(currentSaved);
+        boolean achieved = remaining.signum() <= 0;
+        Integer progressPct = targetAmount.signum() > 0
+                ? currentSaved.multiply(BigDecimal.valueOf(100)).divide(targetAmount, 0, RoundingMode.HALF_UP).intValue()
+                : null;
+        if (progressPct != null && progressPct > 100) {
+            progressPct = 100;
+        }
+
+        return new SavingsGoalResponse(monthKey, targetAmount, currentSaved, remaining, progressPct, achieved);
     }
 
     private String normalizeRequired(String value, int maxLength) {
@@ -384,6 +613,16 @@ public class ExpenseServiceImpl implements ExpenseService {
     }
 
     private record MonthRange(LocalDateTime fromDate, LocalDateTime toDate) {
+    }
+
+    private record DateRange(LocalDateTime fromDate, LocalDateTime toDate) {
+        private static DateRange of(LocalDateTime fromDate, LocalDateTime toDate) {
+            return new DateRange(fromDate, toDate);
+        }
+
+        private static DateRange fromMonth(YearMonth ym) {
+            return of(ym.atDay(1).atStartOfDay(), ym.plusMonths(1).atDay(1).atStartOfDay());
+        }
     }
 }
 

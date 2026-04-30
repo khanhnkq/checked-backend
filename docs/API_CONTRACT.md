@@ -423,6 +423,7 @@ multipart/form-data
 - Neu khong truyen `recipientScope`/`audienceMode` -> mac dinh `ALL_FRIENDS`.
 - Neu khong truyen `transactionType` -> mac dinh `EXPENSE`.
 - Sender luon duoc them vao recipients.
+- Neu chon `categoryId`, `transactionType` cua category phai khop voi `transactionType` cua photo.
 - `ALL_FRIENDS`: realtime theo friendship hien tai khi doc feed (khong fan-out recipients tai thoi diem upload).
 - `SELECTED_FRIENDS`: chi nhan `recipientIds` nam trong danh sach friend ACCEPTED.
 
@@ -513,9 +514,49 @@ multipart/form-data
 - Chi sender moi duoc cap nhat.
 - `amount` neu co phai >= 0.
 - `categoryId` phai active va user co quyen dung.
+- Neu cap nhat `categoryId`, `transactionType` cua category phai khop voi `transactionType` hien tai cua photo.
 
 ### Success
 - `200 OK` -> `PhotoResponse`
+
+---
+
+## `PATCH /api/v1/photos/{photoId}/transaction`
+- Cap nhat day du metadata giao dich (chi chu anh).
+
+### Request
+
+```json
+{
+  "caption": "Luong thang 4",
+  "amount": 12000000,
+  "note": "Cong ty chuyen khoan",
+  "categoryId": "uuid",
+  "clearCategory": false,
+  "transactionType": "INCOME",
+  "takenAt": "2026-04-24T08:00:00",
+  "occurredAt": "2026-04-24T08:00:00"
+}
+```
+
+### Rules
+- Chi sender moi duoc cap nhat.
+- `amount` neu co phai >= 0.
+- Neu doi `transactionType`, category hien tai phai khop type moi (hoac `clearCategory=true`).
+
+### Success
+- `200 OK` -> `PhotoResponse`
+
+---
+
+## `DELETE /api/v1/photos/{photoId}`
+- Xoa mem giao dich/photo cua chinh minh (set status `DELETED`).
+
+### Success
+- `204 No Content`
+
+### Loi thuong gap
+- `404`: photo khong ton tai, da xoa, hoac khong phai chu anh
 
 ---
 
@@ -570,7 +611,8 @@ Xoa reaction cua current user tren photo.
 
 Lay tong quan reaction cua photo.
 
-- Truong `reactors` chi tra toi da 5 nguoi reaction moi nhat.
+- Truong `reactors` tra toi da 5 nguoi reaction moi nhat, kem `avatarUrl` va `type`.
+- Danh sach duoc sap xep moi nhat truoc.
 
 ### Success
 - `200 OK`
@@ -578,11 +620,13 @@ Lay tong quan reaction cua photo.
 ```json
 {
   "photoId": "uuid",
-  "totalCount": 3,
+  "totalCount": 6,
   "myReaction": "LIKE",
   "countsByType": {
-    "LIKE": 2,
-    "LOVE": 1
+    "LIKE": 3,
+    "LOVE": 1,
+    "HAHA": 1,
+    "WOW": 1
   },
   "reactors": [
     {
@@ -591,10 +635,40 @@ Lay tong quan reaction cua photo.
       "avatarUrl": "https://cdn.example.com/avatar-1.jpg",
       "type": "LIKE",
       "reactedAt": "2026-03-24T12:05:00"
+    },
+    {
+      "userId": "uuid",
+      "displayName": "Friend Two",
+      "avatarUrl": "https://cdn.example.com/avatar-2.jpg",
+      "type": "LOVE",
+      "reactedAt": "2026-03-24T12:04:00"
+    },
+    {
+      "userId": "uuid",
+      "displayName": "Friend Three",
+      "avatarUrl": null,
+      "type": "HAHA",
+      "reactedAt": "2026-03-24T12:03:00"
+    },
+    {
+      "userId": "uuid",
+      "displayName": "Friend Four",
+      "avatarUrl": "https://cdn.example.com/avatar-4.jpg",
+      "type": "WOW",
+      "reactedAt": "2026-03-24T12:02:00"
+    },
+    {
+      "userId": "uuid",
+      "displayName": "Friend Five",
+      "avatarUrl": "https://cdn.example.com/avatar-5.jpg",
+      "type": "LIKE",
+      "reactedAt": "2026-03-24T12:01:00"
     }
   ]
 }
 ```
+
+> Ghi chu: neu photo co nhieu hon 5 reaction, response chi tra 5 nguoi moi nhat. `totalCount` van la tong so reaction thuc te.
 
 ### Loi thuong gap
 - `404`: photo khong ton tai hoac ban khong co quyen
@@ -604,6 +678,8 @@ Lay tong quan reaction cua photo.
 ## 7) Expense module
 
 Base path: `/api/v1/expense`
+
+> Ghi chú: `transactionType` (`EXPENSE` | `INCOME`) dùng để phân loại giao dịch. Budget vẫn chỉ tính cho `EXPENSE`.
 
 ## `GET /api/v1/expense/categories`
 - Tra danh sach category active (default + user own).
@@ -618,7 +694,8 @@ Base path: `/api/v1/expense`
   "icon": "restaurant",
   "color": "#FF8A65",
   "isDefault": true,
-  "isActive": true
+  "isActive": true,
+  "transactionType": "EXPENSE"
 }
 ```
 
@@ -632,7 +709,8 @@ Base path: `/api/v1/expense`
 {
   "name": "Coffee",
   "icon": "coffee",
-  "color": "#795548"
+  "color": "#795548",
+  "transactionType": "EXPENSE"
 }
 ```
 
@@ -650,7 +728,8 @@ Base path: `/api/v1/expense`
   "name": "Cafe",
   "icon": "coffee",
   "color": "#6D4C41",
-  "isActive": true
+  "isActive": true,
+  "transactionType": "INCOME"
 }
 ```
 
@@ -699,7 +778,7 @@ Base path: `/api/v1/expense`
 ## `GET /api/v1/expense/entries?monthKey=202603&type=EXPENSE|INCOME|ALL`
 - Tra page danh sach khoan chi/thu trong thang.
 - Du lieu nguon tu photo co `amount > 0`.
-- `type` optional, mac dinh `EXPENSE`. Cho phep: `EXPENSE`, `INCOME`, `ALL` (chua ho tro, can GUI tung loai).
+- `type` optional, mac dinh `EXPENSE`. Cho phep: `EXPENSE`, `INCOME`, `ALL`.
 - `200 OK` -> `Page<ExpenseItemResponse>`
 
 ### Expense item sample
@@ -713,10 +792,20 @@ Base path: `/api/v1/expense`
   "note": "Lunch with team",
   "categoryId": "uuid",
   "categoryName": "Food",
+  "transactionType": "EXPENSE",
   "takenAt": "2026-03-16T12:30:00",
   "createdAt": "2026-03-16T12:30:02"
 }
 ```
+
+---
+
+## `GET /api/v1/expense/entries/by-period?period=DAY|WEEK|MONTH&referenceDate=2026-04-24&type=ALL`
+- Tra danh sach giao dich theo ngay/tuan/thang.
+- `period`: `DAY | WEEK | MONTH`.
+- `referenceDate`: dinh dang `yyyy-MM-dd`.
+- `type`: `EXPENSE | INCOME | ALL` (mac dinh `EXPENSE`).
+- `200 OK` -> `Page<ExpenseItemResponse>`
 
 ---
 
@@ -776,6 +865,82 @@ Base path: `/api/v1/expense`
       "totalAmount": 650000
     }
   ]
+}
+```
+
+---
+
+## `GET /api/v1/expense/summary/yearly?year=2026`
+- Tong hop cashflow theo nam (12 thang).
+- `200 OK` -> `YearlyCashflowSummaryResponse`
+
+### Sample
+
+```json
+{
+  "year": 2026,
+  "totalIncome": 24000000,
+  "totalExpense": 15000000,
+  "netCashflow": 9000000,
+  "months": [
+    {
+      "monthKey": "202601",
+      "income": 2000000,
+      "expense": 1200000,
+      "net": 800000
+    }
+  ]
+}
+```
+
+---
+
+## `GET /api/v1/expense/categories/top?monthKey=202604&type=EXPENSE&limit=5`
+- Top danh muc chi/thu lon nhat theo thang hoac nam.
+- Co the truyen `monthKey` hoac `year`. Neu khong truyen thi mac dinh thang hien tai.
+- `type`: `EXPENSE | INCOME | ALL`.
+- `200 OK` -> `List<TopCategoryResponse>`
+
+### Sample
+
+```json
+[
+  {
+    "categoryId": "uuid",
+    "categoryName": "Food",
+    "totalAmount": 650000,
+    "percentage": 43
+  }
+]
+```
+
+---
+
+## `GET /api/v1/expense/savings-goals/{monthKey}`
+- Lay muc tieu tiet kiem thang + tien do hien tai.
+- `200 OK` -> `SavingsGoalResponse`
+
+## `PUT /api/v1/expense/savings-goals/{monthKey}`
+- Tao/cap nhat muc tieu tiet kiem thang.
+
+### Request
+
+```json
+{
+  "targetAmount": 5000000
+}
+```
+
+### `SavingsGoalResponse`
+
+```json
+{
+  "monthKey": "202604",
+  "targetAmount": 5000000,
+  "currentSaved": 1800000,
+  "remaining": 3200000,
+  "progressPct": 36,
+  "achieved": false
 }
 ```
 

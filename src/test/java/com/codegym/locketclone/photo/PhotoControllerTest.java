@@ -3,6 +3,7 @@ package com.codegym.locketclone.photo;
 import com.codegym.locketclone.photo.dto.PhotoResponse;
 import com.codegym.locketclone.photo.dto.PhotoReactionResponse;
 import com.codegym.locketclone.photo.dto.PhotoReactionSummaryResponse;
+import com.codegym.locketclone.photo.dto.PhotoReactorResponse;
 import com.codegym.locketclone.photo.dto.UpsertPhotoReactionRequest;
 import com.codegym.locketclone.security.service.UserPrincipal;
 import org.junit.jupiter.api.Test;
@@ -66,6 +67,7 @@ class PhotoControllerTest {
                 eq(file),
                 eq("Cafe sáng"),
                 eq(new BigDecimal("45000")),
+                eq((String) null),
                 eq("Morning coffee"),
                 eq(UUID.fromString("11111111-1111-1111-1111-111111111111")),
                 eq(RecipientScope.SELECTED_FRIENDS),
@@ -78,6 +80,7 @@ class PhotoControllerTest {
                 file,
                 "Cafe sáng",
                 new BigDecimal("45000"),
+                null,
                 "Morning coffee",
                 UUID.fromString("11111111-1111-1111-1111-111111111111"),
                 null,
@@ -93,6 +96,7 @@ class PhotoControllerTest {
                 file,
                 "Cafe sáng",
                 new BigDecimal("45000"),
+                null,
                 "Morning coffee",
                 UUID.fromString("11111111-1111-1111-1111-111111111111"),
                 RecipientScope.SELECTED_FRIENDS,
@@ -236,7 +240,14 @@ class PhotoControllerTest {
                 photoId,
                 2,
                 "LIKE",
-                java.util.Map.of("LIKE", 2L)
+                java.util.Map.of("LIKE", 2L),
+                List.of(new PhotoReactorResponse(
+                        UUID.randomUUID(),
+                        "Friend One",
+                        "https://cdn.example.com/avatar-1.jpg",
+                        "LIKE",
+                        LocalDateTime.now()
+                ))
         );
         when(photoService.getReactionSummary(userId, photoId)).thenReturn(response);
 

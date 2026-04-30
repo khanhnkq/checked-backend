@@ -1,5 +1,6 @@
 package com.codegym.locketclone.expense.dto;
 
+import com.codegym.locketclone.expense.TransactionType;
 import java.util.UUID;
 
 public record CategoryResponse(
@@ -8,6 +9,7 @@ public record CategoryResponse(
         String icon,
         String color,
         Boolean isDefault,
-        Boolean isActive
+        Boolean isActive,
+        TransactionType transactionType
 ){
 }

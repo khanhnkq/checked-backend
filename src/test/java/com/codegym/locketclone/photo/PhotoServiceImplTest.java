@@ -3,7 +3,9 @@ package com.codegym.locketclone.photo;
 import com.codegym.locketclone.common.exception.AppException;
 import com.codegym.locketclone.common.exception.ErrorCode;
 import com.codegym.locketclone.common.mapper.PhotoMapper;
+import com.codegym.locketclone.expense.Category;
 import com.codegym.locketclone.expense.CategoryRepository;
+import com.codegym.locketclone.expense.TransactionType;
 import com.codegym.locketclone.friendship.FriendshipRepository;
 import com.codegym.locketclone.user.User;
 import com.codegym.locketclone.user.UserRepository;
@@ -26,6 +28,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -100,6 +103,7 @@ class PhotoServiceImplTest {
                 file,
                 "Cafe sáng",
                 new BigDecimal("45000"),
+                null,
                 "Morning coffee",
                 null,
                 RecipientScope.ALL_FRIENDS,
@@ -161,6 +165,7 @@ class PhotoServiceImplTest {
                 null,
                 null,
                 null,
+                null,
                 RecipientScope.ALL_FRIENDS,
                 null,
                 null,
@@ -198,6 +203,7 @@ class PhotoServiceImplTest {
                 null,
                 null,
                 null,
+                null,
                 RecipientScope.SELECTED_FRIENDS,
                 List.of(strangerId),
                 null,
@@ -205,6 +211,44 @@ class PhotoServiceImplTest {
         ));
 
         assertEquals(ErrorCode.INVALID_RECIPIENT_SELECTION, exception.getErrorCode());
+    }
+
+    @Test
+    void uploadPhoto_rejectsCategoryTypeMismatch() {
+        UUID senderId = UUID.randomUUID();
+        UUID categoryId = UUID.randomUUID();
+        User sender = user(senderId, "sender@example.com", "sender", "Sender User");
+        MockMultipartFile file = new MockMultipartFile("file", "photo.jpg", "image/jpeg", "data".getBytes());
+        Category category = Category.builder()
+                .id(categoryId)
+                .name("Food")
+                .transactionType(TransactionType.EXPENSE)
+                .user(sender)
+                .isActive(true)
+                .build();
+
+        when(userRepository.findById(senderId)).thenReturn(Optional.of(sender));
+        when(userRepository.findAllById(argThat(ids -> {
+            java.util.Set<UUID> collected = new java.util.LinkedHashSet<>();
+            ids.forEach(collected::add);
+            return collected.equals(java.util.Set.of(senderId));
+        }))).thenReturn(List.of(sender));
+        when(categoryRepository.findActiveVisibleById(categoryId, senderId)).thenReturn(Optional.of(category));
+
+        AppException exception = assertThrows(AppException.class, () -> photoService.uploadPhoto(
+                file,
+                null,
+                null,
+                "INCOME",
+                null,
+                categoryId,
+                RecipientScope.ALL_FRIENDS,
+                null,
+                null,
+                senderId
+        ));
+
+        assertEquals(ErrorCode.CATEGORY_TRANSACTION_TYPE_MISMATCH, exception.getErrorCode());
     }
 
     @Test
@@ -366,12 +410,151 @@ class PhotoServiceImplTest {
         when(photoReactionRepository.findByPhotoIdAndUserId(photoId, userId)).thenReturn(Optional.of(
                 PhotoReaction.builder().photo(photo).user(viewer).reactionType("LIKE").build()
         ));
+        User reactorOne = user(UUID.randomUUID(), "reactor1@example.com", "reactor1", "Reactor One");
+        reactorOne.setAvatarUrl("https://cdn.example.com/reactor-1.jpg");
+        User reactorTwo = user(UUID.randomUUID(), "reactor2@example.com", "reactor2", "Reactor Two");
+        reactorTwo.setAvatarUrl(null);
+        when(photoReactionRepository.findAllByPhotoIdWithUserOrderByCreatedAtDesc(eq(photoId), any(Pageable.class))).thenReturn(List.of(
+                PhotoReaction.builder()
+                        .photo(photo)
+                        .user(reactorOne)
+                        .reactionType("LOVE")
+                        .createdAt(LocalDateTime.of(2026, 4, 20, 10, 0))
+                        .build(),
+                PhotoReaction.builder()
+                        .photo(photo)
+                        .user(reactorTwo)
+                        .reactionType("LIKE")
+                        .createdAt(LocalDateTime.of(2026, 4, 20, 9, 30))
+                        .build()
+        ));
 
         var summary = photoService.getReactionSummary(userId, photoId);
 
         assertEquals(3L, summary.totalCount());
         assertEquals("LIKE", summary.myReaction());
         assertEquals(2L, summary.countsByType().get("LIKE"));
+        assertEquals(2, summary.reactors().size());
+        assertEquals(reactorOne.getId(), summary.reactors().get(0).userId());
+        assertEquals("https://cdn.example.com/reactor-1.jpg", summary.reactors().get(0).avatarUrl());
+        assertEquals(reactorTwo.getId(), summary.reactors().get(1).userId());
+        assertNull(summary.reactors().get(1).avatarUrl());
+    }
+
+    @Test
+    void getReactionSummary_limitsReactorsToTopFiveNewest() {
+        UUID userId = UUID.randomUUID();
+        UUID senderId = UUID.randomUUID();
+        UUID photoId = UUID.randomUUID();
+        User viewer = user(userId, "viewer@example.com", "viewer", "Viewer User");
+        User sender = user(senderId, "sender@example.com", "sender", "Sender User");
+        Photo photo = Photo.builder()
+                .id(photoId)
+                .sender(sender)
+                .status(PhotoStatus.READY)
+                .recipientScope(RecipientScope.ALL_FRIENDS)
+                .recipientCount(1)
+                .build();
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(viewer));
+        when(photoRepository.findAccessiblePhotoById(photoId, userId, PhotoStatus.DELETED)).thenReturn(Optional.of(photo));
+        when(photoReactionRepository.summarizeByPhotoId(photoId)).thenReturn(java.util.Collections.singletonList(new Object[]{"LIKE", 6L}));
+        when(photoReactionRepository.findByPhotoIdAndUserId(photoId, userId)).thenReturn(Optional.of(
+                PhotoReaction.builder().photo(photo).user(viewer).reactionType("LIKE").build()
+        ));
+
+        User reactor1 = user(UUID.randomUUID(), "reactor1@example.com", "reactor1", "Reactor One");
+        User reactor2 = user(UUID.randomUUID(), "reactor2@example.com", "reactor2", "Reactor Two");
+        User reactor3 = user(UUID.randomUUID(), "reactor3@example.com", "reactor3", "Reactor Three");
+        User reactor4 = user(UUID.randomUUID(), "reactor4@example.com", "reactor4", "Reactor Four");
+        User reactor5 = user(UUID.randomUUID(), "reactor5@example.com", "reactor5", "Reactor Five");
+        User reactor6 = user(UUID.randomUUID(), "reactor6@example.com", "reactor6", "Reactor Six");
+
+        when(photoReactionRepository.findAllByPhotoIdWithUserOrderByCreatedAtDesc(eq(photoId), any(Pageable.class))).thenReturn(List.of(
+                reaction(photo, reactor6, "HAHA", LocalDateTime.of(2026, 4, 20, 10, 6)),
+                reaction(photo, reactor5, "LIKE", LocalDateTime.of(2026, 4, 20, 10, 5)),
+                reaction(photo, reactor4, "WOW", LocalDateTime.of(2026, 4, 20, 10, 4)),
+                reaction(photo, reactor3, "LOVE", LocalDateTime.of(2026, 4, 20, 10, 3)),
+                reaction(photo, reactor2, "SAD", LocalDateTime.of(2026, 4, 20, 10, 2))
+        ));
+
+        var summary = photoService.getReactionSummary(userId, photoId);
+
+        assertEquals(6L, summary.totalCount());
+        assertEquals(5, summary.reactors().size());
+        assertEquals(reactor6.getId(), summary.reactors().get(0).userId());
+        assertEquals(reactor2.getId(), summary.reactors().get(4).userId());
+        verify(photoReactionRepository).findAllByPhotoIdWithUserOrderByCreatedAtDesc(eq(photoId), any(Pageable.class));
+    }
+
+    @Test
+    void updatePhotoTransaction_updatesTypeAndCategorySuccessfully() {
+        UUID userId = UUID.randomUUID();
+        UUID photoId = UUID.randomUUID();
+        UUID categoryId = UUID.randomUUID();
+        User user = user(userId, "sender@example.com", "sender", "Sender User");
+
+        Photo photo = Photo.builder()
+                .id(photoId)
+                .sender(user)
+                .status(PhotoStatus.READY)
+                .transactionType(TransactionType.EXPENSE)
+                .caption("old")
+                .build();
+
+        Category incomeCategory = Category.builder()
+                .id(categoryId)
+                .name("Salary")
+                .transactionType(TransactionType.INCOME)
+                .isActive(true)
+                .user(user)
+                .build();
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(photoRepository.findById(photoId)).thenReturn(Optional.of(photo));
+        when(categoryRepository.findActiveVisibleById(categoryId, userId)).thenReturn(Optional.of(incomeCategory));
+        when(photoRepository.save(any(Photo.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var updated = photoService.updatePhotoTransaction(
+                userId,
+                photoId,
+                new com.codegym.locketclone.photo.dto.UpdatePhotoTransactionRequest(
+                        "new caption",
+                        new BigDecimal("120000"),
+                        "salary",
+                        categoryId,
+                        false,
+                        TransactionType.INCOME,
+                        null,
+                        LocalDateTime.of(2026, 4, 20, 8, 0)
+                )
+        );
+
+        assertEquals(TransactionType.INCOME, updated.transactionType());
+        assertEquals("new caption", updated.caption());
+        assertEquals("Salary", updated.categoryName());
+        assertEquals(new BigDecimal("120000"), updated.amount());
+    }
+
+    @Test
+    void deleteTransaction_marksPhotoAsDeleted() {
+        UUID userId = UUID.randomUUID();
+        UUID photoId = UUID.randomUUID();
+        User user = user(userId, "sender@example.com", "sender", "Sender User");
+        Photo photo = Photo.builder()
+                .id(photoId)
+                .sender(user)
+                .status(PhotoStatus.READY)
+                .build();
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(photoRepository.findById(photoId)).thenReturn(Optional.of(photo));
+        when(photoRepository.save(any(Photo.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        photoService.deleteTransaction(userId, photoId);
+
+        assertEquals(PhotoStatus.DELETED, photo.getStatus());
+        verify(photoRepository).save(photo);
     }
 
     private User user(UUID id, String email, String username, String displayName) {
@@ -384,6 +567,15 @@ class PhotoServiceImplTest {
                 .firstName(nameParts[0])
                 .lastName(nameParts.length > 1 ? nameParts[1] : null)
                 .isVerified(true)
+                .build();
+    }
+
+    private PhotoReaction reaction(Photo photo, User user, String type, LocalDateTime createdAt) {
+        return PhotoReaction.builder()
+                .photo(photo)
+                .user(user)
+                .reactionType(type)
+                .createdAt(createdAt)
                 .build();
     }
 }

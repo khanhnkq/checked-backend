@@ -1,5 +1,6 @@
 package com.codegym.locketclone.expense.dto;
 
+import com.codegym.locketclone.expense.TransactionType;
 import jakarta.validation.constraints.Size;
 
 public record UpdateCategoryRequest(
@@ -12,7 +13,9 @@ public record UpdateCategoryRequest(
         @Size(max = 20, message = "Màu không được vượt quá 20 ký tự")
         String color,
 
-        Boolean isActive
+        Boolean isActive,
+
+        TransactionType transactionType
 ) {
 }
 
