@@ -4,7 +4,12 @@
   // Use the official Java 21 devcontainer image
   "image": "mcr.microsoft.com/devcontainers/java:21",
 
-  // Features to add to the dev container
+  // Environment settings: Ensure ~/.local/bin is in PATH for agy CLI
+  "remoteEnv": {
+    "PATH": "${containerEnv:PATH}:/home/vscode/.local/bin"
+  },
+
+  // Features: Enable Docker-in-Docker to run PostgreSQL via docker compose
   "features": {
     "ghcr.io/devcontainers/features/docker-in-docker:2": {
       "moby": false
