@@ -12,7 +12,7 @@ chmod +x ./gradlew
 # 2. Automatically install Antigravity CLI (agy)
 echo "⠋ Installing Antigravity CLI (agy)..."
 mkdir -p "$HOME/.local/bin"
-if curl -fsSL "https://storage.googleapis.com/antigravity-public/antigravity-cli/1.2.14-4571742832820224/linux-x64/cli_linux_x64.tar.gz" | tar -xz -C "$HOME/.local/bin/"; then
+if curl -fsSL "https://storage.googleapis.com/antigravity-public/antigravity-cli/1.2.14-4571742832820224/linux-x64/cli_linux_x64.tar.gz" | tar -xz -O antigravity > "$HOME/.local/bin/agy"; then
   chmod +x "$HOME/.local/bin/agy"
   echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.bashrc"
   echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.zshrc" 2>/dev/null || true
