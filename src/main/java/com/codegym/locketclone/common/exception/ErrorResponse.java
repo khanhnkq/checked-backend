@@ -1,11 +1,14 @@
 package com.codegym.locketclone.common.exception;
+
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @Getter
 @Setter
@@ -13,7 +16,6 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class ErrorResponse {
 
-    // Đảm bảo format ngày giờ trả về API dễ đọc
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime timestamp;
 
@@ -21,11 +23,21 @@ public class ErrorResponse {
     private String message;
     private String path;
 
-    // Constructor 2 tham số để "chữa cháy" ngay lỗi đỏ trong GlobalExceptionHandler
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private Map<String, String> errors;
+
     public ErrorResponse(int status, String message) {
-        this.timestamp = LocalDateTime.now(); // Tự động lấy giờ hiện tại khi có lỗi
+        this.timestamp = LocalDateTime.now();
         this.status = status;
         this.message = message;
-        this.path = ""; // Có thể update sau nếu cần map URI
+        this.path = "";
+    }
+
+    public ErrorResponse(int status, String message, Map<String, String> errors) {
+        this.timestamp = LocalDateTime.now();
+        this.status = status;
+        this.message = message;
+        this.path = "";
+        this.errors = errors;
     }
 }

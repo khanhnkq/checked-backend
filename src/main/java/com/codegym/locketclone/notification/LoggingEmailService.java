@@ -1,12 +1,14 @@
 package com.codegym.locketclone.notification;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 @Service
 @Slf4j
 public class LoggingEmailService implements EmailService {
+    @Async
     @Override
     public void sendOtpEmail(String toEmail, String recipientName, String otpCode) {
         String displayName = StringUtils.hasText(recipientName) ? recipientName.trim() : "bạn";

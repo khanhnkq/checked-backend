@@ -37,8 +37,7 @@ public class GlobalExceptionHandler {
             String errorMessage = error.getDefaultMessage();
             errors.put(fieldName, errorMessage);
         });
-        // Gộp lỗi thành chuỗi hoặc trả về cấu trúc Map tùy bạn
-        return ResponseEntity.badRequest().body(new ErrorResponse(400, errors.toString()));
+        return ResponseEntity.badRequest().body(new ErrorResponse(400, "Dữ liệu yêu cầu không hợp lệ", errors));
     }
 
     // 3. Handle Constraint Violation (Validate Params ở Controller)

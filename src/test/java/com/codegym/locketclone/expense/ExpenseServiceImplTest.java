@@ -199,6 +199,46 @@ class ExpenseServiceImplTest {
         assertEquals(Boolean.TRUE, result.achieved());
     }
 
+    @Test
+    void getYearlyCashflowSummary_aggregatesMonthlyDataCorrectly() {
+        UUID userId = UUID.randomUUID();
+        User user = user(userId);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+
+        LocalDateTime fromDate = LocalDateTime.of(2026, 1, 1, 0, 0, 0);
+        LocalDateTime toDate = LocalDateTime.of(2027, 1, 1, 0, 0, 0);
+
+        when(photoRepository.summarizeMonthlyTransactionsForYear(userId, PhotoStatus.DELETED, fromDate, toDate))
+                .thenReturn(List.of(
+                        new Object[]{1, TransactionType.INCOME, new BigDecimal("5000000")},
+                        new Object[]{1, TransactionType.EXPENSE, new BigDecimal("2000000")},
+                        new Object[]{4, TransactionType.INCOME, new BigDecimal("6000000")},
+                        new Object[]{4, TransactionType.EXPENSE, new BigDecimal("1500000")}
+                ));
+
+        var response = expenseService.getYearlyCashflowSummary(userId, 2026);
+
+        assertEquals(2026, response.year());
+        assertEquals(new BigDecimal("11000000"), response.totalIncome());
+        assertEquals(new BigDecimal("3500000"), response.totalExpense());
+        assertEquals(new BigDecimal("7500000"), response.netCashflow());
+        assertEquals(12, response.months().size());
+
+        // Month 1
+        var month1 = response.months().get(0);
+        assertEquals("202601", month1.monthKey());
+        assertEquals(new BigDecimal("5000000"), month1.income());
+        assertEquals(new BigDecimal("2000000"), month1.expense());
+        assertEquals(new BigDecimal("3000000"), month1.net());
+
+        // Month 2 (no data -> zeroes)
+        var month2 = response.months().get(1);
+        assertEquals("202602", month2.monthKey());
+        assertEquals(BigDecimal.ZERO, month2.income());
+        assertEquals(BigDecimal.ZERO, month2.expense());
+        assertEquals(BigDecimal.ZERO, month2.net());
+    }
+
     private User user(UUID id) {
         return User.builder()
                 .id(id)

@@ -3,13 +3,46 @@ services:
     image: 'postgres:15-alpine'
     container_name: locket-clone-db
     environment:
-      - POSTGRES_DB=${DB_NAME}
-      - POSTGRES_USER=${DB_USER}
-      - POSTGRES_PASSWORD=${DB_PASS}
+      - POSTGRES_DB=${DB_NAME:-locket_clone}
+      - POSTGRES_USER=${DB_USER:-postgres}
+      - POSTGRES_PASSWORD=${DB_PASS:-postgres}
     ports:
       - '5432:5432'
     volumes:
       - pgdata:/var/lib/postgresql/data
     restart: unless-stopped
+
+  garage:
+    image: 'dxflrs/garage:v1.1.0'
+    container_name: locket-clone-garage
+    volumes:
+      - ./docker/garage/garage.toml:/etc/garage.toml
+      - garage_meta:/var/lib/garage/meta
+      - garage_data:/var/lib/garage/data
+    ports:
+      - '3900:3900' # S3 API
+      - '3901:3901' # RPC
+      - '3902:3902' # S3 Web (Public Image CDN)
+      - '3903:3903' # Admin API
+    restart: unless-stopped
+
+  garage-init:
+    build:
+      context: ./docker/garage
+      dockerfile: Dockerfile.init
+    container_name: locket-clone-garage-init
+    depends_on:
+      - garage
+    environment:
+      - GARAGE_ACCESS_KEY_ID=${GARAGE_ACCESS_KEY_ID:-GK000000000000000000000001}
+      - GARAGE_SECRET_ACCESS_KEY=${GARAGE_SECRET_ACCESS_KEY:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
+      - GARAGE_BUCKET=${GARAGE_BUCKET:-locket-photos}
+    volumes:
+      - ./docker/garage/garage.toml:/etc/garage.toml
+      - garage_meta:/var/lib/garage/meta
+    restart: "no"
+
 volumes:
   pgdata:
+  garage_meta:
+  garage_data:

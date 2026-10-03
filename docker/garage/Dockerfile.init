@@ -1,0 +1,9 @@
+FROM dxflrs/garage:v1.1.0 AS garage-bin
+FROM alpine:3.21
+
+RUN apk add --no-cache bash
+COPY --from=garage-bin /garage /usr/local/bin/garage
+COPY init.sh /init.sh
+RUN chmod +x /init.sh
+
+ENTRYPOINT ["/bin/bash", "/init.sh"]

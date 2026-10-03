@@ -71,17 +71,28 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepository.findByEmailIgnoreCase(email)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-        if (!StringUtils.hasText(user.getOtpCode()) || !user.getOtpCode().equals(otp)) {
-            throw new AppException(ErrorCode.INVALID_OTP);
-        }
-
         if (user.getOtpExpiresAt() == null || user.getOtpExpiresAt().isBefore(LocalDateTime.now())) {
             throw new AppException(ErrorCode.OTP_EXPIRED);
+        }
+
+        if (!StringUtils.hasText(user.getOtpCode()) || !user.getOtpCode().equals(otp)) {
+            int failedAttempts = (user.getOtpFailedAttempts() == null ? 0 : user.getOtpFailedAttempts()) + 1;
+            user.setOtpFailedAttempts(failedAttempts);
+            if (failedAttempts >= 5) {
+                user.setOtpCode(null);
+                user.setOtpExpiresAt(null);
+                user.setOtpFailedAttempts(0);
+                userRepository.save(user);
+                throw new AppException(ErrorCode.OTP_MAX_ATTEMPTS_EXCEEDED);
+            }
+            userRepository.save(user);
+            throw new AppException(ErrorCode.INVALID_OTP);
         }
 
         user.setIsVerified(true);
         user.setOtpCode(null);
         user.setOtpExpiresAt(null);
+        user.setOtpFailedAttempts(0);
         userRepository.save(user);
 
         String jwt = jwtUtils.generateTokenFromUserId(user.getId());
@@ -117,6 +128,7 @@ public class AuthServiceImpl implements AuthService {
         existingUser.setIsVerified(false);
         existingUser.setOtpCode(otpCode);
         existingUser.setOtpExpiresAt(otpExpiresAt);
+        existingUser.setOtpFailedAttempts(0);
         return existingUser;
     }
 
@@ -129,6 +141,7 @@ public class AuthServiceImpl implements AuthService {
                 .isVerified(false)
                 .otpCode(otpCode)
                 .otpExpiresAt(otpExpiresAt)
+                .otpFailedAttempts(0)
                 .isGoldMember(false)
                 .build();
     }

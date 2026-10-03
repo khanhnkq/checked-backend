@@ -7,6 +7,8 @@ import com.codegym.locketclone.photo.dto.UpsertPhotoReactionRequest;
 import com.codegym.locketclone.photo.dto.UpdatePhotoExpenseRequest;
 import com.codegym.locketclone.photo.dto.UpdatePhotoTransactionRequest;
 import com.codegym.locketclone.security.service.UserPrincipal;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -27,12 +29,14 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+@Tag(name = "Photos", description = "Chia sẻ khoảnh khắc ảnh kèm giao dịch chi tiêu, feed ảnh bạn bè, cảm xúc (reactions)")
 @RestController
 @RequestMapping("/api/v1/photos")
 @RequiredArgsConstructor
 public class PhotoController {
     private final PhotoService photoService;
 
+    @Operation(summary = "Đăng tải ảnh khoảnh khắc mới", description = "Upload ảnh (JPEG/PNG/WEBP) kèm thông tin tài chính (số tiền, danh mục, loại giao dịch, ghi chú) và phạm vi bạn bè nhận ảnh (ALL_FRIENDS hoặc SELECTED_FRIENDS).")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<PhotoResponse> uploadPhoto(
             @RequestParam("file") MultipartFile file,
@@ -67,6 +71,7 @@ public class PhotoController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+    @Operation(summary = "Lấy danh sách ảnh của tôi", description = "Phân trang danh sách ảnh mà người dùng hiện tại đã đăng tải.")
     @GetMapping({"/my-photos", "/me"})
     public ResponseEntity<Page<PhotoResponse>> getMyPhotos(
             @AuthenticationPrincipal UserPrincipal currentUser,
@@ -75,6 +80,7 @@ public class PhotoController {
         return ResponseEntity.status(HttpStatus.OK).body(myPhotos);
     }
 
+    @Operation(summary = "Xem chi tiết một ảnh", description = "Lấy thông tin chi tiết một bức ảnh bao gồm người gửi, danh mục, số tiền, ghi chú.")
     @GetMapping("/{photoId}")
     public ResponseEntity<PhotoResponse> getPhotoDetail(
             @PathVariable UUID photoId,
@@ -83,6 +89,7 @@ public class PhotoController {
         return ResponseEntity.status(HttpStatus.OK).body(photo);
     }
 
+    @Operation(summary = "Lấy feed ảnh bạn bè", description = "Cuộn vô tận (Slice) danh sách ảnh nhận được từ bạn bè hoặc lọc theo từng bạn cụ thể.")
     @GetMapping("/feed")
     public ResponseEntity<Slice<PhotoResponse>> getFeedPhotos(
             @AuthenticationPrincipal UserPrincipal currentUser,
@@ -92,6 +99,7 @@ public class PhotoController {
         return ResponseEntity.status(HttpStatus.OK).body(feedPhotos);
     }
 
+    @Operation(summary = "Cập nhật chi phí gắn với ảnh", description = "Chỉnh sửa số tiền, ghi chú, danh mục tài chính của bức ảnh.")
     @PatchMapping("/{photoId}/expense")
     public ResponseEntity<PhotoResponse> updatePhotoExpense(
             @PathVariable UUID photoId,
@@ -102,6 +110,7 @@ public class PhotoController {
         return ResponseEntity.ok(response);
     }
 
+    @Operation(summary = "Thả cảm xúc / reaction vào ảnh", description = "Thêm hoặc đổi reaction (LIKE, LOVE, HAHA, WOW, SAD, ANGRY).")
     @PutMapping("/{photoId}/reactions/me")
     public ResponseEntity<PhotoReactionResponse> upsertMyReaction(
             @PathVariable UUID photoId,
@@ -112,6 +121,7 @@ public class PhotoController {
         return ResponseEntity.ok(response);
     }
 
+    @Operation(summary = "Xóa cảm xúc đã thả", description = "Gỡ bỏ reaction của người dùng hiện tại khỏi bức ảnh.")
     @DeleteMapping("/{photoId}/reactions/me")
     public ResponseEntity<Void> removeMyReaction(
             @PathVariable UUID photoId,
@@ -121,6 +131,7 @@ public class PhotoController {
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(summary = "Thống kê cảm xúc của ảnh", description = "Tổng hợp số lượng reaction theo từng loại và danh sách người thả cảm xúc.")
     @GetMapping("/{photoId}/reactions/summary")
     public ResponseEntity<PhotoReactionSummaryResponse> getReactionSummary(
             @PathVariable UUID photoId,
@@ -130,6 +141,7 @@ public class PhotoController {
         return ResponseEntity.ok(response);
     }
 
+    @Operation(summary = "Cập nhật toàn bộ thông tin giao dịch ảnh", description = "Chỉnh sửa caption, số tiền, loại giao dịch, danh mục, thời gian của ảnh.")
     @PatchMapping("/{photoId}/transaction")
     public ResponseEntity<PhotoResponse> updatePhotoTransaction(
             @PathVariable UUID photoId,
@@ -140,6 +152,7 @@ public class PhotoController {
         return ResponseEntity.ok(response);
     }
 
+    @Operation(summary = "Xóa ảnh / giao dịch", description = "Đánh dấu xóa ảnh (DELETED) và tự động xóa file lưu trữ trên Garage S3.")
     @DeleteMapping("/{photoId}")
     public ResponseEntity<Void> deleteTransaction(
             @PathVariable UUID photoId,

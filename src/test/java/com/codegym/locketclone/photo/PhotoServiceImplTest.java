@@ -9,6 +9,8 @@ import com.codegym.locketclone.expense.TransactionType;
 import com.codegym.locketclone.friendship.FriendshipRepository;
 import com.codegym.locketclone.user.User;
 import com.codegym.locketclone.user.UserRepository;
+import com.codegym.locketclone.storage.StorageService;
+import com.codegym.locketclone.storage.UploadedFile;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -52,7 +54,7 @@ class PhotoServiceImplTest {
     @Mock
     private FriendshipRepository friendshipRepository;
     @Mock
-    private CloudinaryService cloudinaryService;
+    private StorageService storageService;
 
     private PhotoServiceImpl photoService;
 
@@ -65,7 +67,7 @@ class PhotoServiceImplTest {
                 userRepository,
                 categoryRepository,
                 friendshipRepository,
-                cloudinaryService,
+                storageService,
                 new PhotoMapper()
         );
     }
@@ -83,7 +85,7 @@ class PhotoServiceImplTest {
             ids.forEach(collected::add);
             return collected.equals(java.util.Set.of(senderId));
         }))).thenReturn(List.of(sender));
-        when(cloudinaryService.uploadImage(file)).thenReturn(new UploadedImage(
+        when(storageService.uploadPhoto(file)).thenReturn(new UploadedFile(
                 "https://cdn.example.com/photo.jpg",
                 "https://cdn.example.com/photo_thumb.jpg",
                 "public-id",
@@ -143,7 +145,7 @@ class PhotoServiceImplTest {
             ids.forEach(collected::add);
             return collected.equals(java.util.Set.of(senderId));
         }))).thenReturn(List.of(sender));
-        when(cloudinaryService.uploadImage(file)).thenReturn(new UploadedImage(
+        when(storageService.uploadPhoto(file)).thenReturn(new UploadedFile(
                 "https://cdn.example.com/photo.jpg",
                 "https://cdn.example.com/photo_thumb.jpg",
                 "public-id",

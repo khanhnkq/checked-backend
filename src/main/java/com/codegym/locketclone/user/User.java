@@ -37,7 +37,7 @@ public class User {
     @Column(name = "last_name", length = 50)
     private String lastName;
 
-    @Column(name = "avatar_url", length = 255)
+    @Column(name = "avatar_url", length = 500)
     private String avatarUrl;
 
     @Builder.Default
@@ -49,6 +49,10 @@ public class User {
 
     @Column(name = "otp_expires_at")
     private LocalDateTime otpExpiresAt;
+
+    @Builder.Default
+    @Column(name = "otp_failed_attempts", nullable = false)
+    private Integer otpFailedAttempts = 0;
 
     @Builder.Default
     @Column(name = "is_gold_member", nullable = false)

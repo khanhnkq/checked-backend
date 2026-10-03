@@ -18,16 +18,6 @@ public class FriendshipServiceImpl implements FriendshipService {
     private final UserMapper userMapper;
 
     @Override
-    public void sendFriendRequest(UUID senderId, UUID receiverId) {
-
-    }
-
-    @Override
-    public void acceptFriendRequest(UUID userId, UUID friendId) {
-
-    }
-
-    @Override
     @Transactional
     public List<UserResponse> getAllFriends(UUID userId) {
         return friendshipRepository.findAllAcceptedFriends(userId)

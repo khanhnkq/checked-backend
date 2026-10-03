@@ -348,5 +348,24 @@ public interface PhotoRepository extends JpaRepository<Photo, UUID> {
                                                          @Param("fromDate") LocalDateTime fromDate,
                                                          @Param("toDate") LocalDateTime toDate);
 
+    @Query("""
+            SELECT 
+                EXTRACT(MONTH FROM COALESCE(p.occurredAt, p.takenAt, p.createdAt)),
+                p.transactionType,
+                COALESCE(SUM(p.amount), 0)
+            FROM Photo p
+            WHERE p.sender.id = :senderId
+              AND p.status <> :deletedStatus
+              AND p.amount IS NOT NULL
+              AND p.amount > 0
+              AND COALESCE(p.occurredAt, p.takenAt, p.createdAt) >= :fromDate
+              AND COALESCE(p.occurredAt, p.takenAt, p.createdAt) < :toDate
+            GROUP BY EXTRACT(MONTH FROM COALESCE(p.occurredAt, p.takenAt, p.createdAt)), p.transactionType
+            """)
+    List<Object[]> summarizeMonthlyTransactionsForYear(@Param("senderId") UUID senderId,
+                                                      @Param("deletedStatus") PhotoStatus deletedStatus,
+                                                      @Param("fromDate") LocalDateTime fromDate,
+                                                      @Param("toDate") LocalDateTime toDate);
+
     long countBySenderId(UUID senderId);
 }

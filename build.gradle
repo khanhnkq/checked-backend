@@ -29,7 +29,13 @@ dependencies {
 	implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
 
 	implementation 'com.cloudinary:cloudinary-http44:1.36.0'
+	implementation platform('software.amazon.awssdk:bom:2.29.50')
+	implementation 'software.amazon.awssdk:s3'
+	implementation 'net.coobird:thumbnailator:0.4.20'
 	implementation 'org.springframework.boot:spring-boot-starter-mail'
+	implementation 'org.springframework.boot:spring-boot-starter-cache'
+	implementation 'com.github.ben-manes.caffeine:caffeine'
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.5'
 
 	// MapStruct
 	implementation 'org.mapstruct:mapstruct:1.6.3'

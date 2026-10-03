@@ -40,11 +40,21 @@
   },
 
   // Forward the Spring Boot port and PostgreSQL port
-  "forwardPorts": [8080, 5432],
+  "forwardPorts": [8080, 5432, 3900, 3902],
   "portsAttributes": {
     "8080": {
-      "label": "Spring Boot API",
-      "onAutoForward": "notify"
+      "label": "Spring Boot API & Swagger UI",
+      "onAutoForward": "notify",
+      "visibility": "public"
+    },
+    "3902": {
+      "label": "Garage S3 Web CDN",
+      "onAutoForward": "silent",
+      "visibility": "public"
+    },
+    "3900": {
+      "label": "Garage S3 API",
+      "onAutoForward": "silent"
     },
     "5432": {
       "label": "PostgreSQL",

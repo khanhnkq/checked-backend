@@ -14,6 +14,8 @@ import com.codegym.locketclone.photo.dto.PhotoResponse;
 import com.codegym.locketclone.photo.dto.UpsertPhotoReactionRequest;
 import com.codegym.locketclone.photo.dto.UpdatePhotoExpenseRequest;
 import com.codegym.locketclone.photo.dto.UpdatePhotoTransactionRequest;
+import com.codegym.locketclone.storage.StorageService;
+import com.codegym.locketclone.storage.UploadedFile;
 import com.codegym.locketclone.user.User;
 import com.codegym.locketclone.user.UserRepository;
 import jakarta.transaction.Transactional;
@@ -50,7 +52,7 @@ public class PhotoServiceImpl implements PhotoService {
     private final UserRepository userRepository;
     private final CategoryRepository categoryRepository;
     private final FriendshipRepository friendshipRepository;
-    private final CloudinaryService cloudinaryService;
+    private final StorageService storageService;
     private final PhotoMapper photoMapper;
 
 
@@ -105,14 +107,14 @@ public class PhotoServiceImpl implements PhotoService {
         Category category = resolveCategory(senderId, categoryId, type);
 
         try {
-            log.info("Bắt đầu upload ảnh lên Cloudinary cho user: {} với scope: {}", senderId, effectiveScope);
-            UploadedImage uploadedImage = cloudinaryService.uploadImage(file);
+            log.info("Bắt đầu upload ảnh cho user: {} với scope: {}", senderId, effectiveScope);
+            UploadedFile uploadedImage = storageService.uploadPhoto(file);
 
             Photo photo = Photo.builder()
                     .sender(sender)
                     .imageUrl(uploadedImage.secureUrl())
                     .thumbnailUrl(uploadedImage.thumbnailUrl())
-                    .publicId(uploadedImage.publicId())
+                    .publicId(uploadedImage.key())
                     .caption(caption)
                     .amount(amount)
                     .transactionType(type)
@@ -302,6 +304,9 @@ public class PhotoServiceImpl implements PhotoService {
 
         photo.setStatus(PhotoStatus.DELETED);
         photoRepository.save(photo);
+        if (photo.getPublicId() != null) {
+            storageService.deleteFile(photo.getPublicId());
+        }
     }
 
     private User ensureUserExists(UUID userId) {

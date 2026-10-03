@@ -21,7 +21,6 @@ import java.util.UUID;
 @Builder
 @EntityListeners(AuditingEntityListener.class)
 public class Photo {
-    // ...existing code...
 
     @PrePersist
     protected void ensureOccurredAt() {

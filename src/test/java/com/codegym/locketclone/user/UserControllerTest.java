@@ -3,8 +3,6 @@ package com.codegym.locketclone.user;
 import com.codegym.locketclone.common.exception.AppException;
 import com.codegym.locketclone.common.exception.ErrorCode;
 import com.codegym.locketclone.common.exception.GlobalExceptionHandler;
-import com.codegym.locketclone.photo.CloudinaryService;
-import com.codegym.locketclone.photo.UploadedImage;
 import com.codegym.locketclone.security.service.UserPrincipal;
 import com.codegym.locketclone.user.dto.UpdatePersonalInfoRequest;
 import com.codegym.locketclone.user.dto.UpdateProfileRequest;
@@ -37,15 +35,12 @@ class UserControllerTest {
     @Mock
     private UserService userService;
 
-    @Mock
-    private CloudinaryService cloudinaryService;
-
     private MockMvc mockMvc;
     private UserController userController;
 
     @BeforeEach
     void setUp() {
-        userController = new UserController(userService, cloudinaryService);
+        userController = new UserController(userService);
         mockMvc = MockMvcBuilders.standaloneSetup(userController)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
@@ -102,7 +97,8 @@ class UserControllerTest {
                                 }
                                 """))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("{firstName=First name không được để trống nếu được cung cấp}"));
+                .andExpect(jsonPath("$.message").value("Dữ liệu yêu cầu không hợp lệ"))
+                .andExpect(jsonPath("$.errors.firstName").value("First name không được để trống nếu được cung cấp"));
     }
 
     @Test
@@ -154,7 +150,8 @@ class UserControllerTest {
                                 }
                                 """))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("{lastName=Last name khong duoc de trong neu duoc cung cap}"));
+                .andExpect(jsonPath("$.message").value("Dữ liệu yêu cầu không hợp lệ"))
+                .andExpect(jsonPath("$.errors.lastName").value("Last name khong duoc de trong neu duoc cung cap"));
     }
 
     @Test
@@ -175,16 +172,6 @@ class UserControllerTest {
                 "avatar-data".getBytes()
         );
 
-        UploadedImage uploadedImage = new UploadedImage(
-                "https://cdn.example.com/avatar.jpg",
-                "https://cdn.example.com/avatar.jpg",
-                "avatar-public-id",
-                MediaType.IMAGE_JPEG_VALUE,
-                1280L,
-                200,
-                200
-        );
-
         UserResponse response = UserResponse.builder()
                 .id(userId)
                 .email("khanh@example.com")
@@ -193,15 +180,13 @@ class UserControllerTest {
                 .profileCompleted(true)
                 .build();
 
-        when(cloudinaryService.uploadImage(file)).thenReturn(uploadedImage);
-        when(userService.updatePersonalInfo(eq(userId), any(UpdatePersonalInfoRequest.class))).thenReturn(response);
+        when(userService.updateAvatar(userId, file)).thenReturn(response);
 
         var actual = userController.updateCurrentUserAvatar(principal, file);
 
         assertEquals(200, actual.getStatusCode().value());
         assertNotNull(actual.getBody());
         assertEquals("https://cdn.example.com/avatar.jpg", actual.getBody().getAvatarUrl());
-        verify(cloudinaryService).uploadImage(file);
-        verify(userService).updatePersonalInfo(eq(userId), any(UpdatePersonalInfoRequest.class));
+        verify(userService).updateAvatar(userId, file);
     }
 }

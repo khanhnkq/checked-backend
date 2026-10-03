@@ -14,6 +14,7 @@ public enum ErrorCode {
     PASSWORD_NOT_SET(HttpStatus.BAD_REQUEST, "Bạn chưa thiết lập mật khẩu"),
     INVALID_OTP(HttpStatus.BAD_REQUEST, "Mã OTP không chính xác"),
     OTP_EXPIRED(HttpStatus.BAD_REQUEST, "Mã OTP đã hết hạn"),
+    OTP_MAX_ATTEMPTS_EXCEEDED(HttpStatus.BAD_REQUEST, "Mã OTP đã bị khóa do nhập sai quá nhiều lần. Vui lòng đăng ký lại."),
     INVALID_PHOTO_FILE(HttpStatus.BAD_REQUEST, "Ảnh tải lên không hợp lệ"),
     INVALID_PHOTO_AMOUNT(HttpStatus.BAD_REQUEST, "Số tiền phải lớn hơn hoặc bằng 0"),
     INVALID_MONTH_KEY(HttpStatus.BAD_REQUEST, "monthKey phải đúng định dạng yyyyMM"),

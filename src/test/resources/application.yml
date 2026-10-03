@@ -13,8 +13,15 @@ spring:
   flyway:
     enabled: false
 
-firebase:
-  enabled: false
+storage:
+  type: garage
+  s3:
+    endpoint: http://localhost:3900
+    public-base-url: http://localhost:3902/locket-photos
+    access-key-id: test-key-id
+    secret-access-key: test-secret-key
+    bucket-name: test-bucket
+    region: garage
 
 cloudinary:
   cloud-name: test-cloud

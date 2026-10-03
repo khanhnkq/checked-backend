@@ -6,6 +6,7 @@ import com.codegym.locketclone.user.User;
 import com.codegym.locketclone.user.UserRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -28,6 +29,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         return UserPrincipal.build(user);
     }
 
+    @Cacheable(value = "users", key = "#id")
     @Transactional
     public UserDetails loadUserById(UUID id) {
         User user = userRepository.findById(id)

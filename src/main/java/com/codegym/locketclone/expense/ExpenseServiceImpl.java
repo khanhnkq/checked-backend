@@ -24,8 +24,12 @@ import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -341,20 +345,35 @@ public class ExpenseServiceImpl implements ExpenseService {
             throw new AppException(ErrorCode.INVALID_REQUEST);
         }
 
+        LocalDateTime fromDate = LocalDateTime.of(year, 1, 1, 0, 0, 0);
+        LocalDateTime toDate = LocalDateTime.of(year + 1, 1, 1, 0, 0, 0);
+
+        List<Object[]> rows = photoRepository.summarizeMonthlyTransactionsForYear(
+                userId, PhotoStatus.DELETED, fromDate, toDate
+        );
+
+        Map<Integer, Map<TransactionType, BigDecimal>> monthlyMap = new HashMap<>();
+        for (Object[] row : rows) {
+            if (row[0] != null && row[1] != null && row[2] != null) {
+                int month = ((Number) row[0]).intValue();
+                TransactionType type = (TransactionType) row[1];
+                BigDecimal amount = safeAmount((BigDecimal) row[2]);
+
+                monthlyMap.computeIfAbsent(month, k -> new EnumMap<>(TransactionType.class))
+                        .put(type, amount);
+            }
+        }
+
         List<MonthlyCashflowItemResponse> months = new ArrayList<>();
         BigDecimal totalIncome = BigDecimal.ZERO;
         BigDecimal totalExpense = BigDecimal.ZERO;
 
         for (int month = 1; month <= 12; month++) {
             YearMonth ym = YearMonth.of(year, month);
-            MonthRange monthRange = monthRange(ym);
+            Map<TransactionType, BigDecimal> monthData = monthlyMap.getOrDefault(month, Collections.emptyMap());
 
-            BigDecimal income = safeAmount(photoRepository.sumTransactionAmountBySenderAndMonth(
-                    userId, PhotoStatus.DELETED, TransactionType.INCOME, monthRange.fromDate(), monthRange.toDate()
-            ));
-            BigDecimal expense = safeAmount(photoRepository.sumTransactionAmountBySenderAndMonth(
-                    userId, PhotoStatus.DELETED, TransactionType.EXPENSE, monthRange.fromDate(), monthRange.toDate()
-            ));
+            BigDecimal income = safeAmount(monthData.get(TransactionType.INCOME));
+            BigDecimal expense = safeAmount(monthData.get(TransactionType.EXPENSE));
             BigDecimal net = income.subtract(expense);
 
             totalIncome = totalIncome.add(income);

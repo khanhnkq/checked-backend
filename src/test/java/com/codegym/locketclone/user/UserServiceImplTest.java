@@ -1,7 +1,10 @@
 package com.codegym.locketclone.user;
 
 import com.codegym.locketclone.common.exception.AppException;
+import com.codegym.locketclone.common.exception.ErrorCode;
 import com.codegym.locketclone.common.mapper.UserMapper;
+import com.codegym.locketclone.storage.StorageService;
+import com.codegym.locketclone.storage.UploadedFile;
 import com.codegym.locketclone.user.dto.UpdateProfileRequest;
 import com.codegym.locketclone.user.dto.UserResponse;
 import org.junit.jupiter.api.Test;
@@ -9,7 +12,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 
+import java.io.IOException;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -25,6 +31,9 @@ class UserServiceImplTest {
 
     @Mock
     private UserMapper userMapper;
+
+    @Mock
+    private StorageService storageService;
 
     @InjectMocks
     private UserServiceImpl userService;
@@ -132,6 +141,61 @@ class UserServiceImplTest {
                 new UpdateProfileRequest("another_user", null, null, null)
         ));
 
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void updateAvatar_uploadsAndUpdatesUserAvatar() throws IOException {
+        UUID userId = UUID.randomUUID();
+        User user = User.builder()
+                .id(userId)
+                .email("khanh@example.com")
+                .username("khanh_dev")
+                .build();
+
+        var file = new MockMultipartFile(
+                "file",
+                "avatar.jpg",
+                MediaType.IMAGE_JPEG_VALUE,
+                "avatar-bytes".getBytes()
+        );
+
+        UploadedFile uploadedFile = new UploadedFile(
+                "https://cdn.example.com/avatar.jpg",
+                "https://cdn.example.com/avatar.jpg",
+                "public-id",
+                MediaType.IMAGE_JPEG_VALUE,
+                1000L,
+                200,
+                200
+        );
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(storageService.uploadAvatar(file)).thenReturn(uploadedFile);
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(userMapper.toResponse(any(User.class))).thenAnswer(inv -> {
+            User u = inv.getArgument(0);
+            return UserResponse.builder()
+                    .id(u.getId())
+                    .avatarUrl(u.getAvatarUrl())
+                    .build();
+        });
+
+        UserResponse response = userService.updateAvatar(userId, file);
+
+        assertNotNull(response);
+        assertEquals("https://cdn.example.com/avatar.jpg", user.getAvatarUrl());
+        verify(storageService).uploadAvatar(file);
+        verify(userRepository).save(user);
+    }
+
+    @Test
+    void updateAvatar_throwsWhenFileInvalid() {
+        UUID userId = UUID.randomUUID();
+        var emptyFile = new MockMultipartFile("file", "avatar.jpg", MediaType.IMAGE_JPEG_VALUE, new byte[0]);
+
+        AppException ex = assertThrows(AppException.class, () -> userService.updateAvatar(userId, emptyFile));
+        assertEquals(ErrorCode.INVALID_PHOTO_FILE, ex.getErrorCode());
         verify(userRepository, never()).save(any(User.class));
     }
 }

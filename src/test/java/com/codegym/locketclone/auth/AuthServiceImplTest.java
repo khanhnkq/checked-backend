@@ -105,6 +105,52 @@ class AuthServiceImplTest {
     }
 
     @Test
+    void verify_incrementsFailedAttemptsOnWrongOtp() {
+        User user = User.builder()
+                .id(UUID.randomUUID())
+                .email("khanh@example.com")
+                .username("khanh_dev")
+                .password("encoded-password")
+                .otpCode("482910")
+                .otpExpiresAt(LocalDateTime.now().plusMinutes(5))
+                .otpFailedAttempts(2)
+                .isVerified(false)
+                .build();
+        when(userRepository.findByEmailIgnoreCase("khanh@example.com")).thenReturn(Optional.of(user));
+
+        AppException exception = assertThrows(AppException.class,
+                () -> authService.verify(new VerifyOtpRequest("khanh@example.com", "000000")));
+
+        assertEquals(ErrorCode.INVALID_OTP, exception.getErrorCode());
+        assertEquals(3, user.getOtpFailedAttempts());
+        verify(userRepository).save(user);
+    }
+
+    @Test
+    void verify_locksOtpWhenFailedAttemptsReach5() {
+        User user = User.builder()
+                .id(UUID.randomUUID())
+                .email("khanh@example.com")
+                .username("khanh_dev")
+                .password("encoded-password")
+                .otpCode("482910")
+                .otpExpiresAt(LocalDateTime.now().plusMinutes(5))
+                .otpFailedAttempts(4)
+                .isVerified(false)
+                .build();
+        when(userRepository.findByEmailIgnoreCase("khanh@example.com")).thenReturn(Optional.of(user));
+
+        AppException exception = assertThrows(AppException.class,
+                () -> authService.verify(new VerifyOtpRequest("khanh@example.com", "000000")));
+
+        assertEquals(ErrorCode.OTP_MAX_ATTEMPTS_EXCEEDED, exception.getErrorCode());
+        assertNull(user.getOtpCode());
+        assertNull(user.getOtpExpiresAt());
+        assertEquals(0, user.getOtpFailedAttempts());
+        verify(userRepository).save(user);
+    }
+
+    @Test
     void login_throwsForbiddenWhenUserNotVerified() {
         User user = User.builder()
                 .id(UUID.randomUUID())

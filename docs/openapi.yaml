@@ -1,0 +1,1686 @@
+openapi: 3.1.0
+info:
+  title: Locket Clone API Contract
+  description: "Tài liệu đặc tả API chuẩn OpenAPI 3.0 / Swagger UI dành cho Frontend\
+    \ (Web & Mobile). Cung cấp đầy đủ các endpoint xác thực (JWT), chia sẻ ảnh (Locket),\
+    \ quản lý giao dịch tài chính, kết bạn và lưu trữ ảnh Garage S3."
+  contact:
+    name: Development Team
+    email: dev@locketclone.com
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+  version: 1.0.0
+servers:
+- url: http://localhost:8080
+  description: Local Development Server
+security:
+- Bearer Authentication: []
+tags:
+- name: Friend Invites
+  description: "Tạo link mời kết bạn, quản lý token lời mời và chấp nhận kết bạn"
+- name: Auth
+  description: "Quản lý xác thực người dùng: Đăng ký tài khoản, Xác minh mã OTP, Đ\
+    ăng nhập và cấp phát JWT token"
+- name: Photos
+  description: "Chia sẻ khoảnh khắc ảnh kèm giao dịch chi tiêu, feed ảnh bạn bè, cả\
+    m xúc (reactions)"
+- name: Expenses & Finance
+  description: "Quản lý tài chính cá nhân: Danh mục thu/chi, Ngân sách (Budget), Mụ\
+    c tiêu tiết kiệm (Savings Goal) và Báo cáo dòng tiền"
+- name: Users
+  description: "Quản lý hồ sơ người dùng, onboarding, thông tin cá nhân và cập nhậ\
+    t ảnh đại diện (Garage S3)"
+- name: Friendships
+  description: "Quản lý mối quan hệ bạn bè, danh sách bạn bè"
+paths:
+  /api/v1/photos/{photoId}/reactions/me:
+    put:
+      tags:
+      - Photos
+      summary: Thả cảm xúc / reaction vào ảnh
+      description: "Thêm hoặc đổi reaction (LIKE, LOVE, HAHA, WOW, SAD, ANGRY)."
+      operationId: upsertMyReaction
+      parameters:
+      - name: photoId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpsertPhotoReactionRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PhotoReactionResponse"
+    delete:
+      tags:
+      - Photos
+      summary: Xóa cảm xúc đã thả
+      description: Gỡ bỏ reaction của người dùng hiện tại khỏi bức ảnh.
+      operationId: removeMyReaction
+      parameters:
+      - name: photoId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+  /api/v1/expense/savings-goals/{monthKey}:
+    get:
+      tags:
+      - Expenses & Finance
+      summary: Xem mục tiêu tiết kiệm
+      description: Lấy mục tiêu tiết kiệm của tháng.
+      operationId: getSavingsGoal
+      parameters:
+      - name: monthKey
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SavingsGoalResponse"
+    put:
+      tags:
+      - Expenses & Finance
+      summary: Thiết lập mục tiêu tiết kiệm
+      description: Tạo mới hoặc cập nhật mục tiêu tiết kiệm tháng.
+      operationId: upsertSavingsGoal
+      parameters:
+      - name: monthKey
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SavingsGoalUpsertRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SavingsGoalResponse"
+  /api/v1/expense/budgets/{monthKey}:
+    get:
+      tags:
+      - Expenses & Finance
+      summary: Xem ngân sách theo tháng
+      description: "Lấy ngân sách đã thiết lập cho tháng cụ thể (dạng YYYYMM, ví dụ\
+        \ 202610)."
+      operationId: getBudget
+      parameters:
+      - name: monthKey
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/BudgetResponse"
+    put:
+      tags:
+      - Expenses & Finance
+      summary: Thiết lập ngân sách tháng
+      description: Tạo mới hoặc cập nhật hạn mức ngân sách tháng.
+      operationId: upsertBudget
+      parameters:
+      - name: monthKey
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BudgetUpsertRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/BudgetResponse"
+  /api/v1/photos:
+    post:
+      tags:
+      - Photos
+      summary: Đăng tải ảnh khoảnh khắc mới
+      description: "Upload ảnh (JPEG/PNG/WEBP) kèm thông tin tài chính (số tiền, danh\
+        \ mục, loại giao dịch, ghi chú) và phạm vi bạn bè nhận ảnh (ALL_FRIENDS hoặ\
+        c SELECTED_FRIENDS)."
+      operationId: uploadPhoto
+      parameters:
+      - name: caption
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: amount
+        in: query
+        required: false
+        schema:
+          type: number
+      - name: transactionType
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: note
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: categoryId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: recipientScope
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - ALL_FRIENDS
+          - SELECTED_FRIENDS
+      - name: audienceMode
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - ALL_FRIENDS
+          - SELECTED_FRIENDS
+      - name: recipientIds
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+            format: uuid
+      - name: takenAt
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date-time
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+              required:
+              - file
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PhotoResponse"
+  /api/v1/friend-invite-links:
+    post:
+      tags:
+      - Friend Invites
+      summary: Tạo hoặc làm mới link mời kết bạn
+      description: "Sinh link mời kèm token ngẫu nhiên, cấu hình số lượt sử dụng tố\
+        i đa và thời gian hết hạn (TTL)."
+      operationId: createOrRotate
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFriendInviteLinkRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/FriendInviteLinkResponse"
+  /api/v1/friend-invite-links/accept:
+    post:
+      tags:
+      - Friend Invites
+      summary: Chấp nhận kết bạn qua link
+      description: Chấp nhận kết bạn bằng token trong link mời (có chống race condition
+        bằng pessimistic lock).
+      operationId: acceptByLink
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AcceptFriendInviteLinkRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/AcceptFriendInviteLinkResponse"
+  /api/v1/expense/categories:
+    get:
+      tags:
+      - Expenses & Finance
+      summary: Lấy danh sách danh mục chi tiêu/thu nhập
+      description: Lấy danh sách các danh mục hệ thống và danh mục tùy chỉnh của người
+        dùng hiện tại.
+      operationId: getCategories
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CategoryResponse"
+    post:
+      tags:
+      - Expenses & Finance
+      summary: Tạo danh mục mới
+      description: Tạo danh mục chi tiêu hoặc thu nhập tùy chỉnh.
+      operationId: createCategory
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCategoryRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CategoryResponse"
+  /api/v1/auth/verify:
+    post:
+      tags:
+      - Auth
+      summary: Xác minh mã OTP
+      description: Xác nhận mã OTP 6 chữ số gửi qua email. Nếu thành công trả về JWT
+        token và kích hoạt tài khoản. Cho phép thử tối đa 5 lần.
+      operationId: verify
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifyOtpRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/JwtResponse"
+  /api/v1/auth/register:
+    post:
+      tags:
+      - Auth
+      summary: Đăng ký tài khoản mới
+      description: "Gửi thông tin đăng ký (email, username, password). Hệ thống gử\
+        i mã OTP xác nhận qua email bất đồng bộ."
+      operationId: register
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/RegisterResponse"
+  /api/v1/auth/login:
+    post:
+      tags:
+      - Auth
+      summary: Đăng nhập
+      description: "Đăng nhập bằng email/username và mật khẩu, trả về Access Token\
+        \ JWT."
+      operationId: login
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/JwtResponse"
+  /api/v1/users/me/settings/personal-info:
+    get:
+      tags:
+      - Users
+      summary: Lấy thông tin cá nhân trong Settings
+      description: "Lấy thông tin họ tên, username, avatar của người dùng hiện tạ\
+        i."
+      operationId: getCurrentUserPersonalInfo
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+    patch:
+      tags:
+      - Users
+      summary: Cập nhật thông tin cá nhân
+      description: "Cập nhật họ, tên, username hoặc link avatar trong phần Cài đặ\
+        t."
+      operationId: updateCurrentUserPersonalInfo
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePersonalInfoRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+  /api/v1/users/me/settings/avatar:
+    patch:
+      tags:
+      - Users
+      summary: Tải lên và cập nhật ảnh đại diện mới
+      description: "Upload file ảnh đại diện (JPEG/PNG/WEBP). Ảnh tự động được né\
+        n, tạo thumbnail và lưu trữ an toàn trên Garage S3."
+      operationId: updateCurrentUserAvatar
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+              required:
+              - file
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+  /api/v1/users/me/profile:
+    patch:
+      tags:
+      - Users
+      summary: Cập nhật hồ sơ Onboarding
+      description: "Cập nhật họ tên, username trong bước onboarding sau khi đăng ký\
+        \ tài khoản."
+      operationId: updateCurrentUserProfile
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProfileRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+  /api/v1/photos/{photoId}/transaction:
+    patch:
+      tags:
+      - Photos
+      summary: Cập nhật toàn bộ thông tin giao dịch ảnh
+      description: "Chỉnh sửa caption, số tiền, loại giao dịch, danh mục, thời gian\
+        \ của ảnh."
+      operationId: updatePhotoTransaction
+      parameters:
+      - name: photoId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePhotoTransactionRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PhotoResponse"
+  /api/v1/photos/{photoId}/expense:
+    patch:
+      tags:
+      - Photos
+      summary: Cập nhật chi phí gắn với ảnh
+      description: "Chỉnh sửa số tiền, ghi chú, danh mục tài chính của bức ảnh."
+      operationId: updatePhotoExpense
+      parameters:
+      - name: photoId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePhotoExpenseRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PhotoResponse"
+  /api/v1/expense/categories/{categoryId}:
+    patch:
+      tags:
+      - Expenses & Finance
+      summary: Cập nhật danh mục
+      description: Chỉnh sửa tên hoặc icon của danh mục.
+      operationId: updateCategory
+      parameters:
+      - name: categoryId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCategoryRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CategoryResponse"
+  /api/v1/users/{id}:
+    get:
+      tags:
+      - Users
+      summary: Lấy thông tin người dùng theo ID
+      description: Xem thông tin cơ bản của một người dùng theo UUID.
+      operationId: getUserById
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+  /api/v1/users/me:
+    get:
+      tags:
+      - Users
+      summary: Lấy thông tin tài khoản hiện tại
+      description: Trả về thông tin chi tiết của người dùng đang đăng nhập.
+      operationId: getCurrentUser
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+  /api/v1/photos/{photoId}:
+    get:
+      tags:
+      - Photos
+      summary: Xem chi tiết một ảnh
+      description: "Lấy thông tin chi tiết một bức ảnh bao gồm người gửi, danh mụ\
+        c, số tiền, ghi chú."
+      operationId: getPhotoDetail
+      parameters:
+      - name: photoId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PhotoResponse"
+    delete:
+      tags:
+      - Photos
+      summary: Xóa ảnh / giao dịch
+      description: Đánh dấu xóa ảnh (DELETED) và tự động xóa file lưu trữ trên Garage
+        S3.
+      operationId: deleteTransaction
+      parameters:
+      - name: photoId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+  /api/v1/photos/{photoId}/reactions/summary:
+    get:
+      tags:
+      - Photos
+      summary: Thống kê cảm xúc của ảnh
+      description: Tổng hợp số lượng reaction theo từng loại và danh sách người thả
+        cảm xúc.
+      operationId: getReactionSummary
+      parameters:
+      - name: photoId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PhotoReactionSummaryResponse"
+  /api/v1/photos/my-photos:
+    get:
+      tags:
+      - Photos
+      summary: Lấy danh sách ảnh của tôi
+      description: Phân trang danh sách ảnh mà người dùng hiện tại đã đăng tải.
+      operationId: getMyPhotos
+      parameters:
+      - name: pageable
+        in: query
+        required: true
+        schema:
+          $ref: "#/components/schemas/Pageable"
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PagePhotoResponse"
+  /api/v1/photos/me:
+    get:
+      tags:
+      - Photos
+      summary: Lấy danh sách ảnh của tôi
+      description: Phân trang danh sách ảnh mà người dùng hiện tại đã đăng tải.
+      operationId: getMyPhotos_1
+      parameters:
+      - name: pageable
+        in: query
+        required: true
+        schema:
+          $ref: "#/components/schemas/Pageable"
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PagePhotoResponse"
+  /api/v1/photos/feed:
+    get:
+      tags:
+      - Photos
+      summary: Lấy feed ảnh bạn bè
+      description: Cuộn vô tận (Slice) danh sách ảnh nhận được từ bạn bè hoặc lọc
+        theo từng bạn cụ thể.
+      operationId: getFeedPhotos
+      parameters:
+      - name: friendId
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: pageable
+        in: query
+        required: true
+        schema:
+          $ref: "#/components/schemas/Pageable"
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SlicePhotoResponse"
+  /api/v1/friendships:
+    get:
+      tags:
+      - Friendships
+      summary: Lấy danh sách tất cả bạn bè
+      description: Trả về danh sách tất cả người dùng đang là bạn bè của tài khoản
+        hiện tại.
+      operationId: getMyFriends
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UserResponse"
+  /api/v1/friend-invite-links/current:
+    get:
+      tags:
+      - Friend Invites
+      summary: Lấy link mời kết bạn hiện tại
+      description: Lấy link mời đang còn hiệu lực của người dùng hiện tại.
+      operationId: getCurrent
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/FriendInviteLinkResponse"
+    delete:
+      tags:
+      - Friend Invites
+      summary: Hủy link mời kết bạn hiện tại
+      description: Vô hiệu hóa link mời hiện tại để không ai có thể sử dụng được nữa.
+      operationId: revokeCurrent
+      responses:
+        "200":
+          description: OK
+  /api/v1/expense/summary:
+    get:
+      tags:
+      - Expenses & Finance
+      summary: Báo cáo tổng kết chi tiêu tháng
+      description: "Tổng hợp tổng chi tiêu, ngân sách còn lại, tỷ lệ sử dụng."
+      operationId: getExpenseSummary
+      parameters:
+      - name: monthKey
+        in: query
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ExpenseSummaryResponse"
+  /api/v1/expense/summary/yearly:
+    get:
+      tags:
+      - Expenses & Finance
+      summary: Báo cáo dòng tiền cả năm
+      description: Tổng hợp dòng tiền 12 tháng trong năm (đã tối ưu 1 query gom nhóm).
+      operationId: getYearlyCashflowSummary
+      parameters:
+      - name: year
+        in: query
+        required: true
+        schema:
+          type: integer
+          format: int32
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/YearlyCashflowSummaryResponse"
+  /api/v1/expense/entries:
+    get:
+      tags:
+      - Expenses & Finance
+      summary: Lấy danh sách bản ghi giao dịch theo tháng
+      description: Lấy danh sách các khoản thu/chi trong tháng với phân trang.
+      operationId: getExpenseEntries
+      parameters:
+      - name: monthKey
+        in: query
+        required: true
+        schema:
+          type: string
+      - name: type
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: pageable
+        in: query
+        required: true
+        schema:
+          $ref: "#/components/schemas/Pageable"
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageExpenseItemResponse"
+  /api/v1/expense/entries/by-period:
+    get:
+      tags:
+      - Expenses & Finance
+      summary: Lấy giao dịch theo chu kỳ linh hoạt
+      description: "Lọc giao dịch theo DAY, WEEK, MONTH, YEAR hoặc CUSTOM."
+      operationId: getExpenseEntriesByPeriod
+      parameters:
+      - name: period
+        in: query
+        required: true
+        schema:
+          type: string
+          enum:
+          - DAY
+          - WEEK
+          - MONTH
+      - name: referenceDate
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date
+      - name: type
+        in: query
+        required: false
+        schema:
+          type: string
+          default: EXPENSE
+          enum:
+          - EXPENSE
+          - INCOME
+          - ALL
+      - name: pageable
+        in: query
+        required: true
+        schema:
+          $ref: "#/components/schemas/Pageable"
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageExpenseItemResponse"
+  /api/v1/expense/categories/top:
+    get:
+      tags:
+      - Expenses & Finance
+      summary: Top danh mục chi tiêu nhiều nhất
+      description: Lấy danh sách top N danh mục có tổng tiền lớn nhất.
+      operationId: getTopCategories
+      parameters:
+      - name: monthKey
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: year
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: type
+        in: query
+        required: false
+        schema:
+          type: string
+          default: EXPENSE
+          enum:
+          - EXPENSE
+          - INCOME
+          - ALL
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 5
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TopCategoryResponse"
+  /api/v1/expense/cashflow:
+    get:
+      tags:
+      - Expenses & Finance
+      summary: Báo cáo dòng tiền tháng (Cashflow)
+      description: "Tổng thu, tổng chi và dòng tiền thuần theo tháng."
+      operationId: getCashflowSummary
+      parameters:
+      - name: monthKey
+        in: query
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CashflowSummaryResponse"
+components:
+  schemas:
+    UpsertPhotoReactionRequest:
+      type: object
+      properties:
+        type:
+          type: string
+      required:
+      - type
+    PhotoReactionResponse:
+      type: object
+      properties:
+        photoId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        type:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    SavingsGoalUpsertRequest:
+      type: object
+      properties:
+        targetAmount:
+          type: number
+          minimum: 0.01
+      required:
+      - targetAmount
+    SavingsGoalResponse:
+      type: object
+      properties:
+        monthKey:
+          type: string
+        targetAmount:
+          type: number
+        currentSaved:
+          type: number
+        remaining:
+          type: number
+        progressPct:
+          type: integer
+          format: int32
+        achieved:
+          type: boolean
+    BudgetUpsertRequest:
+      type: object
+      properties:
+        amountLimit:
+          type: number
+        alertThresholdPct:
+          type: integer
+          format: int32
+          maximum: 100
+          minimum: 1
+      required:
+      - amountLimit
+    BudgetResponse:
+      type: object
+      properties:
+        monthKey:
+          type: string
+        amountLimit:
+          type: number
+        alertThresholdPct:
+          type: integer
+          format: int32
+        spent:
+          type: number
+        remaining:
+          type: number
+        exceeded:
+          type: boolean
+    PhotoResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        senderId:
+          type: string
+          format: uuid
+        senderDisplayName:
+          type: string
+        senderAvatarUrl:
+          type: string
+        imageUrl:
+          type: string
+        thumbnailUrl:
+          type: string
+        caption:
+          type: string
+        note:
+          type: string
+        amount:
+          type: number
+        transactionType:
+          type: string
+          enum:
+          - INCOME
+          - EXPENSE
+        categoryId:
+          type: string
+          format: uuid
+        categoryName:
+          type: string
+        recipientScope:
+          type: string
+          enum:
+          - ALL_FRIENDS
+          - SELECTED_FRIENDS
+        recipientCount:
+          type: integer
+          format: int32
+        status:
+          type: string
+          enum:
+          - READY
+          - FAILED
+          - DELETED
+        mimeType:
+          type: string
+        fileSize:
+          type: integer
+          format: int64
+        width:
+          type: integer
+          format: int32
+        height:
+          type: integer
+          format: int32
+        takenAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+    CreateFriendInviteLinkRequest:
+      type: object
+      properties:
+        ttlMinutes:
+          type: integer
+          format: int32
+          maximum: 43200
+          minimum: 10
+    FriendInviteLinkResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        inviteUrl:
+          type: string
+        tokenPreview:
+          type: string
+        maxUses:
+          type: integer
+          format: int32
+        usedCount:
+          type: integer
+          format: int32
+        expiresAt:
+          type: string
+          format: date-time
+        revokedAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+    AcceptFriendInviteLinkRequest:
+      type: object
+      properties:
+        token:
+          type: string
+      required:
+      - token
+    AcceptFriendInviteLinkResponse:
+      type: object
+      properties:
+        friendshipId:
+          type: string
+          format: uuid
+        status:
+          type: string
+        friend:
+          $ref: "#/components/schemas/UserResponse"
+        acceptedAt:
+          type: string
+          format: date-time
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        username:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        displayName:
+          type: string
+        avatarUrl:
+          type: string
+        isVerified:
+          type: boolean
+        isGoldMember:
+          type: boolean
+        profileCompleted:
+          type: boolean
+    CreateCategoryRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 100
+          minLength: 0
+        icon:
+          type: string
+          maxLength: 50
+          minLength: 0
+        color:
+          type: string
+          maxLength: 20
+          minLength: 0
+        transactionType:
+          type: string
+          enum:
+          - INCOME
+          - EXPENSE
+      required:
+      - name
+    CategoryResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        icon:
+          type: string
+        color:
+          type: string
+        isDefault:
+          type: boolean
+        isActive:
+          type: boolean
+        transactionType:
+          type: string
+          enum:
+          - INCOME
+          - EXPENSE
+    VerifyOtpRequest:
+      type: object
+      properties:
+        email:
+          type: string
+        otp:
+          type: string
+          pattern: "^\\d{6}$"
+      required:
+      - email
+      - otp
+    JwtResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        type:
+          type: string
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        username:
+          type: string
+        isVerified:
+          type: boolean
+        profileCompleted:
+          type: boolean
+        displayName:
+          type: string
+        avatarUrl:
+          type: string
+        nextStep:
+          type: string
+          enum:
+          - COMPLETE_PROFILE
+          - HOME
+    RegisterRequest:
+      type: object
+      properties:
+        email:
+          type: string
+        username:
+          type: string
+          maxLength: 50
+          minLength: 0
+        password:
+          type: string
+          maxLength: 2147483647
+          minLength: 6
+      required:
+      - email
+      - password
+      - username
+    RegisterResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        email:
+          type: string
+        nextStep:
+          type: string
+    LoginRequest:
+      type: object
+      properties:
+        identifier:
+          type: string
+        password:
+          type: string
+      required:
+      - identifier
+      - password
+    UpdatePersonalInfoRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          maxLength: 50
+          minLength: 0
+          pattern: ^(?!\s*$).+
+        firstName:
+          type: string
+          maxLength: 50
+          minLength: 0
+          pattern: ^(?!\s*$).+
+        lastName:
+          type: string
+          maxLength: 50
+          minLength: 0
+          pattern: ^(?!\s*$).+
+        avatarUrl:
+          type: string
+          maxLength: 255
+          minLength: 0
+          pattern: ^(?!\s*$).+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          maxLength: 50
+          minLength: 0
+          pattern: ^(?!\s*$).+
+        firstName:
+          type: string
+          maxLength: 50
+          minLength: 0
+          pattern: ^(?!\s*$).+
+        lastName:
+          type: string
+          maxLength: 50
+          minLength: 0
+          pattern: ^(?!\s*$).+
+        avatarUrl:
+          type: string
+          maxLength: 255
+          minLength: 0
+          pattern: ^(?!\s*$).+
+    UpdatePhotoTransactionRequest:
+      type: object
+      properties:
+        caption:
+          type: string
+          maxLength: 1000
+          minLength: 0
+        amount:
+          type: number
+        note:
+          type: string
+          maxLength: 255
+          minLength: 0
+        categoryId:
+          type: string
+          format: uuid
+        clearCategory:
+          type: boolean
+        transactionType:
+          type: string
+          enum:
+          - INCOME
+          - EXPENSE
+        takenAt:
+          type: string
+          format: date-time
+        occurredAt:
+          type: string
+          format: date-time
+    UpdatePhotoExpenseRequest:
+      type: object
+      properties:
+        amount:
+          type: number
+        note:
+          type: string
+          maxLength: 255
+          minLength: 0
+        categoryId:
+          type: string
+          format: uuid
+    UpdateCategoryRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 100
+          minLength: 0
+        icon:
+          type: string
+          maxLength: 50
+          minLength: 0
+        color:
+          type: string
+          maxLength: 20
+          minLength: 0
+        isActive:
+          type: boolean
+        transactionType:
+          type: string
+          enum:
+          - INCOME
+          - EXPENSE
+    PhotoReactionSummaryResponse:
+      type: object
+      properties:
+        photoId:
+          type: string
+          format: uuid
+        totalCount:
+          type: integer
+          format: int64
+        myReaction:
+          type: string
+        countsByType:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int64
+        reactors:
+          type: array
+          items:
+            $ref: "#/components/schemas/PhotoReactorResponse"
+    PhotoReactorResponse:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+        displayName:
+          type: string
+        avatarUrl:
+          type: string
+        type:
+          type: string
+        reactedAt:
+          type: string
+          format: date-time
+    Pageable:
+      type: object
+      properties:
+        page:
+          type: integer
+          format: int32
+          minimum: 0
+        size:
+          type: integer
+          format: int32
+          minimum: 1
+        sort:
+          type: array
+          items:
+            type: string
+    PagePhotoResponse:
+      type: object
+      properties:
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        pageable:
+          $ref: "#/components/schemas/PageableObject"
+        size:
+          type: integer
+          format: int32
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/PhotoResponse"
+        number:
+          type: integer
+          format: int32
+        sort:
+          $ref: "#/components/schemas/SortObject"
+        first:
+          type: boolean
+        last:
+          type: boolean
+        numberOfElements:
+          type: integer
+          format: int32
+        empty:
+          type: boolean
+    PageableObject:
+      type: object
+      properties:
+        paged:
+          type: boolean
+        pageSize:
+          type: integer
+          format: int32
+        pageNumber:
+          type: integer
+          format: int32
+        unpaged:
+          type: boolean
+        offset:
+          type: integer
+          format: int64
+        sort:
+          $ref: "#/components/schemas/SortObject"
+    SortObject:
+      type: object
+      properties:
+        sorted:
+          type: boolean
+        unsorted:
+          type: boolean
+        empty:
+          type: boolean
+    SlicePhotoResponse:
+      type: object
+      properties:
+        pageable:
+          $ref: "#/components/schemas/PageableObject"
+        size:
+          type: integer
+          format: int32
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/PhotoResponse"
+        number:
+          type: integer
+          format: int32
+        sort:
+          $ref: "#/components/schemas/SortObject"
+        first:
+          type: boolean
+        last:
+          type: boolean
+        numberOfElements:
+          type: integer
+          format: int32
+        empty:
+          type: boolean
+    CategorySpendResponse:
+      type: object
+      properties:
+        categoryId:
+          type: string
+          format: uuid
+        categoryName:
+          type: string
+        totalAmount:
+          type: number
+    ExpenseSummaryResponse:
+      type: object
+      properties:
+        monthKey:
+          type: string
+        totalSpent:
+          type: number
+        budgetLimit:
+          type: number
+        remaining:
+          type: number
+        budgetExceeded:
+          type: boolean
+        percentUsed:
+          type: integer
+          format: int32
+        byCategory:
+          type: array
+          items:
+            $ref: "#/components/schemas/CategorySpendResponse"
+    MonthlyCashflowItemResponse:
+      type: object
+      properties:
+        monthKey:
+          type: string
+        income:
+          type: number
+        expense:
+          type: number
+        net:
+          type: number
+    YearlyCashflowSummaryResponse:
+      type: object
+      properties:
+        year:
+          type: integer
+          format: int32
+        totalIncome:
+          type: number
+        totalExpense:
+          type: number
+        netCashflow:
+          type: number
+        months:
+          type: array
+          items:
+            $ref: "#/components/schemas/MonthlyCashflowItemResponse"
+    ExpenseItemResponse:
+      type: object
+      properties:
+        photoId:
+          type: string
+          format: uuid
+        imageUrl:
+          type: string
+        thumbnailUrl:
+          type: string
+        amount:
+          type: number
+        note:
+          type: string
+        categoryId:
+          type: string
+          format: uuid
+        categoryName:
+          type: string
+        transactionType:
+          type: string
+          enum:
+          - INCOME
+          - EXPENSE
+        takenAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+    PageExpenseItemResponse:
+      type: object
+      properties:
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        pageable:
+          $ref: "#/components/schemas/PageableObject"
+        size:
+          type: integer
+          format: int32
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExpenseItemResponse"
+        number:
+          type: integer
+          format: int32
+        sort:
+          $ref: "#/components/schemas/SortObject"
+        first:
+          type: boolean
+        last:
+          type: boolean
+        numberOfElements:
+          type: integer
+          format: int32
+        empty:
+          type: boolean
+    TopCategoryResponse:
+      type: object
+      properties:
+        categoryId:
+          type: string
+          format: uuid
+        categoryName:
+          type: string
+        totalAmount:
+          type: number
+        percentage:
+          type: integer
+          format: int32
+    CashflowSummaryResponse:
+      type: object
+      properties:
+        monthKey:
+          type: string
+        totalIncome:
+          type: number
+        totalExpense:
+          type: number
+        netCashflow:
+          type: number
+        budgetLimit:
+          type: number
+        budgetRemaining:
+          type: number
+        budgetUsedPct:
+          type: integer
+          format: int32
+        budgetExceeded:
+          type: boolean
+        incomeByCategory:
+          type: array
+          items:
+            $ref: "#/components/schemas/CategorySpendResponse"
+        expenseByCategory:
+          type: array
+          items:
+            $ref: "#/components/schemas/CategorySpendResponse"
+  securitySchemes:
+    Bearer Authentication:
+      type: http
+      description: Nhập Access Token (JWT) được trả về từ API /api/v1/auth/login hoặc
+        /api/v1/auth/verify
+      name: Bearer Authentication
+      scheme: bearer
+      bearerFormat: JWT
