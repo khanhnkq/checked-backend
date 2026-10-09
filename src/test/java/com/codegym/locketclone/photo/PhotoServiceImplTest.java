@@ -68,7 +68,7 @@ class PhotoServiceImplTest {
                 categoryRepository,
                 friendshipRepository,
                 storageService,
-                new PhotoMapper()
+                org.mapstruct.factory.Mappers.getMapper(PhotoMapper.class)
         );
     }
 

@@ -1,35 +1,18 @@
 package com.codegym.locketclone.common.mapper;
 
-
 import com.codegym.locketclone.photo.Photo;
 import com.codegym.locketclone.photo.dto.PhotoResponse;
-import org.springframework.stereotype.Component;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.MappingConstants;
 
-@Component
-public class PhotoMapper {
-    public PhotoResponse toResponse(Photo photo) {
-        return PhotoResponse.builder()
-                .id(photo.getId())
-                .senderId(photo.getSender().getId())
-                .senderDisplayName(photo.getSender().getDisplayName())
-                .senderAvatarUrl(photo.getSender().getAvatarUrl())
-                .imageUrl(photo.getImageUrl())
-                .thumbnailUrl(photo.getThumbnailUrl())
-                .caption(photo.getCaption())
-                .note(photo.getNote())
-                .amount(photo.getAmount())
-                .transactionType(photo.getTransactionType())
-                .categoryId(photo.getCategory() != null ? photo.getCategory().getId() : null)
-                .categoryName(photo.getCategory() != null ? photo.getCategory().getName() : null)
-                .recipientScope(photo.getRecipientScope())
-                .recipientCount(photo.getRecipientCount())
-                .status(photo.getStatus())
-                .mimeType(photo.getMimeType())
-                .fileSize(photo.getFileSize())
-                .width(photo.getWidth())
-                .height(photo.getHeight())
-                .takenAt(photo.getTakenAt())
-                .createdAt(photo.getCreatedAt())
-                .build();
-    }
+@Mapper(componentModel = MappingConstants.ComponentModel.SPRING)
+public interface PhotoMapper {
+
+    @Mapping(target = "senderId", source = "sender.id")
+    @Mapping(target = "senderDisplayName", source = "sender.displayName")
+    @Mapping(target = "senderAvatarUrl", source = "sender.avatarUrl")
+    @Mapping(target = "categoryId", source = "category.id")
+    @Mapping(target = "categoryName", source = "category.name")
+    PhotoResponse toResponse(Photo photo);
 }

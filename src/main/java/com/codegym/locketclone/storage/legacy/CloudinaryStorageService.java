@@ -4,6 +4,8 @@ import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
 import com.codegym.locketclone.storage.StorageService;
 import com.codegym.locketclone.storage.UploadedFile;
+import com.codegym.locketclone.storage.image.ImageProcessingService;
+import com.codegym.locketclone.storage.image.ProcessedImage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -20,15 +22,18 @@ import java.util.Map;
 public class CloudinaryStorageService implements StorageService {
 
     private final Cloudinary cloudinary;
+    private final ImageProcessingService imageProcessingService;
 
     @Override
     public UploadedFile uploadPhoto(MultipartFile file) throws IOException {
-        return uploadToFolder(file, "locket/photos");
+        ProcessedImage processed = imageProcessingService.processPhoto(file);
+        return uploadProcessed(processed, "locket/photos");
     }
 
     @Override
     public UploadedFile uploadAvatar(MultipartFile file) throws IOException {
-        return uploadToFolder(file, "locket/avatars");
+        ProcessedImage processed = imageProcessingService.processAvatar(file);
+        return uploadProcessed(processed, "locket/avatars");
     }
 
     @Override
@@ -38,37 +43,44 @@ public class CloudinaryStorageService implements StorageService {
         }
         try {
             cloudinary.uploader().destroy(key, ObjectUtils.emptyMap());
-            log.info("Deleted file from Cloudinary: {}", key);
+            cloudinary.uploader().destroy(key + "_thumb", ObjectUtils.emptyMap());
+            log.info("Deleted file and thumbnail from Cloudinary: {}", key);
         } catch (Exception e) {
             log.warn("Failed to delete file from Cloudinary: {}. Error: {}", key, e.getMessage());
         }
     }
 
-    private UploadedFile uploadToFolder(MultipartFile file, String folder) throws IOException {
+    private UploadedFile uploadProcessed(ProcessedImage processed, String folder) throws IOException {
         try {
-            Map<?, ?> uploadResult = cloudinary.uploader().upload(
-                    file.getBytes(),
+            Map<?, ?> mainResult = cloudinary.uploader().upload(
+                    processed.originalBytes(),
                     ObjectUtils.asMap("resource_type", "image", "folder", folder)
             );
 
-            String secureUrl = uploadResult.get("secure_url").toString();
-            String publicId = uploadResult.get("public_id").toString();
-            Long bytes = uploadResult.get("bytes") instanceof Number number ? number.longValue() : file.getSize();
-            Integer width = uploadResult.get("width") instanceof Number number ? number.intValue() : null;
-            Integer height = uploadResult.get("height") instanceof Number number ? number.intValue() : null;
+            String secureUrl = mainResult.get("secure_url").toString();
+            String publicId = mainResult.get("public_id").toString();
+
+            String thumbPublicId = publicId + "_thumb";
+            Map<?, ?> thumbResult = cloudinary.uploader().upload(
+                    processed.thumbnailBytes(),
+                    ObjectUtils.asMap("resource_type", "image", "public_id", thumbPublicId)
+            );
+            String thumbnailUrl = thumbResult.get("secure_url").toString();
+
+            log.info("Uploaded to Cloudinary. PublicId: {}, ThumbPublicId: {}", publicId, thumbPublicId);
 
             return new UploadedFile(
                     secureUrl,
-                    secureUrl,
+                    thumbnailUrl,
                     publicId,
-                    file.getContentType(),
-                    bytes,
-                    width,
-                    height
+                    processed.mimeType(),
+                    (long) processed.originalBytes().length,
+                    processed.width(),
+                    processed.height()
             );
         } catch (IOException e) {
             log.error("Lỗi khi upload ảnh lên Cloudinary: ", e);
-            throw new IOException("Không thể tải ảnh lên, vui lòng thử lại sau.");
+            throw new IOException("Không thể tải ảnh lên, vui lòng thử lại sau.", e);
         }
     }
 }
