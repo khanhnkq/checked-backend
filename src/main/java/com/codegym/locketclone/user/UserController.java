@@ -3,6 +3,7 @@ package com.codegym.locketclone.user;
 import com.codegym.locketclone.common.exception.AppException;
 import com.codegym.locketclone.common.exception.ErrorCode;
 import com.codegym.locketclone.security.service.UserPrincipal;
+import com.codegym.locketclone.user.dto.PublicUserProfileResponse;
 import com.codegym.locketclone.user.dto.UpdatePersonalInfoRequest;
 import com.codegym.locketclone.user.dto.UpdateProfileRequest;
 import com.codegym.locketclone.user.dto.UserResponse;
@@ -72,12 +73,13 @@ public class UserController {
         return ResponseEntity.ok(userService.updateAvatar(currentUser.getId(), file));
     }
 
-    @Operation(summary = "Lấy thông tin người dùng theo ID", description = "Xem thông tin cơ bản của một người dùng theo UUID.")
+    @Operation(summary = "Lấy thông tin người dùng theo ID", description = "Xem thông tin cơ bản công khai của một người dùng theo UUID (ẩn email cá nhân).")
     @GetMapping("/{id}")
-    public ResponseEntity<UserResponse> getUserById(@PathVariable UUID id) {
-        UserResponse userResponse = userService.getUserById(id);
+    public ResponseEntity<PublicUserProfileResponse> getUserById(@PathVariable UUID id) {
+        PublicUserProfileResponse userResponse = userService.getUserById(id);
         return new ResponseEntity<>(userResponse, HttpStatus.OK);
     }
+
 
     private UserPrincipal requireAuthenticatedUser(UserPrincipal userPrincipal) {
         if (userPrincipal == null) {

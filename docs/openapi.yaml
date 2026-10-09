@@ -576,7 +576,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/UserResponse"
+                $ref: "#/components/schemas/PublicUserProfileResponse"
   /api/v1/users/me:
     get:
       tags:
@@ -1131,6 +1131,24 @@ components:
         acceptedAt:
           type: string
           format: date-time
+    PublicUserProfileResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        displayName:
+          type: string
+        avatarUrl:
+          type: string
+        isGoldMember:
+          type: boolean
     UserResponse:
       type: object
       properties:
@@ -1247,7 +1265,7 @@ components:
           minLength: 0
         password:
           type: string
-          maxLength: 2147483647
+          maxLength: 72
           minLength: 6
       required:
       - email

@@ -189,4 +189,32 @@ class UserControllerTest {
         assertEquals("https://cdn.example.com/avatar.jpg", actual.getBody().getAvatarUrl());
         verify(userService).updateAvatar(userId, file);
     }
+
+    @Test
+    void getUserById_returnsPublicUserProfileWithoutEmail() throws Exception {
+        UUID targetUserId = UUID.randomUUID();
+        com.codegym.locketclone.user.dto.PublicUserProfileResponse publicResponse =
+                com.codegym.locketclone.user.dto.PublicUserProfileResponse.builder()
+                        .id(targetUserId)
+                        .username("target_user")
+                        .firstName("Target")
+                        .lastName("User")
+                        .displayName("Target User")
+                        .avatarUrl("https://example.com/target.jpg")
+                        .isGoldMember(true)
+                        .build();
+
+        when(userService.getUserById(targetUserId)).thenReturn(publicResponse);
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/users/" + targetUserId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(targetUserId.toString()))
+                .andExpect(jsonPath("$.username").value("target_user"))
+                .andExpect(jsonPath("$.displayName").value("Target User"))
+                .andExpect(jsonPath("$.email").doesNotExist())
+                .andExpect(jsonPath("$.isGoldMember").value(true));
+
+        verify(userService).getUserById(targetUserId);
+    }
 }
+

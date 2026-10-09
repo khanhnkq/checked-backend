@@ -5,6 +5,7 @@ import com.codegym.locketclone.common.exception.ErrorCode;
 import com.codegym.locketclone.common.mapper.UserMapper;
 import com.codegym.locketclone.storage.StorageService;
 import com.codegym.locketclone.storage.UploadedFile;
+import com.codegym.locketclone.user.dto.PublicUserProfileResponse;
 import com.codegym.locketclone.user.dto.UpdatePersonalInfoRequest;
 import com.codegym.locketclone.user.dto.UpdateProfileRequest;
 import com.codegym.locketclone.user.dto.UserResponse;
@@ -30,11 +31,12 @@ public class UserServiceImpl implements UserService {
     private final StorageService storageService;
 
     @Override
-    public UserResponse getUserById(UUID id) {
+    public PublicUserProfileResponse getUserById(UUID id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-        return userMapper.toResponse(user);
+        return userMapper.toPublicResponse(user);
     }
+
 
     @Override
     public UserResponse getCurrentUser(UUID userId) {

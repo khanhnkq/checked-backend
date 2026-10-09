@@ -84,3 +84,7 @@ Repo hiện có GitHub Actions cho:
 - release file JAR + publish Docker image lên GHCR khi push tag version dạng `v*.*.*`
 
 Xem chi tiết tại `docs/CI_CD.md`.
+
+## 📚 Kế hoạch nâng cấp & Pull Requests
+- Lộ trình khắc phục và danh sách PR chi tiết: [`docs/PULL_REQUESTS_ROADMAP.md`](docs/PULL_REQUESTS_ROADMAP.md)
+

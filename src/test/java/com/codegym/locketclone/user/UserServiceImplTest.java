@@ -5,6 +5,7 @@ import com.codegym.locketclone.common.exception.ErrorCode;
 import com.codegym.locketclone.common.mapper.UserMapper;
 import com.codegym.locketclone.storage.StorageService;
 import com.codegym.locketclone.storage.UploadedFile;
+import com.codegym.locketclone.user.dto.PublicUserProfileResponse;
 import com.codegym.locketclone.user.dto.UpdateProfileRequest;
 import com.codegym.locketclone.user.dto.UserResponse;
 import org.junit.jupiter.api.Test;
@@ -37,6 +38,52 @@ class UserServiceImplTest {
 
     @InjectMocks
     private UserServiceImpl userService;
+
+    @Test
+    void getUserById_returnsPublicUserProfileWithoutEmail() {
+        UUID userId = UUID.randomUUID();
+        User user = User.builder()
+                .id(userId)
+                .email("secret@example.com")
+                .username("public_user")
+                .firstName("John")
+                .lastName("Doe")
+                .avatarUrl("https://cdn.example.com/avatar.jpg")
+                .isGoldMember(false)
+                .build();
+
+        PublicUserProfileResponse publicResponse = PublicUserProfileResponse.builder()
+                .id(userId)
+                .username("public_user")
+                .firstName("John")
+                .lastName("Doe")
+                .displayName("John Doe")
+                .avatarUrl("https://cdn.example.com/avatar.jpg")
+                .isGoldMember(false)
+                .build();
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(userMapper.toPublicResponse(user)).thenReturn(publicResponse);
+
+        PublicUserProfileResponse response = userService.getUserById(userId);
+
+        assertNotNull(response);
+        assertEquals(userId, response.getId());
+        assertEquals("public_user", response.getUsername());
+        assertEquals("John Doe", response.getDisplayName());
+        verify(userRepository).findById(userId);
+        verify(userMapper).toPublicResponse(user);
+    }
+
+    @Test
+    void getUserById_throwsWhenNotFound() {
+        UUID userId = UUID.randomUUID();
+        when(userRepository.findById(userId)).thenReturn(Optional.empty());
+
+        AppException ex = assertThrows(AppException.class, () -> userService.getUserById(userId));
+        assertEquals(ErrorCode.USER_NOT_FOUND, ex.getErrorCode());
+        verify(userMapper, never()).toPublicResponse(any());
+    }
 
     @Test
     void updateCurrentUserProfile_marksProfileCompletedWhenNamesAreProvided() {

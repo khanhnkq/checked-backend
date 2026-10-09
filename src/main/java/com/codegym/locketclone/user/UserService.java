@@ -1,5 +1,6 @@
 package com.codegym.locketclone.user;
 
+import com.codegym.locketclone.user.dto.PublicUserProfileResponse;
 import com.codegym.locketclone.user.dto.UpdateProfileRequest;
 import com.codegym.locketclone.user.dto.UpdatePersonalInfoRequest;
 import com.codegym.locketclone.user.dto.UserResponse;
@@ -8,8 +9,9 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.UUID;
 
 public interface UserService {
-    // Lấy thông tin chi tiết người dùng qua ID
-    UserResponse getUserById(UUID id);
+    // Lấy thông tin công khai người dùng qua ID (không kèm email cá nhân)
+    PublicUserProfileResponse getUserById(UUID id);
+
 
     UserResponse getCurrentUser(UUID userId);
 

@@ -14,8 +14,9 @@ public record RegisterRequest(
         String username,
 
         @NotBlank(message = "Mật khẩu không được để trống")
-        @Size(min = 6, message = "Mật khẩu phải có ít nhất 6 ký tự")
+        @Size(min = 6, max = 72, message = "Mật khẩu phải từ 6 đến 72 ký tự")
         String password
 ) {
+
 }
 
