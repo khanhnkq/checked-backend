@@ -3,6 +3,7 @@ package com.codegym.locketclone.common.config;
 import com.codegym.locketclone.common.exception.CustomAccessDeniedHandler;
 import com.codegym.locketclone.security.jwt.JwtAuthenticationEntryPoint;
 import com.codegym.locketclone.security.jwt.JwtAuthenticationFilter;
+import com.codegym.locketclone.security.ratelimit.RateLimitingFilter;
 import com.codegym.locketclone.security.service.UserDetailsServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -28,6 +29,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
+    private final RateLimitingFilter rateLimitingFilter;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final UserDetailsServiceImpl userDetailsService;
 
@@ -77,6 +79,7 @@ public class SecurityConfig {
                 )
                 .authenticationProvider(authenticationProvider())
                 .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin())) // Gọi trên 'http'
+                .addFilterBefore(rateLimitingFilter, org.springframework.security.web.authentication.logout.LogoutFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class); // Thêm filter vào
         return http.build();
     }

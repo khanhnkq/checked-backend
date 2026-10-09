@@ -15,6 +15,7 @@ public enum ErrorCode {
     INVALID_OTP(HttpStatus.BAD_REQUEST, "Mã OTP không chính xác"),
     OTP_EXPIRED(HttpStatus.BAD_REQUEST, "Mã OTP đã hết hạn"),
     OTP_MAX_ATTEMPTS_EXCEEDED(HttpStatus.BAD_REQUEST, "Mã OTP đã bị khóa do nhập sai quá nhiều lần. Vui lòng đăng ký lại."),
+    OTP_RESEND_COOLDOWN(HttpStatus.BAD_REQUEST, "Vui lòng đợi ít nhất 60 giây trước khi yêu cầu mã OTP mới"),
     INVALID_PHOTO_FILE(HttpStatus.BAD_REQUEST, "Ảnh tải lên không hợp lệ"),
     INVALID_PHOTO_AMOUNT(HttpStatus.BAD_REQUEST, "Số tiền phải lớn hơn hoặc bằng 0"),
     INVALID_MONTH_KEY(HttpStatus.BAD_REQUEST, "monthKey phải đúng định dạng yyyyMM"),
@@ -33,6 +34,7 @@ public enum ErrorCode {
 
     // 401 Unauthorized
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "Bạn chưa đăng nhập hoặc token không hợp lệ"),
+    INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "Thông tin đăng nhập không chính xác"),
 
     // 403 Forbidden
     FORBIDDEN(HttpStatus.FORBIDDEN, "Bạn không có quyền truy cập tài nguyên này"),
@@ -47,6 +49,9 @@ public enum ErrorCode {
     FRIEND_INVITE_LINK_REVOKED(HttpStatus.GONE, "Link mời kết bạn đã bị thu hồi"),
     FRIEND_INVITE_LINK_MAX_USES_REACHED(HttpStatus.CONFLICT, "Link mời kết bạn đã đạt số lượt sử dụng tối đa"),
     FRIEND_ALREADY_EXISTS(HttpStatus.CONFLICT, "Hai người dùng đã là bạn bè"),
+
+    // 429 Too Many Requests
+    TOO_MANY_REQUESTS(HttpStatus.TOO_MANY_REQUESTS, "Bạn đã gửi quá nhiều yêu cầu. Vui lòng thử lại sau."),
 
     // 500 Internal Server Error
     UNCATEGORIZED_EXCEPTION(HttpStatus.INTERNAL_SERVER_ERROR, "Lỗi hệ thống không xác định");

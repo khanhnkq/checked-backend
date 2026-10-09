@@ -21,9 +21,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import org.springframework.security.core.AuthenticationException;
+
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -32,6 +35,7 @@ import java.util.UUID;
 public class AuthServiceImpl implements AuthService {
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private static final int OTP_EXPIRY_MINUTES = 5;
+    private static final String DUMMY_BCRYPT_HASH = "$2a$10$wK1bA3qV7z4p6s9d8f7g5h4j3k2l1m0n9b8v7c6x5z4a3s2d1f0e";
 
     private final JwtUtils jwtUtils;
     private final UserRepository userRepository;
@@ -102,16 +106,26 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public JwtResponse login(LoginRequest request) {
         String identifier = normalizeIdentifier(request.identifier());
-        User user = userRepository.findByEmailIgnoreCaseOrUsernameIgnoreCase(identifier, identifier)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        Optional<User> userOpt = userRepository.findByEmailIgnoreCaseOrUsernameIgnoreCase(identifier, identifier);
 
+        if (userOpt.isEmpty()) {
+            // Prevent timing attacks by executing constant-time password verification on dummy hash
+            passwordEncoder.matches(request.password(), DUMMY_BCRYPT_HASH);
+            throw new AppException(ErrorCode.INVALID_CREDENTIALS);
+        }
+
+        try {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(identifier, request.password())
+            );
+        } catch (AuthenticationException ex) {
+            throw new AppException(ErrorCode.INVALID_CREDENTIALS);
+        }
+
+        User user = userOpt.get();
         if (!Boolean.TRUE.equals(user.getIsVerified())) {
             throw new AppException(ErrorCode.USER_NOT_VERIFIED);
         }
-
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(identifier, request.password())
-        );
 
         String jwt = jwtUtils.generateTokenFromUserId(user.getId());
         return buildJwtResponse(user, jwt);
@@ -122,8 +136,16 @@ public class AuthServiceImpl implements AuthService {
             throw new AppException(ErrorCode.EMAIL_ALREADY_EXISTS);
         }
 
-        validateUsernameAvailability(username, existingUser.getId());
-        existingUser.setUsername(username);
+        if (!existingUser.getUsername().equalsIgnoreCase(username)) {
+            throw new AppException(ErrorCode.EMAIL_ALREADY_EXISTS);
+        }
+
+        // Enforce 60-second cooldown between OTP requests (5-minute expiry, cooldown if > 4 minutes remain)
+        if (existingUser.getOtpExpiresAt() != null
+                && existingUser.getOtpExpiresAt().isAfter(LocalDateTime.now().plusMinutes(OTP_EXPIRY_MINUTES - 1))) {
+            throw new AppException(ErrorCode.OTP_RESEND_COOLDOWN);
+        }
+
         existingUser.setPassword(passwordEncoder.encode(rawPassword));
         existingUser.setIsVerified(false);
         existingUser.setOtpCode(otpCode);

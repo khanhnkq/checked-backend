@@ -151,6 +151,39 @@ class AuthServiceImplTest {
     }
 
     @Test
+    void login_throwsInvalidCredentialsWhenUserNotFound() {
+        when(userRepository.findByEmailIgnoreCaseOrUsernameIgnoreCase("unknown@example.com", "unknown@example.com"))
+                .thenReturn(Optional.empty());
+
+        AppException exception = assertThrows(AppException.class,
+                () -> authService.login(new LoginRequest("unknown@example.com", "password123")));
+
+        assertEquals(ErrorCode.INVALID_CREDENTIALS, exception.getErrorCode());
+        verify(passwordEncoder).matches(eq("password123"), anyString()); // Verifies dummy BCrypt hash verification
+        verify(authenticationManager, never()).authenticate(any());
+    }
+
+    @Test
+    void login_throwsInvalidCredentialsWhenPasswordIncorrect() {
+        User user = User.builder()
+                .id(UUID.randomUUID())
+                .email("khanh@example.com")
+                .username("khanh_dev")
+                .password("encoded-password")
+                .isVerified(true)
+                .build();
+        when(userRepository.findByEmailIgnoreCaseOrUsernameIgnoreCase("khanh@example.com", "khanh@example.com"))
+                .thenReturn(Optional.of(user));
+        when(authenticationManager.authenticate(any()))
+                .thenThrow(new org.springframework.security.authentication.BadCredentialsException("Bad credentials"));
+
+        AppException exception = assertThrows(AppException.class,
+                () -> authService.login(new LoginRequest("khanh@example.com", "wrongpassword")));
+
+        assertEquals(ErrorCode.INVALID_CREDENTIALS, exception.getErrorCode());
+    }
+
+    @Test
     void login_throwsForbiddenWhenUserNotVerified() {
         User user = User.builder()
                 .id(UUID.randomUUID())
@@ -163,10 +196,10 @@ class AuthServiceImplTest {
                 .thenReturn(Optional.of(user));
 
         AppException exception = assertThrows(AppException.class,
-                () -> authService.login(new LoginRequest("khanh@example.com", "123456")));
+                () -> authService.login(new LoginRequest("khanh@example.com", "password123")));
 
         assertEquals(ErrorCode.USER_NOT_VERIFIED, exception.getErrorCode());
-        verify(authenticationManager, never()).authenticate(any());
+        verify(authenticationManager).authenticate(any());
     }
 
     @Test
@@ -185,9 +218,87 @@ class AuthServiceImplTest {
                 .thenReturn(Optional.of(user));
         when(jwtUtils.generateTokenFromUserId(userId)).thenReturn("jwt-token");
 
-        var response = authService.login(new LoginRequest("khanh@example.com", "123456"));
+        var response = authService.login(new LoginRequest("khanh@example.com", "password123"));
 
         assertEquals("jwt-token", response.token());
-        verify(authenticationManager).authenticate(new UsernamePasswordAuthenticationToken("khanh@example.com", "123456"));
+        verify(authenticationManager).authenticate(new UsernamePasswordAuthenticationToken("khanh@example.com", "password123"));
+    }
+
+    @Test
+    void register_resendsOtp_whenPendingUserAndCooldownPassed() {
+        RegisterRequest request = new RegisterRequest("khanh@example.com", "khanh_dev", "newpassword123");
+        User pendingUser = User.builder()
+                .id(UUID.randomUUID())
+                .email("khanh@example.com")
+                .username("khanh_dev")
+                .password("old-encoded-password")
+                .isVerified(false)
+                .otpExpiresAt(LocalDateTime.now().plusMinutes(3)) // 3 mins remaining < 4 mins -> > 60s since creation
+                .build();
+
+        when(userRepository.findByEmailIgnoreCase("khanh@example.com")).thenReturn(Optional.of(pendingUser));
+        when(passwordEncoder.encode("newpassword123")).thenReturn("new-encoded-password");
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        RegisterResponse result = authService.register(request);
+
+        assertEquals("VERIFY_OTP", result.nextStep());
+        verify(emailService).sendOtpEmail(eq("khanh@example.com"), eq("khanh_dev"), matches("\\d{6}"));
+        verify(userRepository).save(pendingUser);
+    }
+
+    @Test
+    void register_throwsCooldownException_whenPendingUserResendsTooQuickly() {
+        RegisterRequest request = new RegisterRequest("khanh@example.com", "khanh_dev", "newpassword123");
+        User pendingUser = User.builder()
+                .id(UUID.randomUUID())
+                .email("khanh@example.com")
+                .username("khanh_dev")
+                .password("old-encoded-password")
+                .isVerified(false)
+                .otpExpiresAt(LocalDateTime.now().plusSeconds(290)) // Created 10s ago, 290s remaining (> 4 mins remaining)
+                .build();
+
+        when(userRepository.findByEmailIgnoreCase("khanh@example.com")).thenReturn(Optional.of(pendingUser));
+
+        AppException exception = assertThrows(AppException.class, () -> authService.register(request));
+
+        assertEquals(ErrorCode.OTP_RESEND_COOLDOWN, exception.getErrorCode());
+        verify(emailService, never()).sendOtpEmail(any(), any(), any());
+    }
+
+    @Test
+    void register_throwsEmailAlreadyExists_whenPendingUserRegisteredWithDifferentUsername() {
+        RegisterRequest request = new RegisterRequest("khanh@example.com", "attacker_user", "password123");
+        User pendingUser = User.builder()
+                .id(UUID.randomUUID())
+                .email("khanh@example.com")
+                .username("khanh_dev")
+                .isVerified(false)
+                .build();
+
+        when(userRepository.findByEmailIgnoreCase("khanh@example.com")).thenReturn(Optional.of(pendingUser));
+
+        AppException exception = assertThrows(AppException.class, () -> authService.register(request));
+
+        assertEquals(ErrorCode.EMAIL_ALREADY_EXISTS, exception.getErrorCode());
+        verify(emailService, never()).sendOtpEmail(any(), any(), any());
+    }
+
+    @Test
+    void register_throwsEmailAlreadyExists_whenUserAlreadyVerified() {
+        RegisterRequest request = new RegisterRequest("khanh@example.com", "khanh_dev", "password123");
+        User verifiedUser = User.builder()
+                .id(UUID.randomUUID())
+                .email("khanh@example.com")
+                .username("khanh_dev")
+                .isVerified(true)
+                .build();
+
+        when(userRepository.findByEmailIgnoreCase("khanh@example.com")).thenReturn(Optional.of(verifiedUser));
+
+        AppException exception = assertThrows(AppException.class, () -> authService.register(request));
+
+        assertEquals(ErrorCode.EMAIL_ALREADY_EXISTS, exception.getErrorCode());
     }
 }

@@ -82,7 +82,7 @@ class AuthControllerTest {
                 "https://example.com/avatar.jpg",
                 OnboardingStep.HOME
         );
-        LoginRequest request = new LoginRequest("khanh@example.com", "123456");
+        LoginRequest request = new LoginRequest("khanh@example.com", "password123");
         when(authService.login(request)).thenReturn(jwtResponse);
 
         var response = authController.login(request);
