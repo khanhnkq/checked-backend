@@ -124,6 +124,124 @@ class FriendInviteLinkServiceImplTest {
     }
 
     @Test
+    void acceptByToken_doesNotIncrementUsedCount_whenAlreadyFriends() {
+        UUID ownerId = UUID.randomUUID();
+        UUID currentUserId = UUID.randomUUID();
+        User owner = User.builder().id(ownerId).email("owner@example.com").username("owner").password("x").build();
+        User currentUser = User.builder().id(currentUserId).email("me@example.com").username("me").password("x").build();
+
+        FriendInviteLink link = FriendInviteLink.builder()
+                .id(UUID.randomUUID())
+                .owner(owner)
+                .token("invite-token")
+                .maxUses(50)
+                .usedCount(5)
+                .expiresAt(LocalDateTime.now().plusDays(2))
+                .build();
+
+        Friendship existingFriendship = Friendship.builder()
+                .id(UUID.randomUUID())
+                .user(owner)
+                .friend(currentUser)
+                .status(FriendshipStatus.ACCEPTED)
+                .build();
+
+        when(userRepository.findById(currentUserId)).thenReturn(Optional.of(currentUser));
+        when(friendInviteLinkRepository.findByTokenAndRevokedAtIsNull("invite-token")).thenReturn(Optional.of(link));
+        when(friendshipRepository.findAcceptedBetweenUsers(ownerId, currentUserId)).thenReturn(Optional.of(existingFriendship));
+        when(userMapper.toResponse(owner)).thenReturn(UserResponse.builder().id(ownerId).username("owner").build());
+
+        var response = service.acceptByToken(currentUserId, "invite-token");
+
+        assertEquals(existingFriendship.getId(), response.friendshipId());
+        assertEquals("ACCEPTED", response.status());
+        assertEquals(5, link.getUsedCount()); // Quota was NOT burned!
+        verify(friendInviteLinkRepository, never()).save(any());
+        verify(friendshipRepository, never()).save(any());
+    }
+
+    @Test
+    void acceptByToken_concurrentAccept_handlesRaceConditionGracefully() {
+        UUID ownerId = UUID.randomUUID();
+        UUID currentUserId = UUID.randomUUID();
+        User owner = User.builder().id(ownerId).email("owner@example.com").username("owner").password("x").build();
+        User currentUser = User.builder().id(currentUserId).email("me@example.com").username("me").password("x").build();
+
+        FriendInviteLink link = FriendInviteLink.builder()
+                .id(UUID.randomUUID())
+                .owner(owner)
+                .token("invite-token")
+                .maxUses(50)
+                .usedCount(0)
+                .expiresAt(LocalDateTime.now().plusDays(2))
+                .build();
+
+        Friendship concurrentFriendship = Friendship.builder()
+                .id(UUID.randomUUID())
+                .user(owner)
+                .friend(currentUser)
+                .status(FriendshipStatus.ACCEPTED)
+                .build();
+
+        when(userRepository.findById(currentUserId)).thenReturn(Optional.of(currentUser));
+        when(friendInviteLinkRepository.findByTokenAndRevokedAtIsNull("invite-token")).thenReturn(Optional.of(link));
+        // First check in acceptByToken returns empty:
+        when(friendshipRepository.findAcceptedBetweenUsers(ownerId, currentUserId))
+                .thenReturn(Optional.empty())
+                .thenReturn(Optional.of(concurrentFriendship));
+        when(friendshipRepository.findBetweenUsers(ownerId, currentUserId)).thenReturn(List.of());
+        when(friendshipRepository.save(any(Friendship.class)))
+                .thenThrow(new org.springframework.dao.DataIntegrityViolationException("Duplicate key uk_friendships_bidirectional"));
+        when(userMapper.toResponse(owner)).thenReturn(UserResponse.builder().id(ownerId).username("owner").build());
+
+        var response = service.acceptByToken(currentUserId, "invite-token");
+
+        assertNotNull(response);
+        assertEquals(concurrentFriendship.getId(), response.friendshipId());
+        assertEquals("ACCEPTED", response.status());
+        assertEquals(0, link.getUsedCount()); // Link count not incremented since concurrent thread handled it
+        verify(friendInviteLinkRepository, never()).save(link);
+    }
+
+    @Test
+    void acceptByToken_existingCandidateAlreadyAccepted_returnsCandidateWithoutDuplicateCreation() {
+        UUID ownerId = UUID.randomUUID();
+        UUID currentUserId = UUID.randomUUID();
+        User owner = User.builder().id(ownerId).email("owner@example.com").username("owner").password("x").build();
+        User currentUser = User.builder().id(currentUserId).email("me@example.com").username("me").password("x").build();
+
+        FriendInviteLink link = FriendInviteLink.builder()
+                .id(UUID.randomUUID())
+                .owner(owner)
+                .token("invite-token")
+                .maxUses(50)
+                .usedCount(0)
+                .expiresAt(LocalDateTime.now().plusDays(2))
+                .build();
+
+        Friendship acceptedCandidate = Friendship.builder()
+                .id(UUID.randomUUID())
+                .user(owner)
+                .friend(currentUser)
+                .status(FriendshipStatus.ACCEPTED)
+                .createdAt(LocalDateTime.now().minusHours(1))
+                .build();
+
+        when(userRepository.findById(currentUserId)).thenReturn(Optional.of(currentUser));
+        when(friendInviteLinkRepository.findByTokenAndRevokedAtIsNull("invite-token")).thenReturn(Optional.of(link));
+        when(friendshipRepository.findAcceptedBetweenUsers(ownerId, currentUserId)).thenReturn(Optional.empty());
+        when(friendshipRepository.findBetweenUsers(ownerId, currentUserId)).thenReturn(List.of(acceptedCandidate));
+        when(userMapper.toResponse(owner)).thenReturn(UserResponse.builder().id(ownerId).username("owner").build());
+
+        var response = service.acceptByToken(currentUserId, "invite-token");
+
+        assertNotNull(response);
+        assertEquals(acceptedCandidate.getId(), response.friendshipId());
+        assertEquals("ACCEPTED", response.status());
+        verify(friendshipRepository, never()).save(any());
+    }
+
+    @Test
     void acceptByToken_throwsWhenExpired() {
         UUID ownerId = UUID.randomUUID();
         UUID currentUserId = UUID.randomUUID();

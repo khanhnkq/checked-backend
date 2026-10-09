@@ -30,7 +30,7 @@ flowchart TD
 | PR | Nhánh Git | Tiêu đề | Mức độ | Phạm vi ảnh hưởng | Trạng thái |
 | :---: | :--- | :--- | :---: | :--- | :---: |
 | **#1** | `fix/security-cors-and-idor` | **Bảo mật**: Khắc phục CORS Wildcard, che giấu Email cá nhân & chặn BCrypt DoS | 🔴 **P0 (Critical)** | `common/config`, `user`, `auth` | ✅ Completed |
-| **#2** | `fix/friend-invite-concurrency` | **Logic & Chống cạn kiệt**: Sửa lỗi burn link mời và xử lý race condition | 🔴 **P0 (Critical)** | `friendship/invite` | ⏳ To Do |
+| **#2** | `fix/friend-invite-concurrency` | **Logic & Chống cạn kiệt**: Sửa lỗi burn link mời và xử lý race condition | 🔴 **P0 (Critical)** | `friendship/invite` | ✅ Completed |
 | **#3** | `fix/db-schema-and-indexes` | **Dữ liệu & Truy vấn**: Migration V16 tăng độ dài ảnh, index bạn bè & seed INCOME | 🟡 **P1 (High)** | `db/migration`, `photo`, `user` | ⏳ To Do |
 | **#4** | `perf/upload-tx-and-cache-evict` | **Hiệu năng & Cache**: Đưa I/O S3 ra ngoài `@Transactional` & sửa lỗi proxy AOP | 🟡 **P1 (High)** | `photo`, `user`, `security` | ⏳ To Do |
 | **#5** | `test/expense-controller-and-cleanup` | **Kiểm thử & Clean Code**: Viết test `ExpenseController`, sửa lỗi HTTP 500 & dọn code rác | 🟢 **P2 (Medium)** | `expense`, `exception`, `test`, `build.gradle` | ⏳ To Do |
@@ -102,9 +102,9 @@ flowchart TD
    - Đảm bảo khi 2 user cùng bấm link mời của nhau và chạm ràng buộc `uk_friendships_bidirectional`, hệ thống bắt ngoại lệ và trả về quan hệ đã được tạo thành công thay vì văng 500.
 
 #### 3. Tiêu chí nghiệm thu & Test Checklist
-- [ ] Viết test `acceptByToken_doesNotIncrementUsedCount_whenAlreadyFriends`.
-- [ ] Xác nhận khi B gọi accept link của A lần thứ 2, `usedCount` của link không thay đổi.
-- [ ] Tất cả các test trong `FriendInviteLinkServiceImplTest` và `FriendInviteLinkControllerTest` đều PASS.
+- [x] Viết test `acceptByToken_doesNotIncrementUsedCount_whenAlreadyFriends`.
+- [x] Xác nhận khi B gọi accept link của A lần thứ 2, `usedCount` của link không thay đổi.
+- [x] Tất cả các test trong `FriendInviteLinkServiceImplTest` và `FriendInviteLinkControllerTest` đều PASS.
 
 ---
 

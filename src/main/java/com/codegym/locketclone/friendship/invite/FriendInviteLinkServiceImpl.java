@@ -14,6 +14,7 @@ import com.codegym.locketclone.user.UserRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
@@ -21,6 +22,7 @@ import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -113,12 +115,36 @@ public class FriendInviteLinkServiceImpl implements FriendInviteLinkService {
             throw new AppException(ErrorCode.CANNOT_ADD_SELF_AS_FRIEND);
         }
 
-        Friendship friendship = friendshipRepository.findAcceptedBetweenUsers(ownerUserId, currentUserId)
-                .orElseGet(() -> acceptExistingOrCreate(ownerUserId, currentUserId, link.getOwner(), currentUser));
+        // 1. Nếu đã là bạn bè, trả về ngay kết quả mà KHÔNG tăng usedCount của link (chống burn quota)
+        Optional<Friendship> existingAccepted = friendshipRepository.findAcceptedBetweenUsers(ownerUserId, currentUserId);
+        if (existingAccepted.isPresent()) {
+            Friendship friendship = existingAccepted.get();
+            return new AcceptFriendInviteLinkResponse(
+                    friendship.getId(),
+                    friendship.getStatus().name(),
+                    userMapper.toResponse(link.getOwner()),
+                    LocalDateTime.now()
+            );
+        }
 
-        int currentUsedCount = link.getUsedCount() == null ? 0 : link.getUsedCount();
-        link.setUsedCount(currentUsedCount + 1);
-        friendInviteLinkRepository.save(link);
+        // 2. Chấp nhận hoặc tạo mới quan hệ bạn bè, bắt xung đột đồng thời (race condition)
+        boolean alreadyFriends = false;
+        Friendship friendship;
+        try {
+            friendship = acceptExistingOrCreate(ownerUserId, currentUserId, link.getOwner(), currentUser);
+        } catch (DataIntegrityViolationException ex) {
+            alreadyFriends = true;
+            friendship = friendshipRepository.findAcceptedBetweenUsers(ownerUserId, currentUserId)
+                    .or(() -> friendshipRepository.findBetweenUsers(ownerUserId, currentUserId).stream().findFirst())
+                    .orElseThrow(() -> ex);
+        }
+
+        // 3. Chỉ tăng usedCount khi đây là lần kết bạn mới
+        if (!alreadyFriends) {
+            int currentUsedCount = link.getUsedCount() == null ? 0 : link.getUsedCount();
+            link.setUsedCount(currentUsedCount + 1);
+            friendInviteLinkRepository.save(link);
+        }
 
         return new AcceptFriendInviteLinkResponse(
                 friendship.getId(),
@@ -157,7 +183,7 @@ public class FriendInviteLinkServiceImpl implements FriendInviteLinkService {
 
         if (candidate != null) {
             if (candidate.getStatus() == FriendshipStatus.ACCEPTED) {
-                throw new AppException(ErrorCode.FRIEND_ALREADY_EXISTS);
+                return candidate;
             }
             candidate.setStatus(FriendshipStatus.ACCEPTED);
             return friendshipRepository.save(candidate);
