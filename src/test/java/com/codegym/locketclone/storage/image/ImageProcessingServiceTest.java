@@ -51,8 +51,15 @@ class ImageProcessingServiceTest {
         assertTrue(result.thumbnailBytes().length > 0);
         assertEquals("jpg", result.extension());
         assertEquals("image/jpeg", result.mimeType());
-        assertTrue(result.width() <= 1920);
-        assertTrue(result.height() <= 1920);
+        // Must be exact 1080x1080 1:1 square
+        assertEquals(1080, result.width());
+        assertEquals(1080, result.height());
+
+        // Verify thumbnail is exact 320x320 1:1 square
+        BufferedImage thumbImage = ImageIO.read(new java.io.ByteArrayInputStream(result.thumbnailBytes()));
+        assertNotNull(thumbImage);
+        assertEquals(320, thumbImage.getWidth());
+        assertEquals(320, thumbImage.getHeight());
     }
 
     @Test
@@ -67,6 +74,12 @@ class ImageProcessingServiceTest {
         assertEquals(500, result.height());
         assertEquals("jpg", result.extension());
         assertEquals("image/jpeg", result.mimeType());
+
+        // Verify avatar thumbnail is exact 150x150 1:1 square
+        BufferedImage thumbAvatar = ImageIO.read(new java.io.ByteArrayInputStream(result.thumbnailBytes()));
+        assertNotNull(thumbAvatar);
+        assertEquals(150, thumbAvatar.getWidth());
+        assertEquals(150, thumbAvatar.getHeight());
     }
 
     @Test

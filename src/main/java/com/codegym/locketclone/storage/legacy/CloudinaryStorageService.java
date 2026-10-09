@@ -8,12 +8,17 @@ import com.codegym.locketclone.storage.image.ImageProcessingService;
 import com.codegym.locketclone.storage.image.ProcessedImage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.Executor;
 
 @Service
 @RequiredArgsConstructor
@@ -23,6 +28,7 @@ public class CloudinaryStorageService implements StorageService {
 
     private final Cloudinary cloudinary;
     private final ImageProcessingService imageProcessingService;
+    private final @Qualifier("storageTaskExecutor") Executor storageTaskExecutor;
 
     @Override
     public UploadedFile uploadPhoto(MultipartFile file) throws IOException {
@@ -51,23 +57,42 @@ public class CloudinaryStorageService implements StorageService {
     }
 
     private UploadedFile uploadProcessed(ProcessedImage processed, String folder) throws IOException {
+        String fileUuid = UUID.randomUUID().toString();
+        String mainPublicId = folder + "/" + fileUuid;
+        String thumbPublicId = folder + "/" + fileUuid + "_thumb";
+
+        CompletableFuture<Map<?, ?>> mainUploadFuture = CompletableFuture.supplyAsync(() -> {
+            try {
+                return cloudinary.uploader().upload(
+                        processed.originalBytes(),
+                        ObjectUtils.asMap("resource_type", "image", "public_id", mainPublicId)
+                );
+            } catch (IOException e) {
+                throw new CompletionException(e);
+            }
+        }, storageTaskExecutor);
+
+        CompletableFuture<Map<?, ?>> thumbUploadFuture = CompletableFuture.supplyAsync(() -> {
+            try {
+                return cloudinary.uploader().upload(
+                        processed.thumbnailBytes(),
+                        ObjectUtils.asMap("resource_type", "image", "public_id", thumbPublicId)
+                );
+            } catch (IOException e) {
+                throw new CompletionException(e);
+            }
+        }, storageTaskExecutor);
+
         try {
-            Map<?, ?> mainResult = cloudinary.uploader().upload(
-                    processed.originalBytes(),
-                    ObjectUtils.asMap("resource_type", "image", "folder", folder)
-            );
+            CompletableFuture.allOf(mainUploadFuture, thumbUploadFuture).join();
+            Map<?, ?> mainResult = mainUploadFuture.join();
+            Map<?, ?> thumbResult = thumbUploadFuture.join();
 
             String secureUrl = mainResult.get("secure_url").toString();
             String publicId = mainResult.get("public_id").toString();
-
-            String thumbPublicId = publicId + "_thumb";
-            Map<?, ?> thumbResult = cloudinary.uploader().upload(
-                    processed.thumbnailBytes(),
-                    ObjectUtils.asMap("resource_type", "image", "public_id", thumbPublicId)
-            );
             String thumbnailUrl = thumbResult.get("secure_url").toString();
 
-            log.info("Uploaded to Cloudinary. PublicId: {}, ThumbPublicId: {}", publicId, thumbPublicId);
+            log.info("Uploaded to Cloudinary in parallel. PublicId: {}, ThumbPublicId: {}", publicId, thumbPublicId);
 
             return new UploadedFile(
                     secureUrl,
@@ -78,9 +103,13 @@ public class CloudinaryStorageService implements StorageService {
                     processed.width(),
                     processed.height()
             );
-        } catch (IOException e) {
-            log.error("Lỗi khi upload ảnh lên Cloudinary: ", e);
-            throw new IOException("Không thể tải ảnh lên, vui lòng thử lại sau.", e);
+        } catch (CompletionException e) {
+            log.error("Lỗi khi upload ảnh song song lên Cloudinary: ", e);
+            Throwable cause = e.getCause();
+            if (cause instanceof IOException) {
+                throw (IOException) cause;
+            }
+            throw new IOException("Không thể tải ảnh lên, vui lòng thử lại sau.", cause);
         }
     }
 }

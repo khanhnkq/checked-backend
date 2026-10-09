@@ -6,6 +6,7 @@ import com.codegym.locketclone.storage.image.ImageProcessingService;
 import com.codegym.locketclone.storage.image.ProcessedImage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -18,6 +19,9 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.Executor;
 
 @Service
 @RequiredArgsConstructor
@@ -28,6 +32,7 @@ public class GarageS3StorageService implements StorageService {
     private final S3Client s3Client;
     private final S3StorageProperties properties;
     private final ImageProcessingService imageProcessingService;
+    private final @Qualifier("storageTaskExecutor") Executor storageTaskExecutor;
 
     @Override
     public UploadedFile uploadPhoto(MultipartFile file) throws IOException {
@@ -38,13 +43,12 @@ public class GarageS3StorageService implements StorageService {
         String mainKey = "photos/" + yearMonth + "/" + fileUuid + "." + processed.extension();
         String thumbKey = "photos/" + yearMonth + "/" + fileUuid + "_thumb." + processed.extension();
 
-        putObject(mainKey, processed.originalBytes(), processed.mimeType());
-        putObject(thumbKey, processed.thumbnailBytes(), processed.mimeType());
+        uploadInParallel(mainKey, processed.originalBytes(), thumbKey, processed.thumbnailBytes(), processed.mimeType());
 
         String secureUrl = buildPublicUrl(mainKey);
         String thumbnailUrl = buildPublicUrl(thumbKey);
 
-        log.info("Uploaded photo to Garage S3. Main key: {}, Thumb key: {}", mainKey, thumbKey);
+        log.info("Uploaded photo to Garage S3 in parallel. Main key: {}, Thumb key: {}", mainKey, thumbKey);
 
         return new UploadedFile(
                 secureUrl,
@@ -65,13 +69,12 @@ public class GarageS3StorageService implements StorageService {
         String mainKey = "avatars/" + fileUuid + "." + processed.extension();
         String thumbKey = "avatars/" + fileUuid + "_thumb." + processed.extension();
 
-        putObject(mainKey, processed.originalBytes(), processed.mimeType());
-        putObject(thumbKey, processed.thumbnailBytes(), processed.mimeType());
+        uploadInParallel(mainKey, processed.originalBytes(), thumbKey, processed.thumbnailBytes(), processed.mimeType());
 
         String secureUrl = buildPublicUrl(mainKey);
         String thumbnailUrl = buildPublicUrl(thumbKey);
 
-        log.info("Uploaded avatar to Garage S3. Main key: {}, Thumb key: {}", mainKey, thumbKey);
+        log.info("Uploaded avatar to Garage S3 in parallel. Main key: {}, Thumb key: {}", mainKey, thumbKey);
 
         return new UploadedFile(
                 secureUrl,
@@ -110,12 +113,34 @@ public class GarageS3StorageService implements StorageService {
         }
     }
 
+    private void uploadInParallel(String mainKey, byte[] mainContent, String thumbKey, byte[] thumbContent, String contentType) throws IOException {
+        CompletableFuture<Void> uploadMain = CompletableFuture.runAsync(
+                () -> putObject(mainKey, mainContent, contentType),
+                storageTaskExecutor
+        );
+        CompletableFuture<Void> uploadThumb = CompletableFuture.runAsync(
+                () -> putObject(thumbKey, thumbContent, contentType),
+                storageTaskExecutor
+        );
+
+        try {
+            CompletableFuture.allOf(uploadMain, uploadThumb).join();
+        } catch (CompletionException ce) {
+            Throwable cause = ce.getCause();
+            if (cause instanceof RuntimeException) {
+                throw (RuntimeException) cause;
+            }
+            throw new IOException("Lỗi khi tải ảnh lên Garage S3", cause);
+        }
+    }
+
     private void putObject(String key, byte[] content, String contentType) {
         s3Client.putObject(
                 PutObjectRequest.builder()
                         .bucket(properties.getBucketName())
                         .key(key)
                         .contentType(contentType)
+                        .cacheControl("public, max-age=31536000, immutable")
                         .build(),
                 RequestBody.fromBytes(content)
         );

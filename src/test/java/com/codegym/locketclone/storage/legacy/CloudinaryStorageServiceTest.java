@@ -37,7 +37,7 @@ class CloudinaryStorageServiceTest {
     @BeforeEach
     void setUp() {
         lenient().when(cloudinary.uploader()).thenReturn(uploader);
-        cloudinaryStorageService = new CloudinaryStorageService(cloudinary, imageProcessingService);
+        cloudinaryStorageService = new CloudinaryStorageService(cloudinary, imageProcessingService, Runnable::run);
     }
 
     @Test
@@ -48,7 +48,7 @@ class CloudinaryStorageServiceTest {
                 "thumb-bytes".getBytes(),
                 "jpg",
                 "image/jpeg",
-                1920,
+                1080,
                 1080
         );
 
@@ -73,7 +73,7 @@ class CloudinaryStorageServiceTest {
         assertEquals("https://res.cloudinary.com/demo/image/upload/locket/photos/sample_thumb.jpg", result.thumbnailUrl());
         assertEquals("locket/photos/sample", result.key());
         assertEquals("image/jpeg", result.mimeType());
-        assertEquals(1920, result.width());
+        assertEquals(1080, result.width());
         assertEquals(1080, result.height());
 
         verify(uploader, times(2)).upload(any(byte[].class), any(Map.class));

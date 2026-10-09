@@ -43,7 +43,7 @@ class GarageS3StorageServiceTest {
         properties = new S3StorageProperties();
         properties.setBucketName("test-bucket");
         properties.setPublicBaseUrl("http://localhost:3902/test-bucket");
-        garageS3StorageService = new GarageS3StorageService(s3Client, properties, imageProcessingService);
+        garageS3StorageService = new GarageS3StorageService(s3Client, properties, imageProcessingService, Runnable::run);
     }
 
     @Test
@@ -55,7 +55,7 @@ class GarageS3StorageServiceTest {
                 "jpg",
                 "image/jpeg",
                 1080,
-                1920
+                1080
         );
 
         when(imageProcessingService.processPhoto(file)).thenReturn(processed);
@@ -67,9 +67,13 @@ class GarageS3StorageServiceTest {
         assertTrue(result.thumbnailUrl().contains("_thumb.jpg"));
         assertEquals("image/jpeg", result.mimeType());
         assertEquals(1080, result.width());
-        assertEquals(1920, result.height());
+        assertEquals(1080, result.height());
 
-        verify(s3Client, times(2)).putObject(any(PutObjectRequest.class), any(RequestBody.class));
+        ArgumentCaptor<PutObjectRequest> requestCaptor = ArgumentCaptor.forClass(PutObjectRequest.class);
+        verify(s3Client, times(2)).putObject(requestCaptor.capture(), any(RequestBody.class));
+        for (PutObjectRequest putReq : requestCaptor.getAllValues()) {
+            assertEquals("public, max-age=31536000, immutable", putReq.cacheControl());
+        }
     }
 
     @Test
