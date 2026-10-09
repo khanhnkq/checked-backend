@@ -3,9 +3,9 @@ package com.codegym.locketclone.friendship;
 import com.codegym.locketclone.common.mapper.UserMapper;
 import com.codegym.locketclone.friendship.dto.FriendProfileResponse;
 import com.codegym.locketclone.user.User;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
@@ -18,7 +18,7 @@ public class FriendshipServiceImpl implements FriendshipService {
     private final UserMapper userMapper;
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public List<FriendProfileResponse> getAllFriends(UUID userId) {
         return friendshipRepository.findAllAcceptedFriends(userId)
                 .stream()

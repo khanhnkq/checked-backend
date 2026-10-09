@@ -108,7 +108,7 @@ class FriendInviteLinkServiceImplTest {
                 .build();
 
         when(userRepository.findById(currentUserId)).thenReturn(Optional.of(currentUser));
-        when(friendInviteLinkRepository.findByTokenAndRevokedAtIsNull("invite-token")).thenReturn(Optional.of(link));
+        when(friendInviteLinkRepository.findByToken("invite-token")).thenReturn(Optional.of(link));
         when(friendshipRepository.findAcceptedBetweenUsers(ownerId, currentUserId)).thenReturn(Optional.empty());
         when(friendshipRepository.findBetweenUsers(ownerId, currentUserId)).thenReturn(List.of());
         when(friendshipRepository.save(any(Friendship.class))).thenReturn(createdFriendship);
@@ -147,7 +147,7 @@ class FriendInviteLinkServiceImplTest {
                 .build();
 
         when(userRepository.findById(currentUserId)).thenReturn(Optional.of(currentUser));
-        when(friendInviteLinkRepository.findByTokenAndRevokedAtIsNull("invite-token")).thenReturn(Optional.of(link));
+        when(friendInviteLinkRepository.findByToken("invite-token")).thenReturn(Optional.of(link));
         when(friendshipRepository.findAcceptedBetweenUsers(ownerId, currentUserId)).thenReturn(Optional.of(existingFriendship));
         when(userMapper.toFriendProfileResponse(owner)).thenReturn(new FriendProfileResponse(ownerId, "owner", "Owner", "User", "Owner User", null, false));
 
@@ -184,7 +184,7 @@ class FriendInviteLinkServiceImplTest {
                 .build();
 
         when(userRepository.findById(currentUserId)).thenReturn(Optional.of(currentUser));
-        when(friendInviteLinkRepository.findByTokenAndRevokedAtIsNull("invite-token")).thenReturn(Optional.of(link));
+        when(friendInviteLinkRepository.findByToken("invite-token")).thenReturn(Optional.of(link));
         // First check in acceptByToken returns empty:
         when(friendshipRepository.findAcceptedBetweenUsers(ownerId, currentUserId))
                 .thenReturn(Optional.empty())
@@ -228,7 +228,7 @@ class FriendInviteLinkServiceImplTest {
                 .build();
 
         when(userRepository.findById(currentUserId)).thenReturn(Optional.of(currentUser));
-        when(friendInviteLinkRepository.findByTokenAndRevokedAtIsNull("invite-token")).thenReturn(Optional.of(link));
+        when(friendInviteLinkRepository.findByToken("invite-token")).thenReturn(Optional.of(link));
         when(friendshipRepository.findAcceptedBetweenUsers(ownerId, currentUserId)).thenReturn(Optional.empty());
         when(friendshipRepository.findBetweenUsers(ownerId, currentUserId)).thenReturn(List.of(acceptedCandidate));
         when(userMapper.toFriendProfileResponse(owner)).thenReturn(new FriendProfileResponse(ownerId, "owner", "Owner", "User", "Owner User", null, false));
@@ -258,7 +258,7 @@ class FriendInviteLinkServiceImplTest {
                 .build();
 
         when(userRepository.findById(currentUserId)).thenReturn(Optional.of(currentUser));
-        when(friendInviteLinkRepository.findByTokenAndRevokedAtIsNull("invite-token")).thenReturn(Optional.of(link));
+        when(friendInviteLinkRepository.findByToken("invite-token")).thenReturn(Optional.of(link));
 
         AppException exception = assertThrows(AppException.class, () -> service.acceptByToken(currentUserId, "invite-token"));
 
@@ -283,7 +283,6 @@ class FriendInviteLinkServiceImplTest {
                 .build();
 
         when(userRepository.findById(currentUserId)).thenReturn(Optional.of(currentUser));
-        when(friendInviteLinkRepository.findByTokenAndRevokedAtIsNull("invite-token")).thenReturn(Optional.empty());
         when(friendInviteLinkRepository.findByToken("invite-token")).thenReturn(Optional.of(revokedLink));
 
         AppException exception = assertThrows(AppException.class, () -> service.acceptByToken(currentUserId, "invite-token"));
@@ -308,7 +307,7 @@ class FriendInviteLinkServiceImplTest {
                 .build();
 
         when(userRepository.findById(currentUserId)).thenReturn(Optional.of(currentUser));
-        when(friendInviteLinkRepository.findByTokenAndRevokedAtIsNull("invite-token")).thenReturn(Optional.of(exhaustedLink));
+        when(friendInviteLinkRepository.findByToken("invite-token")).thenReturn(Optional.of(exhaustedLink));
 
         AppException exception = assertThrows(AppException.class, () -> service.acceptByToken(currentUserId, "invite-token"));
 

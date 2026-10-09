@@ -12,7 +12,14 @@ import java.util.UUID;
 @Repository
 public interface FriendshipRepository extends JpaRepository<Friendship, UUID> {
 
-    @Query("SELECT f FROM Friendship f WHERE (f.user.id = :userId OR f.friend.id = :userId) AND f.status = com.codegym.locketclone.friendship.FriendshipStatus.ACCEPTED")
+    @Query("""
+            SELECT f
+            FROM Friendship f
+            JOIN FETCH f.user
+            JOIN FETCH f.friend
+            WHERE (f.user.id = :userId OR f.friend.id = :userId)
+              AND f.status = com.codegym.locketclone.friendship.FriendshipStatus.ACCEPTED
+            """)
     List<Friendship> findAllAcceptedFriends(@Param("userId") UUID userId);
 
     @Query("SELECT COUNT(f) FROM Friendship f WHERE (f.user.id = :userId OR f.friend.id = :userId) AND f.status = com.codegym.locketclone.friendship.FriendshipStatus.ACCEPTED")

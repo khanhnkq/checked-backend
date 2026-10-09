@@ -6,7 +6,8 @@
 > - **Phase 1 (PR #1 – PR #5)**: ✅ **Đã hoàn thành & Đã merge vào `main`**  
 > - **Phase 2 (PR #6 – PR #9)**: ✅ **Đã hoàn thành & Đã merge vào `main`**  
 > - **Hạ tầng Cơ sở Dữ liệu**: ✅ **Đã kết nối & migrate thành công 16 Flyway scripts trên Neon PostgreSQL Cloud**  
-> - **Phase 3 (PR #10 – PR #13)**: 🟡 **Sẵn sàng triển khai (Tối ưu ảnh vuông 1:1, Production Heroku & CI/CD)**
+> - **Phase 3 (PR #10 – PR #14)**: 🟡 **Tối ưu hóa Ảnh, SQL Queries, DB Tuning & CI Testcontainers**  
+> - **Phase 4 (PR #15 – PR #16)**: ⏳ **ĐÃ DỜI LẠI (Triển khai Heroku Production & CDN khi hoàn tất tối ưu mã nguồn)**
 
 ---
 
@@ -31,14 +32,23 @@ flowchart TD
         PR6 --> PR7 --> PR8 --> PR9
     end
 
-    subgraph PHASE3["🟡 Phase 3: Lộ trình hiện tại (Ready to Implement)"]
-        PR10["PR #10: perf(image)\nẢnh vuông 1:1 matching FE, Zero-copy thumbnail, Upload song song & S3 Cache-Control\n(P0 - Khẩn cấp)"]
-        PR11["PR #11: deploy(infra)\nTriển khai Heroku Dyno 24/7, Actuator Healthcheck & Cấu hình Neon DB Prod\n(P1 - Cao)"]
-        PR12["PR #12: test(ci)\nTestcontainers PostgreSQL kiểm thử Flyway V1-V16 trên GitHub Actions\n(P1 - Cao)"]
-        PR13["PR #13: feat(infra)\nCloudflare CDN Proxy Caching & Presigned URL tải ảnh trực tiếp\n(P2 - Nâng cao)"]
+    subgraph PHASE3["🟡 Phase 3: Tối ưu SQL, DB Tuning & CI Testcontainers"]
+        PR10["PR #10: perf(image)\nẢnh vuông 1:1, Zero-copy, Upload song song & S3 Cache-Control\n(Merged: 42d6fca)"]
+        PR11["PR #11: perf(db)\nTriệt tiêu N+1 Query Friend List & Rút gọn Token Query\n(P0 - Khẩn cấp)"]
+        PR12["PR #12: perf(query)\nBỏ COALESCE dùng B-Tree Index & Gộp Query Cashflow\n(P0 - Khẩn cấp)"]
+        PR13["PR #13: perf(db)\nMigration V17 Lower Index, Tắt OSIV & JDBC Batching 25\n(P1 - Cao)"]
+        PR14["PR #14: test(ci)\nTestcontainers PostgreSQL kiểm thử Flyway V1-V17 trên CI\n(P1 - Cao)"]
         PR10 --> PR11
         PR11 --> PR12
-        PR12 -.-> PR13
+        PR12 --> PR13
+        PR13 --> PR14
+    end
+
+    subgraph PHASE4["⏳ Phase 4: Hạ tầng Production & Mở rộng (ĐÃ DỜI LẠI)"]
+        PR15["PR #15: deploy(infra)\nTriển khai Heroku Dyno 24/7, Actuator Healthcheck & Neon DB Prod\n(Dời lại đến khi sẵn sàng release)"]
+        PR16["PR #16: feat(infra)\nCloudflare CDN Proxy Caching & Presigned URL tải ảnh trực tiếp\n(P2 - Nâng cao)"]
+        PR14 -.-> PR15
+        PR15 -.-> PR16
     end
 
     PR5 --> PR6
@@ -59,9 +69,12 @@ flowchart TD
 | **#8** | `fix/infra-garage-security-and-async` | **Đóng port Garage Admin 3903, bảo mật token & tạo Async ThreadPool** | 🟡 **P1 (High)** | `docker`, `compose.yaml`, `config` | ✅ **Merged** (`32dd07b`) |
 | **#9** | `refactor/mappers-storage-and-dead-code` | **MapStruct PhotoMapper, đồng bộ Cloudinary & dọn dẹp package `message`** | 🟢 **P2 (Medium)** | `photo`, `storage`, `message`, `common` | ✅ **Merged** (`502c5db`) |
 | **#10** | `perf/square-image-and-upload-opt` | **Ảnh vuông 1:1 matching FE, Zero-copy thumbnail, Upload song song & S3 Cache-Control** | 🔴 **P0 (Critical)** | `storage/image`, `storage/s3`, `storage/legacy` | ✅ **Merged** (`42d6fca`) |
-| **#11** | `deploy/heroku-production-ready` | **Triển khai Heroku Dyno 24/7, Actuator Healthcheck & Cấu hình Neon DB Prod** | 🟡 **P1 (High)** | `config`, `Procfile`, `system.properties`, `security` | ⏳ **Sẵn sàng triển khai** |
-| **#12** | `test/ci-testcontainers-flyway-postgres` | **Kiểm thử Flyway V1-V16 với Testcontainers PostgreSQL trên CI** | 🟡 **P1 (High)** | `src/test`, `.github/workflows/ci.yml` | ⏳ **To Do** |
-| **#13** | `feat/cdn-and-presigned-url` | **Cloudflare CDN Proxy Caching & Presigned URL tải ảnh trực tiếp** | 🟢 **P2 (Medium)** | `storage`, `photo` | 📋 **Backlog** |
+| **#11** | `perf/sql-friendship-n-plus-one` | **Triệt tiêu N+1 Query Friend List (`JOIN FETCH`), Read-Only Tx & Tối ưu Invite Token Query** | 🔴 **P0 (Critical)** | `friendship`, `friendship/invite` | ⏳ **Sẵn sàng triển khai** |
+| **#12** | `perf/sql-unwrap-coalesce-indexes` | **Bỏ `COALESCE` kích hoạt B-Tree Index Scan & Gộp Query Cashflow (INCOME/EXPENSE)** | 🔴 **P0 (Critical)** | `photo`, `expense` | ⏳ **To Do** |
+| **#13** | `perf/db-tuning-and-lower-indexes` | **Migration V17 Lower Index, Tắt OSIV, Bật JDBC Batching 25 & Khử Login Duplicate Query** | 🟡 **P1 (High)** | `db/migration`, `config`, `auth` | ⏳ **To Do** |
+| **#14** | `test/ci-testcontainers-flyway-postgres` | **Kiểm thử Flyway V1-V17 với Testcontainers PostgreSQL trên CI** | 🟡 **P1 (High)** | `src/test`, `.github/workflows/ci.yml` | ⏳ **To Do** |
+| **#15** | `deploy/heroku-production-ready` | **Triển khai Heroku Dyno 24/7, Actuator Healthcheck & Cấu hình Neon DB Prod** | ⏳ **P2 (Deferred)** | `config`, `Procfile`, `system.properties`, `security` | ⏸️ **ĐÃ DỜI LẠI** |
+| **#16** | `feat/cdn-and-presigned-url` | **Cloudflare CDN Proxy Caching & Presigned URL tải ảnh trực tiếp** | 🟢 **P3 (Low)** | `storage`, `photo` | 📋 **Backlog** |
 
 ---
 
@@ -123,76 +136,100 @@ flowchart TD
 
 ---
 
-### PR #11: `deploy(infra): heroku-dyno-and-neon-production-config`
-- **Mức độ ưu tiên**: 🟡 **P1 - Cao (Production Deployment & Connectivity)**
+### PR #11: `perf(db): fix-n-plus-one-and-friendship-fetch`
+- **Mức độ ưu tiên**: 🔴 **P0 - Khẩn cấp (Triệt tiêu 95% latency load danh sách bạn bè)**
+- **Nhánh đề xuất**: `perf/sql-friendship-n-plus-one`
+- **Mục tiêu**:
+  1. **Triệt tiêu triệt để N+1 Queries**: Bổ sung `JOIN FETCH f.user JOIN FETCH f.friend` vào câu query `findAllAcceptedFriends` trong `FriendshipRepository`. Tải toàn bộ thông tin User của hai đầu mối quan hệ trong 1 câu SQL duy nhất thay vì 51 queries tuần tự.
+  2. **Tối ưu Transactional Read-Only**: Chuyển annotation `@Transactional` trong `FriendshipServiceImpl#getAllFriends` sang `@Transactional(readOnly = true)` để Hibernate tắt dirty checking flush, tiết kiệm CPU và bộ nhớ.
+  3. **Tối ưu truy vấn Invite Token**: Trong `FriendInviteLinkServiceImpl#acceptByToken`, thay thế logic gọi 2 query tuần tự (`findByTokenAndRevokedAtIsNull` rồi fallback `findByToken`) bằng 1 query duy nhất `findByToken`, kiểm tra trạng thái `revokedAt` trong Java memory.
+- **Các file thay đổi**:
+  - `src/main/java/com/codegym/locketclone/friendship/FriendshipRepository.java`
+  - `src/main/java/com/codegym/locketclone/friendship/FriendshipServiceImpl.java`
+  - `src/main/java/com/codegym/locketclone/friendship/invite/FriendInviteLinkServiceImpl.java`
+  - `src/test/java/com/codegym/locketclone/friendship/FriendshipServiceImplTest.java`
+  - `src/test/java/com/codegym/locketclone/friendship/invite/FriendInviteLinkServiceImplTest.java`
+- **Tiêu chí nghiệm thu & Test Checklist**:
+  - [ ] Gọi API `GET /api/v1/friendships` chỉ phát sinh đúng **1 câu lệnh SQL SELECT** với Hibernate.
+  - [ ] Logic lấy thông tin bạn bè (username, displayName, avatarUrl) vẫn trả về đầy đủ và chính xác.
+  - [ ] Toàn bộ unit tests của Friendship và FriendInviteLink pass 100%.
+
+---
+
+### PR #12: `perf(query): unwrap-coalesce-indexes-and-cashflow-aggregation`
+- **Mức độ ưu tiên**: 🔴 **P0 - Khẩn cấp (Khôi phục B-Tree Index Scan & Giảm 50% Dashboard Query)**
+- **Nhánh đề xuất**: `perf/sql-unwrap-coalesce-indexes`
+- **Mục tiêu**:
+  1. **Khôi phục B-Tree Index Scan**: Do `occurred_at` đã là `NOT NULL` và có composite index `idx_photos_sender_type_occurred`, việc bọc hàm `COALESCE(p.occurredAt, p.takenAt, p.createdAt)` làm Postgres phải tính toán hàm trên từng dòng và vô hiệu hóa B-Tree index. Cần loại bỏ `COALESCE` khỏi tất cả mệnh đề `WHERE` và `ORDER BY` trong `PhotoRepository`.
+  2. **Gộp Query Thống kê Thu / Chi (Cashflow)**: Gộp 2 câu query riêng biệt cho `INCOME` và `EXPENSE` trong `ExpenseServiceImpl#getCashflowSummary` và `#currentSavedForMonth` thành 1 câu truy vấn `GROUP BY p.transactionType`, giảm một nửa số lượng round-trip tới Neon DB khi mở màn hình chính.
+- **Các file thay đổi**:
+  - `src/main/java/com/codegym/locketclone/photo/PhotoRepository.java`
+  - `src/main/java/com/codegym/locketclone/expense/ExpenseServiceImpl.java`
+  - `src/test/java/com/codegym/locketclone/expense/ExpenseServiceImplTest.java`
+- **Tiêu chí nghiệm thu & Test Checklist**:
+  - [ ] Không còn hàm `COALESCE(p.occurredAt, ...)` trong các câu query lọc theo khoảng thời gian của `PhotoRepository`.
+  - [ ] Hàm `getCashflowSummary` chỉ gọi database đúng 1 lần cho việc lấy tổng thu và chi theo tháng.
+  - [ ] Các bài test tính toán dòng tiền, ngân sách và mục tiêu tiết kiệm pass 100%.
+
+---
+
+### PR #13: `perf(db): lower-user-indexes-and-hibernate-tuning`
+- **Mức độ ưu tiên**: 🟡 **P1 - Cao (Index Authentication & Chống Cạn Kiệt Connection Pool)**
+- **Nhánh đề xuất**: `perf/db-tuning-and-lower-indexes`
+- **Mục tiêu**:
+  1. **Migration V17 bổ sung Expression Index**: Tạo unique functional index `LOWER(email)` và `LOWER(username)` để câu query `findByEmailIgnoreCaseOrUsernameIgnoreCase` sử dụng Index Scan thay vì Full Table Scan (Seq Scan).
+  2. **Partial Index cho Photo Feed**: Thêm index `idx_photos_feed_status_created ON photos(created_at DESC) WHERE status <> 'DELETED'`.
+  3. **Tắt Open-In-View (OSIV)**: Đặt `spring.jpa.open-in-view: false` trong `application.yml` để giải phóng kết nối HikariCP ngay khi Service hoàn tất, loại trừ nguy cơ cạn kiệt connection pool.
+  4. **Bật JDBC Batching**: Cấu hình `hibernate.jdbc.batch_size: 25`, `order_inserts: true`, `order_updates: true`, `default_batch_fetch_size: 30` tăng tốc độ lưu danh sách recipient khi upload ảnh lên 3-5 lần.
+  5. **Khử Duplicate Query khi Login**: Trong `AuthServiceImpl#login`, tránh gọi trùng lặp `userRepository.findByEmailIgnoreCaseOrUsernameIgnoreCase` trước khi chuyển giao cho `authenticationManager.authenticate`.
+- **Các file thay đổi**:
+  - `src/main/resources/db/migration/V17__add_lower_user_indexes_and_tuning.sql` *(Tạo mới)*
+  - `src/main/resources/application.yml`
+  - `src/main/resources/application-prod.yml`
+  - `src/main/java/com/codegym/locketclone/auth/AuthServiceImpl.java`
+  - `src/test/java/com/codegym/locketclone/auth/AuthServiceImplTest.java`
+- **Tiêu chí nghiệm thu & Test Checklist**:
+  - [ ] Migration V17 chạy thành công, tạo đầy đủ 3 index trong PostgreSQL.
+  - [ ] Đăng nhập gọi đúng 1 lần query tìm kiếm user trong database.
+  - [ ] Cấu hình batching và tắt open-in-view không gây lỗi `LazyInitializationException` ở bất kỳ API nào.
+
+---
+
+### PR #14: `test(ci): testcontainers-postgres-for-flyway-validation`
+- **Mức độ ưu tiên**: 🟡 **P1 - Cao (Chốt chặn kiểm thử tự động CI)**
+- **Nhánh đề xuất**: `test/ci-testcontainers-flyway-postgres`
+- **Mục tiêu**:
+  1. Kiểm thử toàn bộ chuỗi 17 Flyway scripts (V1 đến V17) và các native query/index trên container PostgreSQL thật bằng Testcontainers.
+  2. Đảm bảo mọi commit đẩy lên GitHub Actions đều được xác minh độc lập trên môi trường Postgres chuẩn mà không cần phụ thuộc vào Neon database bên ngoài.
+- **Các file thay đổi**:
+  - `build.gradle` (thêm dependency `org.testcontainers:postgresql:1.20.4`)
+  - `src/test/java/com/codegym/locketclone/config/PostgreSqlTestContainerConfig.java` *(Tạo mới)*
+  - `src/test/resources/application.yml`
+  - `.github/workflows/ci.yml`
+- **Tiêu chí nghiệm thu & Test Checklist**:
+  - [ ] Chạy `./gradlew test` tự động kích hoạt container PostgreSQL và kiểm tra 17 script migration thành công.
+  - [ ] GitHub Actions CI workflow chạy hoàn tất kiểm thử mà không bị lỗi.
+
+---
+
+# ⏳ CHI TIẾT CÁC PULL REQUEST PHASE 4 (HẠ TẦNG PRODUCTION - ĐÃ DỜI LẠI)
+
+---
+
+### PR #15: `deploy(infra): heroku-dyno-and-neon-production-config` *(ĐÃ DỜI LẠI)*
+- **Mức độ ưu tiên**: ⏳ **P2 - Dời lại (Chỉ triển khai khi hoàn tất toàn bộ tối ưu mã nguồn và có lệnh deploy)**
 - **Nhánh đề xuất**: `deploy/heroku-production-ready`
 - **Mục tiêu**:
   1. Triển khai ứng dụng backend lên Heroku Dyno chạy 24/7 (ứng dụng `heroku-7usd` với gói Dyno Eco/Basic).
   2. Kết nối cơ sở dữ liệu Neon PostgreSQL Cloud qua PgBouncer Pooler (`ep-summer-darkness-b3unuia8-pooler.c-4.ap-southeast-1.aws.neon.tech`).
   3. Cấu hình Spring Boot Actuator `/actuator/health` mở công khai cho Heroku router & UptimeRobot kiểm tra trạng thái sống mà không bị chặn bởi Spring Security.
   4. Tối ưu hóa JVM Memory Options trong Procfile (`-XX:MaxRAMPercentage=75.0 -Xss512k`) phù hợp với giới hạn 512MB RAM của Heroku Dyno.
-
-#### 1. Các file thay đổi
-- `Procfile`
-- `system.properties`
-- `src/main/resources/application.yml`
-- `src/main/resources/application-prod.yml`
-- `src/main/java/com/codegym/locketclone/security/SecurityConfig.java`
-- `build.gradle` (bổ sung `spring-boot-starter-actuator` nếu cần)
-
-#### 2. Chi tiết kỹ thuật
-1. **Dynamic Port & Procfile**:
-   - `Procfile`: `web: java -Dserver.port=$PORT -XX:MaxRAMPercentage=75.0 -Xss512k -jar build/libs/checked-backend-0.0.1-SNAPSHOT.jar`
-   - `system.properties`: `java.runtime.version=21`
-2. **Spring Boot Actuator Health Check**:
-   - Endpoint: `GET /actuator/health` trả về `{"status":"UP"}`.
-   - Thêm `.requestMatchers("/actuator/health").permitAll()` trong `SecurityConfig.java`.
-3. **Cấu hình Config Vars trên Heroku**:
-   ```bash
-   heroku config:set SPRING_PROFILES_ACTIVE=prod -a heroku-7usd
-   heroku config:set DB_URL="jdbc:postgresql://ep-summer-darkness-b3unuia8-pooler.c-4.ap-southeast-1.aws.neon.tech:5432/neondb?sslmode=require" -a heroku-7usd
-   heroku config:set DB_USERNAME=neondb_owner -a heroku-7usd
-   heroku config:set DB_PASSWORD="***" -a heroku-7usd
-   heroku config:set JWT_SECRET="***" -a heroku-7usd
-   heroku config:set STORAGE_TYPE=cloudinary -a heroku-7usd
-   ```
-
-#### 3. Tiêu chí nghiệm thu & Test Checklist
-- [ ] Ứng dụng deploy lên Heroku `heroku-7usd` thành công, không gặp lỗi R10 (Boot Timeout) hoặc R14 (Memory Quota Exceeded).
-- [ ] Endpoint `GET https://heroku-7usd.herokuapp.com/actuator/health` trả về HTTP 200 OK.
-- [ ] Flyway tự động kiểm tra và xác nhận 16 migrations đã áp dụng đầy đủ trên Neon DB.
-- [ ] Đăng ký/Đăng nhập và gọi API test từ bên ngoài thành công.
+- **Ghi chú**: Đã dời lại phía sau PR #11 - #14 theo chỉ thị của người dùng để giữ môi trường sạch và tập trung tối ưu code/database trước.
 
 ---
 
-### PR #12: `test(ci): testcontainers-postgres-for-flyway-validation`
-- **Mức độ ưu tiên**: 🟡 **P1 - Cao (Đảm bảo an toàn CI/CD)**
-- **Nhánh đề xuất**: `test/ci-testcontainers-flyway-postgres`
-- **Mục tiêu**:
-  1. Loại bỏ điểm mù kiểm thử: Chạy toàn bộ 16 script Flyway migration trên PostgreSQL thật trong test suite bằng Testcontainers.
-  2. Bắt sớm các lỗi cú pháp SQL native (`EXTRACT`, `LEAST`, `GREATEST`), chỉ mục biểu thức và kiểu dữ liệu trước khi đẩy code lên Production.
-
-#### 1. Các file thay đổi
-- `build.gradle` (thêm dependency `org.testcontainers:postgresql`)
-- `src/test/resources/application.yml`
-- `src/test/java/com/codegym/locketclone/config/PostgreSqlTestContainerConfig.java` *(Tạo mới)*
-- `.github/workflows/ci.yml`
-
-#### 2. Chi tiết kỹ thuật
-1. **Tích hợp Testcontainers PostgreSQL**:
-   - Thêm dependency `testImplementation 'org.testcontainers:postgresql:1.20.4'`.
-   - Cấu hình `@ServiceConnection` tự động liên kết với DataSource của Spring Boot Test.
-2. **Kích hoạt Flyway trong Test**:
-   - Cập nhật cấu hình test: `spring.flyway.enabled: true`, `spring.jpa.hibernate.ddl-auto: validate`.
-
-#### 3. Tiêu chí nghiệm thu & Test Checklist
-- [ ] Chạy `./gradlew test` tự động kích hoạt container PostgreSQL và kiểm tra 16 script migration thành công.
-- [ ] GitHub Actions CI workflow chạy hoàn tất kiểm thử mà không bị lỗi.
-
----
-
-### PR #13: `feat(infra): cdn-caching-and-presigned-url` *(Nâng cao)*
-- **Mức độ ưu tiên**: 🟢 **P2 - Trung bình (Mở rộng quy mô & Giảm tải Heroku)**
+### PR #16: `feat(infra): cdn-and-presigned-url` *(Nâng cao)*
+- **Mức độ ưu tiên**: 🟢 **P3 - Thấp (Mở rộng quy mô & Giảm tải Heroku)**
 - **Nhánh đề xuất**: `feat/cdn-and-presigned-url`
 - **Mục tiêu**:
   1. **Cloudflare CDN Proxy**: Thiết lập CDN cache trước S3/R2 giúp giảm latency tải ảnh từ khắp nơi và bảo vệ bucket origin.
@@ -260,16 +297,19 @@ flowchart TD
 
 ---
 
-## 📅 LỊCH TRÌNH THỰC HIỆN ĐỀ XUẤT (PHASE 3 EXECUTION SCHEDULE)
+## 📅 LỊCH TRÌNH THỰC HIỆN ĐỀ XUẤT (PHASE 3 & PHASE 4 SCHEDULE)
 
 ```
-Tuần này: Tối ưu UI Frontend & Đưa lên Production
-├── Bước 1: PR #10 - Tối ưu ảnh vuông 1:1 matching FE, Zero-Copy RAM & Parallel Upload (P0)
-└── Bước 2: PR #11 - Triển khai Heroku Dyno 24/7, Actuator Healthcheck & Cấu hình Neon DB Prod (P1)
+Giai đoạn hiện tại (Phase 3): Tối ưu hóa SQL, DB Index & CI Testcontainers
+├── ✅ PR #10: Tối ưu ảnh vuông 1:1, Zero-Copy RAM & Upload song song (Đã merge)
+├── ⏳ Bước 1: PR #11 - Triệt tiêu N+1 Query Friend List & Rút gọn Token Query (P0)
+├── ⏳ Bước 2: PR #12 - Bỏ COALESCE kích hoạt B-Tree Index & Gộp Query Cashflow (P0)
+├── ⏳ Bước 3: PR #13 - Migration V17 Lower Index, Tắt OSIV & Bật JDBC Batching 25 (P1)
+└── ⏳ Bước 4: PR #14 - Testcontainers PostgreSQL kiểm thử Flyway V1-V17 trên CI (P1)
 
-Tuần tới: An toàn CI/CD & Mở rộng quy mô
-├── Bước 3: PR #12 - Tích hợp Testcontainers PostgreSQL & Bật Flyway trong CI (P1)
-└── Bước 4: PR #13 - Cloudflare CDN Cache & Presigned Upload URL trực tiếp (P2)
+Giai đoạn sau (Phase 4): Hạ tầng Production & Mở rộng quy mô (ĐÃ DỜI LẠI)
+├── ⏸️ Bước 5: PR #15 - Triển khai Heroku Dyno 24/7, Actuator Healthcheck & Neon DB Prod (Dời lại)
+└── 📋 Bước 6: PR #16 - Cloudflare CDN Cache & Presigned Upload URL trực tiếp (Backlog)
 ```
 
 ---
@@ -288,5 +328,5 @@ Tuần tới: An toàn CI/CD & Mở rộng quy mô
    ```
    > Bắt buộc kết quả phải là `BUILD SUCCESSFUL` và 100% test cases đều pass.
 4. **Quy tắc Merge**:
-   - Merge lần lượt theo thứ tự: `PR #10` ➔ `PR #11` ➔ `PR #12` ➔ `PR #13`.
-   - Sử dụng hình thức **Squash and Merge** hoặc **Merge Commit** có message rõ ràng theo quy chuẩn Conventional Commits (`perf:`, `deploy:`, `test:`, `feat:`).
+   - Merge lần lượt theo thứ tự: `PR #11` ➔ `PR #12` ➔ `PR #13` ➔ `PR #14` ➔ `PR #15 (khi có lệnh deploy)` ➔ `PR #16`.
+   - Sử dụng hình thức **Squash and Merge** hoặc **Merge Commit** có message rõ ràng theo quy chuẩn Conventional Commits (`perf:`, `test:`, `deploy:`, `feat:`).

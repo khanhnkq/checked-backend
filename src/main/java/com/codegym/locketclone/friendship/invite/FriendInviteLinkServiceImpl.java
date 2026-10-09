@@ -104,9 +104,8 @@ public class FriendInviteLinkServiceImpl implements FriendInviteLinkService {
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
         String normalizedToken = token.trim();
-        FriendInviteLink link = friendInviteLinkRepository.findByTokenAndRevokedAtIsNull(normalizedToken)
-                .orElseGet(() -> friendInviteLinkRepository.findByToken(normalizedToken)
-                        .orElseThrow(() -> new AppException(ErrorCode.INVALID_FRIEND_INVITE_TOKEN)));
+        FriendInviteLink link = friendInviteLinkRepository.findByToken(normalizedToken)
+                .orElseThrow(() -> new AppException(ErrorCode.INVALID_FRIEND_INVITE_TOKEN));
 
         validateAcceptableLink(link);
 
