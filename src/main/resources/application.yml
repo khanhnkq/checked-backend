@@ -40,10 +40,16 @@ spring:
   main:
     lazy-initialization: ${SPRING_LAZY_INIT:true}
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/locket_clone}
-    username: ${DB_USER:postgres}
-    password: ${DB_PASS:postgres}
+    url: ${DB_URL:jdbc:postgresql://ep-summer-darkness-b3unuia8-pooler.c-4.ap-southeast-1.aws.neon.tech:5432/neondb?sslmode=require&channel_binding=require}
+    username: ${DB_USER:neondb_owner}
+    password: ${DB_PASS:npg_UHF6EBJK3MCG}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+      minimum-idle: ${DB_MIN_IDLE:2}
+      idle-timeout: 300000
+      max-lifetime: 600000
+      connection-timeout: 30000
   docker:
     compose:
       enabled: ${SPRING_DOCKER_COMPOSE_ENABLED:false}
