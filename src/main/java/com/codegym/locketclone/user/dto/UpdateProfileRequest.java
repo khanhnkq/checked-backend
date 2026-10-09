@@ -17,7 +17,7 @@ public record UpdateProfileRequest(
         String lastName,
 
         @Pattern(regexp = "^(?!\\s*$).+", message = "Avatar URL không được để trống nếu được cung cấp")
-        @Size(max = 255, message = "Avatar URL không được vượt quá 255 ký tự")
+        @Size(max = 500, message = "Avatar URL không được vượt quá 500 ký tự")
         String avatarUrl
 ) {
 }

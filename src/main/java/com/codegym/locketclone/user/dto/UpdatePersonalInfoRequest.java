@@ -17,7 +17,7 @@ public record UpdatePersonalInfoRequest(
         String lastName,
 
         @Pattern(regexp = "^(?!\\s*$).+", message = "Avatar URL khong duoc de trong neu duoc cung cap")
-        @Size(max = 255, message = "Avatar URL khong duoc vuot qua 255 ky tu")
+        @Size(max = 500, message = "Avatar URL khong duoc vuot qua 500 ky tu")
         String avatarUrl
 ) {
 }

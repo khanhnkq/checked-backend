@@ -31,7 +31,7 @@ flowchart TD
 | :---: | :--- | :--- | :---: | :--- | :---: |
 | **#1** | `fix/security-cors-and-idor` | **Bảo mật**: Khắc phục CORS Wildcard, che giấu Email cá nhân & chặn BCrypt DoS | 🔴 **P0 (Critical)** | `common/config`, `user`, `auth` | ✅ Completed |
 | **#2** | `fix/friend-invite-concurrency` | **Logic & Chống cạn kiệt**: Sửa lỗi burn link mời và xử lý race condition | 🔴 **P0 (Critical)** | `friendship/invite` | ✅ Completed |
-| **#3** | `fix/db-schema-and-indexes` | **Dữ liệu & Truy vấn**: Migration V16 tăng độ dài ảnh, index bạn bè & seed INCOME | 🟡 **P1 (High)** | `db/migration`, `photo`, `user` | ⏳ To Do |
+| **#3** | `fix/db-schema-and-indexes` | **Dữ liệu & Truy vấn**: Migration V16 tăng độ dài ảnh, index bạn bè & seed INCOME | 🟡 **P1 (High)** | `db/migration`, `photo`, `user` | ✅ Completed |
 | **#4** | `perf/upload-tx-and-cache-evict` | **Hiệu năng & Cache**: Đưa I/O S3 ra ngoài `@Transactional` & sửa lỗi proxy AOP | 🟡 **P1 (High)** | `photo`, `user`, `security` | ⏳ To Do |
 | **#5** | `test/expense-controller-and-cleanup` | **Kiểm thử & Clean Code**: Viết test `ExpenseController`, sửa lỗi HTTP 500 & dọn code rác | 🟢 **P2 (Medium)** | `expense`, `exception`, `test`, `build.gradle` | ⏳ To Do |
 
@@ -151,10 +151,10 @@ flowchart TD
    - Trong `UpdateProfileRequest.java` và `UpdatePersonalInfoRequest.java`: Sửa `@Size(max = 255)` của `avatarUrl` thành `@Size(max = 500)`.
 
 #### 3. Tiêu chí nghiệm thu & Test Checklist
-- [ ] Chạy migration trên PostgreSQL thành công không lỗi cú pháp.
-- [ ] Khởi động ứng dụng với `spring.jpa.hibernate.ddl-auto: validate` vượt qua thành công.
-- [ ] Kiểm tra API `GET /api/v1/expense/categories` của user mới có sẵn danh mục `INCOME`.
-- [ ] Cập nhật avatar với URL dài > 255 ký tự không còn bị chặn ở validation.
+- [x] Chạy migration trên PostgreSQL thành công không lỗi cú pháp.
+- [x] Khởi động ứng dụng với `spring.jpa.hibernate.ddl-auto: validate` vượt qua thành công.
+- [x] Kiểm tra API `GET /api/v1/expense/categories` của user mới có sẵn danh mục `INCOME`.
+- [x] Cập nhật avatar với URL dài > 255 ký tự không còn bị chặn ở validation.
 
 ---
 

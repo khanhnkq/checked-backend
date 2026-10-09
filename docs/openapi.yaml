@@ -1310,7 +1310,7 @@ components:
           pattern: ^(?!\s*$).+
         avatarUrl:
           type: string
-          maxLength: 255
+          maxLength: 500
           minLength: 0
           pattern: ^(?!\s*$).+
     UpdateProfileRequest:
@@ -1333,7 +1333,7 @@ components:
           pattern: ^(?!\s*$).+
         avatarUrl:
           type: string
-          maxLength: 255
+          maxLength: 500
           minLength: 0
           pattern: ^(?!\s*$).+
     UpdatePhotoTransactionRequest:
