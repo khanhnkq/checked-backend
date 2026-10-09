@@ -23,18 +23,28 @@ public class UserPrincipal implements UserDetails {
     private final String password;
     private final Collection<? extends GrantedAuthority> authorities;
     private final boolean isVerified;
+    private final String displayName;
+    private final String avatarUrl;
+    private final Boolean profileCompleted;
 
     public UserPrincipal(UUID id, String username, String email, String password, Collection<? extends GrantedAuthority> authorities) {
-        this(id, username, email, password, authorities, true);
+        this(id, username, email, password, authorities, true, null, null, false);
     }
 
     public UserPrincipal(UUID id, String username, String email, String password, Collection<? extends GrantedAuthority> authorities, boolean isVerified) {
+        this(id, username, email, password, authorities, isVerified, null, null, false);
+    }
+
+    public UserPrincipal(UUID id, String username, String email, String password, Collection<? extends GrantedAuthority> authorities, boolean isVerified, String displayName, String avatarUrl, Boolean profileCompleted) {
         this.id = id;
         this.username = username;
         this.email = email;
         this.password = password;
         this.authorities = authorities;
         this.isVerified = isVerified;
+        this.displayName = displayName;
+        this.avatarUrl = avatarUrl;
+        this.profileCompleted = profileCompleted;
     }
 
     public static UserPrincipal build(User user) {
@@ -46,7 +56,10 @@ public class UserPrincipal implements UserDetails {
                 user.getEmail(),
                 user.getPassword(),
                 authorities,
-                Boolean.TRUE.equals(user.getIsVerified())
+                Boolean.TRUE.equals(user.getIsVerified()),
+                user.getDisplayName(),
+                user.getAvatarUrl(),
+                user.getProfileCompleted()
         );
     }
 

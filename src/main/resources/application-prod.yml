@@ -13,12 +13,18 @@ spring:
       connection-timeout: 30000
 
   jpa:
+    open-in-view: false
     show-sql: false
     hibernate:
       ddl-auto: validate
     properties:
       hibernate:
         format_sql: false
+        jdbc:
+          batch_size: 25
+        order_inserts: true
+        order_updates: true
+        default_batch_fetch_size: 30
 
   flyway:
     enabled: true

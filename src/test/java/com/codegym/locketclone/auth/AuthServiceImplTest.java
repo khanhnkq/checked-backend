@@ -19,7 +19,14 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import com.codegym.locketclone.security.service.UserPrincipal;
+
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -151,77 +158,58 @@ class AuthServiceImplTest {
     }
 
     @Test
-    void login_throwsInvalidCredentialsWhenUserNotFound() {
-        when(userRepository.findByEmailIgnoreCaseOrUsernameIgnoreCase("unknown@example.com", "unknown@example.com"))
-                .thenReturn(Optional.empty());
+    void login_throwsInvalidCredentialsWhenUserNotFoundOrBadCredentials() {
+        when(authenticationManager.authenticate(any()))
+                .thenThrow(new BadCredentialsException("Bad credentials"));
 
         AppException exception = assertThrows(AppException.class,
                 () -> authService.login(new LoginRequest("unknown@example.com", "password123")));
 
         assertEquals(ErrorCode.INVALID_CREDENTIALS, exception.getErrorCode());
-        verify(passwordEncoder).matches(eq("password123"), anyString()); // Verifies dummy BCrypt hash verification
-        verify(authenticationManager, never()).authenticate(any());
-    }
-
-    @Test
-    void login_throwsInvalidCredentialsWhenPasswordIncorrect() {
-        User user = User.builder()
-                .id(UUID.randomUUID())
-                .email("khanh@example.com")
-                .username("khanh_dev")
-                .password("encoded-password")
-                .isVerified(true)
-                .build();
-        when(userRepository.findByEmailIgnoreCaseOrUsernameIgnoreCase("khanh@example.com", "khanh@example.com"))
-                .thenReturn(Optional.of(user));
-        when(authenticationManager.authenticate(any()))
-                .thenThrow(new org.springframework.security.authentication.BadCredentialsException("Bad credentials"));
-
-        AppException exception = assertThrows(AppException.class,
-                () -> authService.login(new LoginRequest("khanh@example.com", "wrongpassword")));
-
-        assertEquals(ErrorCode.INVALID_CREDENTIALS, exception.getErrorCode());
+        verify(userRepository, never()).findByEmailIgnoreCaseOrUsernameIgnoreCase(anyString(), anyString());
     }
 
     @Test
     void login_throwsForbiddenWhenUserNotVerified() {
-        User user = User.builder()
-                .id(UUID.randomUUID())
-                .email("khanh@example.com")
-                .username("khanh_dev")
-                .password("encoded-password")
-                .isVerified(false)
-                .build();
-        when(userRepository.findByEmailIgnoreCaseOrUsernameIgnoreCase("khanh@example.com", "khanh@example.com"))
-                .thenReturn(Optional.of(user));
+        when(authenticationManager.authenticate(any()))
+                .thenThrow(new DisabledException("User is disabled"));
 
         AppException exception = assertThrows(AppException.class,
                 () -> authService.login(new LoginRequest("khanh@example.com", "password123")));
 
         assertEquals(ErrorCode.USER_NOT_VERIFIED, exception.getErrorCode());
-        verify(authenticationManager).authenticate(any());
+        verify(userRepository, never()).findByEmailIgnoreCaseOrUsernameIgnoreCase(anyString(), anyString());
     }
 
     @Test
     void login_authenticatesVerifiedUserAndReturnsJwt() {
         UUID userId = UUID.randomUUID();
-        User user = User.builder()
-                .id(userId)
-                .email("khanh@example.com")
-                .username("khanh_dev")
-                .password("encoded-password")
-                .isVerified(true)
-                .firstName("Khánh")
-                .lastName("Nguyễn")
-                .build();
-        when(userRepository.findByEmailIgnoreCaseOrUsernameIgnoreCase("khanh@example.com", "khanh@example.com"))
-                .thenReturn(Optional.of(user));
+        UserPrincipal principal = new UserPrincipal(
+                userId,
+                "khanh_dev",
+                "khanh@example.com",
+                "encoded-password",
+                List.of(new SimpleGrantedAuthority("ROLE_USER")),
+                true,
+                "Khánh Nguyễn",
+                "https://avatar.url/avatar.png",
+                true
+        );
+        Authentication auth = new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities());
+        when(authenticationManager.authenticate(any())).thenReturn(auth);
         when(jwtUtils.generateTokenFromUserId(userId)).thenReturn("jwt-token");
 
         var response = authService.login(new LoginRequest("khanh@example.com", "password123"));
 
         assertEquals("jwt-token", response.token());
+        assertEquals(userId, response.id());
+        assertEquals("khanh@example.com", response.email());
+        assertEquals("khanh_dev", response.username());
+        assertEquals("Khánh Nguyễn", response.displayName());
+        assertEquals("https://avatar.url/avatar.png", response.avatarUrl());
+        assertEquals(true, response.profileCompleted());
         verify(authenticationManager).authenticate(new UsernamePasswordAuthenticationToken("khanh@example.com", "password123"));
+        verify(userRepository, never()).findByEmailIgnoreCaseOrUsernameIgnoreCase(anyString(), anyString());
     }
 
     @Test

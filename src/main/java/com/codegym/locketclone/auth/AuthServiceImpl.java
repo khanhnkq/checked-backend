@@ -21,7 +21,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import org.springframework.security.authentication.DisabledException;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
+import com.codegym.locketclone.security.service.UserPrincipal;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
@@ -35,7 +38,6 @@ import java.util.UUID;
 public class AuthServiceImpl implements AuthService {
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private static final int OTP_EXPIRY_MINUTES = 5;
-    private static final String DUMMY_BCRYPT_HASH = "$2a$10$wK1bA3qV7z4p6s9d8f7g5h4j3k2l1m0n9b8v7c6x5z4a3s2d1f0e";
 
     private final JwtUtils jwtUtils;
     private final UserRepository userRepository;
@@ -106,29 +108,20 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public JwtResponse login(LoginRequest request) {
         String identifier = normalizeIdentifier(request.identifier());
-        Optional<User> userOpt = userRepository.findByEmailIgnoreCaseOrUsernameIgnoreCase(identifier, identifier);
-
-        if (userOpt.isEmpty()) {
-            // Prevent timing attacks by executing constant-time password verification on dummy hash
-            passwordEncoder.matches(request.password(), DUMMY_BCRYPT_HASH);
-            throw new AppException(ErrorCode.INVALID_CREDENTIALS);
-        }
-
+        Authentication authentication;
         try {
-            authenticationManager.authenticate(
+            authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(identifier, request.password())
             );
+        } catch (DisabledException ex) {
+            throw new AppException(ErrorCode.USER_NOT_VERIFIED);
         } catch (AuthenticationException ex) {
             throw new AppException(ErrorCode.INVALID_CREDENTIALS);
         }
 
-        User user = userOpt.get();
-        if (!Boolean.TRUE.equals(user.getIsVerified())) {
-            throw new AppException(ErrorCode.USER_NOT_VERIFIED);
-        }
-
-        String jwt = jwtUtils.generateTokenFromUserId(user.getId());
-        return buildJwtResponse(user, jwt);
+        UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();
+        String jwt = jwtUtils.generateTokenFromUserId(principal.getId());
+        return buildJwtResponse(principal, jwt);
     }
 
     private User refreshPendingRegistration(User existingUser, String username, String rawPassword, String otpCode, LocalDateTime otpExpiresAt) {
@@ -188,6 +181,22 @@ public class AuthServiceImpl implements AuthService {
                 profileCompleted,
                 user.getDisplayName(),
                 user.getAvatarUrl(),
+                profileCompleted ? OnboardingStep.HOME : OnboardingStep.COMPLETE_PROFILE
+        );
+    }
+
+    private JwtResponse buildJwtResponse(UserPrincipal principal, String jwt) {
+        boolean profileCompleted = Boolean.TRUE.equals(principal.getProfileCompleted());
+        return new JwtResponse(
+                jwt,
+                "Bearer",
+                principal.getId(),
+                principal.getEmail(),
+                principal.getUsername(),
+                principal.isVerified(),
+                profileCompleted,
+                principal.getDisplayName(),
+                principal.getAvatarUrl(),
                 profileCompleted ? OnboardingStep.HOME : OnboardingStep.COMPLETE_PROFILE
         );
     }

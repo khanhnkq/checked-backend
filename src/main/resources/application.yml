@@ -73,10 +73,16 @@ spring:
           writetimeout: ${MAIL_SMTP_WRITE_TIMEOUT:5000}
 
   jpa:
+    open-in-view: false
     show-sql: ${JPA_SHOW_SQL:false}
     properties:
       hibernate:
         format_sql: ${JPA_FORMAT_SQL:false}
+        jdbc:
+          batch_size: 25
+        order_inserts: true
+        order_updates: true
+        default_batch_fetch_size: 30
     hibernate:
       ddl-auto: validate
 
