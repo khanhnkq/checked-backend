@@ -71,7 +71,7 @@ flowchart TD
 | **#10** | `perf/square-image-and-upload-opt` | **Ảnh vuông 1:1 matching FE, Zero-copy thumbnail, Upload song song & S3 Cache-Control** | 🔴 **P0 (Critical)** | `storage/image`, `storage/s3`, `storage/legacy` | ✅ **Merged** (`42d6fca`) |
 | **#11** | `perf/sql-friendship-n-plus-one` | **Triệt tiêu N+1 Query Friend List (`JOIN FETCH`), Read-Only Tx & Tối ưu Invite Token Query** | 🔴 **P0 (Critical)** | `friendship`, `friendship/invite` | ✅ **Merged** (`503e98a`) |
 | **#12** | `perf/sql-unwrap-coalesce-indexes` | **Bỏ `COALESCE` kích hoạt B-Tree Index Scan & Gộp Query Cashflow (INCOME/EXPENSE)** | 🔴 **P0 (Critical)** | `photo`, `expense` | ✅ **Merged** (`2ef4d84`) |
-| **#13** | `perf/db-tuning-and-lower-indexes` | **Migration V17 Lower Index, Tắt OSIV, Bật JDBC Batching 25 & Khử Login Duplicate Query** | 🟡 **P1 (High)** | `db/migration`, `config`, `auth` | ⏳ **To Do** |
+| **#13** | `perf/db-tuning-and-lower-indexes` | **Migration V17 Lower Index, Tắt OSIV, Bật JDBC Batching 25 & Khử Login Duplicate Query** | 🟡 **P1 (High)** | `db/migration`, `config`, `auth` | ✅ **Merged** (`6efd3ed`) |
 | **#14** | `test/ci-testcontainers-flyway-postgres` | **Kiểm thử Flyway V1-V17 với Testcontainers PostgreSQL trên CI** | 🟡 **P1 (High)** | `src/test`, `.github/workflows/ci.yml` | ⏳ **To Do** |
 | **#15** | `deploy/heroku-production-ready` | **Triển khai Heroku Dyno 24/7, Actuator Healthcheck & Cấu hình Neon DB Prod** | ⏳ **P2 (Deferred)** | `config`, `Procfile`, `system.properties`, `security` | ⏸️ **ĐÃ DỜI LẠI** |
 | **#16** | `feat/cdn-and-presigned-url` | **Cloudflare CDN Proxy Caching & Presigned URL tải ảnh trực tiếp** | 🟢 **P3 (Low)** | `storage`, `photo` | 📋 **Backlog** |
@@ -178,6 +178,7 @@ flowchart TD
 ### PR #13: `perf(db): lower-user-indexes-and-hibernate-tuning`
 - **Mức độ ưu tiên**: 🟡 **P1 - Cao (Index Authentication & Chống Cạn Kiệt Connection Pool)**
 - **Nhánh đề xuất**: `perf/db-tuning-and-lower-indexes`
+- **Trạng thái**: ✅ **Merged** (`6efd3ed`)
 - **Mục tiêu**:
   1. **Migration V17 bổ sung Expression Index**: Tạo unique functional index `LOWER(email)` và `LOWER(username)` để câu query `findByEmailIgnoreCaseOrUsernameIgnoreCase` sử dụng Index Scan thay vì Full Table Scan (Seq Scan).
   2. **Partial Index cho Photo Feed**: Thêm index `idx_photos_feed_status_created ON photos(created_at DESC) WHERE status <> 'DELETED'`.
@@ -188,12 +189,14 @@ flowchart TD
   - `src/main/resources/db/migration/V17__add_lower_user_indexes_and_tuning.sql` *(Tạo mới)*
   - `src/main/resources/application.yml`
   - `src/main/resources/application-prod.yml`
+  - `src/main/java/com/codegym/locketclone/security/service/UserPrincipal.java`
   - `src/main/java/com/codegym/locketclone/auth/AuthServiceImpl.java`
   - `src/test/java/com/codegym/locketclone/auth/AuthServiceImplTest.java`
 - **Tiêu chí nghiệm thu & Test Checklist**:
-  - [ ] Migration V17 chạy thành công, tạo đầy đủ 3 index trong PostgreSQL.
-  - [ ] Đăng nhập gọi đúng 1 lần query tìm kiếm user trong database.
-  - [ ] Cấu hình batching và tắt open-in-view không gây lỗi `LazyInitializationException` ở bất kỳ API nào.
+  - [x] Migration V17 chạy thành công, tạo đầy đủ 3 index trong PostgreSQL.
+  - [x] Đăng nhập gọi đúng 1 lần query tìm kiếm user trong database.
+  - [x] Cấu hình batching và tắt open-in-view không gây lỗi `LazyInitializationException` ở bất kỳ API nào.
+  - [x] Toàn bộ test suite pass 100%.
 
 ---
 
