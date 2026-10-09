@@ -220,9 +220,9 @@ public interface PhotoRepository extends JpaRepository<Photo, UUID> {
                       AND p.amount IS NOT NULL
                       AND p.amount > 0
                       AND p.transactionType = :transactionType
-                      AND COALESCE(p.occurredAt, p.takenAt, p.createdAt) >= :fromDate
-                      AND COALESCE(p.occurredAt, p.takenAt, p.createdAt) < :toDate
-                    ORDER BY COALESCE(p.occurredAt, p.takenAt, p.createdAt) DESC
+                      AND p.occurredAt >= :fromDate
+                      AND p.occurredAt < :toDate
+                    ORDER BY p.occurredAt DESC
                     """,
             countQuery = """
                     SELECT COUNT(p)
@@ -232,8 +232,8 @@ public interface PhotoRepository extends JpaRepository<Photo, UUID> {
                       AND p.amount IS NOT NULL
                       AND p.amount > 0
                       AND p.transactionType = :transactionType
-                      AND COALESCE(p.occurredAt, p.takenAt, p.createdAt) >= :fromDate
-                      AND COALESCE(p.occurredAt, p.takenAt, p.createdAt) < :toDate
+                      AND p.occurredAt >= :fromDate
+                      AND p.occurredAt < :toDate
                     """
     )
     Page<Photo> findTransactionPhotosBySenderAndMonth(@Param("senderId") UUID senderId,
@@ -251,14 +251,30 @@ public interface PhotoRepository extends JpaRepository<Photo, UUID> {
               AND p.amount IS NOT NULL
               AND p.amount > 0
               AND p.transactionType = :transactionType
-              AND COALESCE(p.occurredAt, p.takenAt, p.createdAt) >= :fromDate
-              AND COALESCE(p.occurredAt, p.takenAt, p.createdAt) < :toDate
+              AND p.occurredAt >= :fromDate
+              AND p.occurredAt < :toDate
             """)
     BigDecimal sumTransactionAmountBySenderAndMonth(@Param("senderId") UUID senderId,
                                                     @Param("deletedStatus") PhotoStatus deletedStatus,
                                                     @Param("transactionType") TransactionType transactionType,
                                                     @Param("fromDate") LocalDateTime fromDate,
                                                     @Param("toDate") LocalDateTime toDate);
+
+    @Query("""
+            SELECT p.transactionType, COALESCE(SUM(p.amount), 0)
+            FROM Photo p
+            WHERE p.sender.id = :senderId
+              AND p.status <> :deletedStatus
+              AND p.amount IS NOT NULL
+              AND p.amount > 0
+              AND p.occurredAt >= :fromDate
+              AND p.occurredAt < :toDate
+            GROUP BY p.transactionType
+            """)
+    List<Object[]> summarizeTransactionTotalsByTypeAndMonth(@Param("senderId") UUID senderId,
+                                                            @Param("deletedStatus") PhotoStatus deletedStatus,
+                                                            @Param("fromDate") LocalDateTime fromDate,
+                                                            @Param("toDate") LocalDateTime toDate);
 
     @Query("""
             SELECT p.category.id, COALESCE(p.category.name, 'Uncategorized'), COALESCE(SUM(p.amount), 0)
@@ -268,8 +284,8 @@ public interface PhotoRepository extends JpaRepository<Photo, UUID> {
               AND p.amount IS NOT NULL
               AND p.amount > 0
               AND p.transactionType = :transactionType
-              AND COALESCE(p.occurredAt, p.takenAt, p.createdAt) >= :fromDate
-              AND COALESCE(p.occurredAt, p.takenAt, p.createdAt) < :toDate
+              AND p.occurredAt >= :fromDate
+              AND p.occurredAt < :toDate
             GROUP BY p.category.id, p.category.name
             ORDER BY COALESCE(SUM(p.amount), 0) DESC
             """)
@@ -289,9 +305,9 @@ public interface PhotoRepository extends JpaRepository<Photo, UUID> {
                       AND p.amount IS NOT NULL
                       AND p.amount > 0
                       AND (:transactionType IS NULL OR p.transactionType = :transactionType)
-                      AND COALESCE(p.occurredAt, p.takenAt, p.createdAt) >= :fromDate
-                      AND COALESCE(p.occurredAt, p.takenAt, p.createdAt) < :toDate
-                    ORDER BY COALESCE(p.occurredAt, p.takenAt, p.createdAt) DESC
+                      AND p.occurredAt >= :fromDate
+                      AND p.occurredAt < :toDate
+                    ORDER BY p.occurredAt DESC
                     """,
             countQuery = """
                     SELECT COUNT(p)
@@ -301,8 +317,8 @@ public interface PhotoRepository extends JpaRepository<Photo, UUID> {
                       AND p.amount IS NOT NULL
                       AND p.amount > 0
                       AND (:transactionType IS NULL OR p.transactionType = :transactionType)
-                      AND COALESCE(p.occurredAt, p.takenAt, p.createdAt) >= :fromDate
-                      AND COALESCE(p.occurredAt, p.takenAt, p.createdAt) < :toDate
+                      AND p.occurredAt >= :fromDate
+                      AND p.occurredAt < :toDate
                     """
     )
     Page<Photo> findTransactionPhotosBySenderAndRange(@Param("senderId") UUID senderId,
@@ -320,8 +336,8 @@ public interface PhotoRepository extends JpaRepository<Photo, UUID> {
               AND p.amount IS NOT NULL
               AND p.amount > 0
               AND (:transactionType IS NULL OR p.transactionType = :transactionType)
-              AND COALESCE(p.occurredAt, p.takenAt, p.createdAt) >= :fromDate
-              AND COALESCE(p.occurredAt, p.takenAt, p.createdAt) < :toDate
+              AND p.occurredAt >= :fromDate
+              AND p.occurredAt < :toDate
             """)
     BigDecimal sumTransactionAmountBySenderInRange(@Param("senderId") UUID senderId,
                                                    @Param("deletedStatus") PhotoStatus deletedStatus,
@@ -337,8 +353,8 @@ public interface PhotoRepository extends JpaRepository<Photo, UUID> {
               AND p.amount IS NOT NULL
               AND p.amount > 0
               AND (:transactionType IS NULL OR p.transactionType = :transactionType)
-              AND COALESCE(p.occurredAt, p.takenAt, p.createdAt) >= :fromDate
-              AND COALESCE(p.occurredAt, p.takenAt, p.createdAt) < :toDate
+              AND p.occurredAt >= :fromDate
+              AND p.occurredAt < :toDate
             GROUP BY p.category.id, p.category.name
             ORDER BY COALESCE(SUM(p.amount), 0) DESC
             """)
@@ -350,7 +366,7 @@ public interface PhotoRepository extends JpaRepository<Photo, UUID> {
 
     @Query("""
             SELECT 
-                EXTRACT(MONTH FROM COALESCE(p.occurredAt, p.takenAt, p.createdAt)),
+                EXTRACT(MONTH FROM p.occurredAt),
                 p.transactionType,
                 COALESCE(SUM(p.amount), 0)
             FROM Photo p
@@ -358,9 +374,9 @@ public interface PhotoRepository extends JpaRepository<Photo, UUID> {
               AND p.status <> :deletedStatus
               AND p.amount IS NOT NULL
               AND p.amount > 0
-              AND COALESCE(p.occurredAt, p.takenAt, p.createdAt) >= :fromDate
-              AND COALESCE(p.occurredAt, p.takenAt, p.createdAt) < :toDate
-            GROUP BY EXTRACT(MONTH FROM COALESCE(p.occurredAt, p.takenAt, p.createdAt)), p.transactionType
+              AND p.occurredAt >= :fromDate
+              AND p.occurredAt < :toDate
+            GROUP BY EXTRACT(MONTH FROM p.occurredAt), p.transactionType
             """)
     List<Object[]> summarizeMonthlyTransactionsForYear(@Param("senderId") UUID senderId,
                                                       @Param("deletedStatus") PhotoStatus deletedStatus,

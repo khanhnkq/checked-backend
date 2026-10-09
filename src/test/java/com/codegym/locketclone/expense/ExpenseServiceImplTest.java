@@ -182,10 +182,11 @@ class ExpenseServiceImplTest {
         LocalDateTime from = ym.atDay(1).atStartOfDay();
         LocalDateTime to = ym.plusMonths(1).atDay(1).atStartOfDay();
 
-        when(photoRepository.sumTransactionAmountBySenderAndMonth(userId, PhotoStatus.DELETED, TransactionType.INCOME, from, to))
-                .thenReturn(new BigDecimal("2000"));
-        when(photoRepository.sumTransactionAmountBySenderAndMonth(userId, PhotoStatus.DELETED, TransactionType.EXPENSE, from, to))
-                .thenReturn(new BigDecimal("500"));
+        when(photoRepository.summarizeTransactionTotalsByTypeAndMonth(userId, PhotoStatus.DELETED, from, to))
+                .thenReturn(List.of(
+                        new Object[]{TransactionType.INCOME, new BigDecimal("2000")},
+                        new Object[]{TransactionType.EXPENSE, new BigDecimal("500")}
+                ));
 
         var result = expenseService.upsertSavingsGoal(
                 userId,
@@ -197,6 +198,47 @@ class ExpenseServiceImplTest {
         assertEquals(new BigDecimal("1500"), result.currentSaved());
         assertEquals(Integer.valueOf(100), result.progressPct());
         assertEquals(Boolean.TRUE, result.achieved());
+    }
+
+    @Test
+    void getCashflowSummary_aggregatesTotalsAndCalculatesBudgetCorrectly() {
+        UUID userId = UUID.randomUUID();
+        User user = user(userId);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+
+        YearMonth ym = YearMonth.of(2026, 4);
+        LocalDateTime from = ym.atDay(1).atStartOfDay();
+        LocalDateTime to = ym.plusMonths(1).atDay(1).atStartOfDay();
+
+        when(photoRepository.summarizeTransactionTotalsByTypeAndMonth(userId, PhotoStatus.DELETED, from, to))
+                .thenReturn(List.of(
+                        new Object[]{TransactionType.INCOME, new BigDecimal("5000")},
+                        new Object[]{TransactionType.EXPENSE, new BigDecimal("2000")}
+                ));
+
+        Budget budget = Budget.builder()
+                .id(UUID.randomUUID())
+                .user(user)
+                .monthKey("202604")
+                .amountLimit(new BigDecimal("4000"))
+                .alertThresholdPct(80)
+                .build();
+        when(budgetRepository.findByUser_IdAndMonthKey(userId, "202604")).thenReturn(Optional.of(budget));
+        when(photoRepository.summarizeTransactionByCategory(eq(userId), eq(PhotoStatus.DELETED), eq(TransactionType.INCOME), eq(from), eq(to)))
+                .thenReturn(List.of());
+        when(photoRepository.summarizeTransactionByCategory(eq(userId), eq(PhotoStatus.DELETED), eq(TransactionType.EXPENSE), eq(from), eq(to)))
+                .thenReturn(List.of());
+
+        var response = expenseService.getCashflowSummary(userId, "202604");
+
+        assertEquals("202604", response.monthKey());
+        assertEquals(new BigDecimal("5000"), response.totalIncome());
+        assertEquals(new BigDecimal("2000"), response.totalExpense());
+        assertEquals(new BigDecimal("3000"), response.netCashflow());
+        assertEquals(new BigDecimal("4000"), response.budgetLimit());
+        assertEquals(new BigDecimal("2000"), response.budgetRemaining());
+        assertEquals(50, response.budgetUsedPct());
+        assertEquals(false, response.budgetExceeded());
     }
 
     @Test
