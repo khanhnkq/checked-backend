@@ -49,7 +49,7 @@ flowchart TD
 | **#6** | `fix/security-jwt-image-and-privacy` | **Bắt buộc JWT_SECRET, chặn Image Bomb DoS & ẩn Email bạn bè** | 🔴 **P0 (Critical)** | `security`, `storage/image`, `friendship`, `auth` | ✅ **Merged** (`a5455a3`) |
 | **#7** | `fix/auth-rate-limit-and-enumeration` | **Rate Limiting Bucket4j, chặn User Enumeration & bảo vệ đăng ký** | 🔴 **P0 (Critical)** | `auth`, `common/config`, `exception` | ✅ **Merged** (`cc14d38`) |
 | **#8** | `fix/infra-garage-security-and-async` | **Đóng port Garage Admin 3903, bảo mật token & tạo Async ThreadPool** | 🟡 **P1 (High)** | `docker`, `compose.yaml`, `config` | ✅ **Merged** (`32dd07b`) |
-| **#9** | `refactor/mappers-storage-and-dead-code` | **MapStruct PhotoMapper, đồng bộ Cloudinary & dọn dẹp package `message`** | 🟢 **P2 (Medium)** | `photo`, `storage`, `message`, `common` | ⏳ **To Do** |
+| **#9** | `refactor/mappers-storage-and-dead-code` | **MapStruct PhotoMapper, đồng bộ Cloudinary & dọn dẹp package `message`** | 🟢 **P2 (Medium)** | `photo`, `storage`, `message`, `common` | ✅ **Merged** (`502c5db`) |
 | **#10** | `test/ci-testcontainers-flyway-postgres` | **Kiểm thử Flyway V1-V16 với Testcontainers PostgreSQL trên CI** | 🟡 **P1 (High)** | `src/test`, `.github/workflows/ci.yml` | ⏳ **To Do** |
 
 ---
@@ -228,9 +228,9 @@ flowchart TD
    - Xóa `PhoneNumberUtils` do dự án đăng ký bằng email + username, không dùng số điện thoại.
 
 #### 3. Tiêu chí nghiệm thu & Test Checklist
-- [ ] Chạy `./gradlew compileJava` sinh code MapStruct cho `PhotoMapperImpl` thành công.
-- [ ] Thử nghiệm upload ảnh và xem feed với cả cấu hình `storage.type=garage` và `storage.type=cloudinary`.
-- [ ] Codebase biên dịch sạch sẽ, không còn cảnh báo dead code hay file mồ côi.
+- [x] Chạy `./gradlew compileJava` sinh code MapStruct cho `PhotoMapperImpl` thành công.
+- [x] Thử nghiệm upload ảnh và xem feed với cả cấu hình `storage.type=garage` và `storage.type=cloudinary`.
+- [x] Codebase biên dịch sạch sẽ, không còn cảnh báo dead code hay file mồ côi (158/158 tests passed 100%).
 
 ---
 
