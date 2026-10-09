@@ -70,7 +70,7 @@ flowchart TD
 | **#9** | `refactor/mappers-storage-and-dead-code` | **MapStruct PhotoMapper, đồng bộ Cloudinary & dọn dẹp package `message`** | 🟢 **P2 (Medium)** | `photo`, `storage`, `message`, `common` | ✅ **Merged** (`502c5db`) |
 | **#10** | `perf/square-image-and-upload-opt` | **Ảnh vuông 1:1 matching FE, Zero-copy thumbnail, Upload song song & S3 Cache-Control** | 🔴 **P0 (Critical)** | `storage/image`, `storage/s3`, `storage/legacy` | ✅ **Merged** (`42d6fca`) |
 | **#11** | `perf/sql-friendship-n-plus-one` | **Triệt tiêu N+1 Query Friend List (`JOIN FETCH`), Read-Only Tx & Tối ưu Invite Token Query** | 🔴 **P0 (Critical)** | `friendship`, `friendship/invite` | ✅ **Merged** (`503e98a`) |
-| **#12** | `perf/sql-unwrap-coalesce-indexes` | **Bỏ `COALESCE` kích hoạt B-Tree Index Scan & Gộp Query Cashflow (INCOME/EXPENSE)** | 🔴 **P0 (Critical)** | `photo`, `expense` | ⏳ **To Do** |
+| **#12** | `perf/sql-unwrap-coalesce-indexes` | **Bỏ `COALESCE` kích hoạt B-Tree Index Scan & Gộp Query Cashflow (INCOME/EXPENSE)** | 🔴 **P0 (Critical)** | `photo`, `expense` | ✅ **Merged** (`2ef4d84`) |
 | **#13** | `perf/db-tuning-and-lower-indexes` | **Migration V17 Lower Index, Tắt OSIV, Bật JDBC Batching 25 & Khử Login Duplicate Query** | 🟡 **P1 (High)** | `db/migration`, `config`, `auth` | ⏳ **To Do** |
 | **#14** | `test/ci-testcontainers-flyway-postgres` | **Kiểm thử Flyway V1-V17 với Testcontainers PostgreSQL trên CI** | 🟡 **P1 (High)** | `src/test`, `.github/workflows/ci.yml` | ⏳ **To Do** |
 | **#15** | `deploy/heroku-production-ready` | **Triển khai Heroku Dyno 24/7, Actuator Healthcheck & Cấu hình Neon DB Prod** | ⏳ **P2 (Deferred)** | `config`, `Procfile`, `system.properties`, `security` | ⏸️ **ĐÃ DỜI LẠI** |
@@ -139,6 +139,7 @@ flowchart TD
 ### PR #11: `perf(db): fix-n-plus-one-and-friendship-fetch`
 - **Mức độ ưu tiên**: 🔴 **P0 - Khẩn cấp (Triệt tiêu 95% latency load danh sách bạn bè)**
 - **Nhánh đề xuất**: `perf/sql-friendship-n-plus-one`
+- **Trạng thái**: ✅ **Merged** (`503e98a`)
 - **Mục tiêu**:
   1. **Triệt tiêu triệt để N+1 Queries**: Bổ sung `JOIN FETCH f.user JOIN FETCH f.friend` vào câu query `findAllAcceptedFriends` trong `FriendshipRepository`. Tải toàn bộ thông tin User của hai đầu mối quan hệ trong 1 câu SQL duy nhất thay vì 51 queries tuần tự.
   2. **Tối ưu Transactional Read-Only**: Chuyển annotation `@Transactional` trong `FriendshipServiceImpl#getAllFriends` sang `@Transactional(readOnly = true)` để Hibernate tắt dirty checking flush, tiết kiệm CPU và bộ nhớ.
@@ -150,15 +151,16 @@ flowchart TD
   - `src/test/java/com/codegym/locketclone/friendship/FriendshipServiceImplTest.java`
   - `src/test/java/com/codegym/locketclone/friendship/invite/FriendInviteLinkServiceImplTest.java`
 - **Tiêu chí nghiệm thu & Test Checklist**:
-  - [ ] Gọi API `GET /api/v1/friendships` chỉ phát sinh đúng **1 câu lệnh SQL SELECT** với Hibernate.
-  - [ ] Logic lấy thông tin bạn bè (username, displayName, avatarUrl) vẫn trả về đầy đủ và chính xác.
-  - [ ] Toàn bộ unit tests của Friendship và FriendInviteLink pass 100%.
+  - [x] Gọi API `GET /api/v1/friendships` chỉ phát sinh đúng **1 câu lệnh SQL SELECT** với Hibernate.
+  - [x] Logic lấy thông tin bạn bè (username, displayName, avatarUrl) vẫn trả về đầy đủ và chính xác.
+  - [x] Toàn bộ unit tests của Friendship và FriendInviteLink pass 100%.
 
 ---
 
 ### PR #12: `perf(query): unwrap-coalesce-indexes-and-cashflow-aggregation`
 - **Mức độ ưu tiên**: 🔴 **P0 - Khẩn cấp (Khôi phục B-Tree Index Scan & Giảm 50% Dashboard Query)**
 - **Nhánh đề xuất**: `perf/sql-unwrap-coalesce-indexes`
+- **Trạng thái**: ✅ **Merged** (`2ef4d84`)
 - **Mục tiêu**:
   1. **Khôi phục B-Tree Index Scan**: Do `occurred_at` đã là `NOT NULL` và có composite index `idx_photos_sender_type_occurred`, việc bọc hàm `COALESCE(p.occurredAt, p.takenAt, p.createdAt)` làm Postgres phải tính toán hàm trên từng dòng và vô hiệu hóa B-Tree index. Cần loại bỏ `COALESCE` khỏi tất cả mệnh đề `WHERE` và `ORDER BY` trong `PhotoRepository`.
   2. **Gộp Query Thống kê Thu / Chi (Cashflow)**: Gộp 2 câu query riêng biệt cho `INCOME` và `EXPENSE` trong `ExpenseServiceImpl#getCashflowSummary` và `#currentSavedForMonth` thành 1 câu truy vấn `GROUP BY p.transactionType`, giảm một nửa số lượng round-trip tới Neon DB khi mở màn hình chính.
@@ -167,9 +169,9 @@ flowchart TD
   - `src/main/java/com/codegym/locketclone/expense/ExpenseServiceImpl.java`
   - `src/test/java/com/codegym/locketclone/expense/ExpenseServiceImplTest.java`
 - **Tiêu chí nghiệm thu & Test Checklist**:
-  - [ ] Không còn hàm `COALESCE(p.occurredAt, ...)` trong các câu query lọc theo khoảng thời gian của `PhotoRepository`.
-  - [ ] Hàm `getCashflowSummary` chỉ gọi database đúng 1 lần cho việc lấy tổng thu và chi theo tháng.
-  - [ ] Các bài test tính toán dòng tiền, ngân sách và mục tiêu tiết kiệm pass 100%.
+  - [x] Không còn hàm `COALESCE(p.occurredAt, ...)` trong các câu query lọc theo khoảng thời gian của `PhotoRepository`.
+  - [x] Hàm `getCashflowSummary` chỉ gọi database đúng 1 lần cho việc lấy tổng thu và chi theo tháng.
+  - [x] Các bài test tính toán dòng tiền, ngân sách và mục tiêu tiết kiệm pass 100%.
 
 ---
 
