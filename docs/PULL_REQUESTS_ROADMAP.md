@@ -72,7 +72,7 @@ flowchart TD
 | **#11** | `perf/sql-friendship-n-plus-one` | **Triệt tiêu N+1 Query Friend List (`JOIN FETCH`), Read-Only Tx & Tối ưu Invite Token Query** | 🔴 **P0 (Critical)** | `friendship`, `friendship/invite` | ✅ **Merged** (`503e98a`) |
 | **#12** | `perf/sql-unwrap-coalesce-indexes` | **Bỏ `COALESCE` kích hoạt B-Tree Index Scan & Gộp Query Cashflow (INCOME/EXPENSE)** | 🔴 **P0 (Critical)** | `photo`, `expense` | ✅ **Merged** (`2ef4d84`) |
 | **#13** | `perf/db-tuning-and-lower-indexes` | **Migration V17 Lower Index, Tắt OSIV, Bật JDBC Batching 25 & Khử Login Duplicate Query** | 🟡 **P1 (High)** | `db/migration`, `config`, `auth` | ✅ **Merged** (`6efd3ed`) |
-| **#14** | `test/ci-testcontainers-flyway-postgres` | **Kiểm thử Flyway V1-V17 với Testcontainers PostgreSQL trên CI** | 🟡 **P1 (High)** | `src/test`, `.github/workflows/ci.yml` | ⏳ **To Do** |
+| **#14** | `test/ci-testcontainers-flyway-postgres` | **Kiểm thử Flyway V1-V17 với Testcontainers PostgreSQL trên CI** | 🟡 **P1 (High)** | `src/test`, `.github/workflows/ci.yml` | ✅ **Merged** (`4805256`) |
 | **#15** | `deploy/heroku-production-ready` | **Triển khai Heroku Dyno 24/7, Actuator Healthcheck & Cấu hình Neon DB Prod** | ⏳ **P2 (Deferred)** | `config`, `Procfile`, `system.properties`, `security` | ⏸️ **ĐÃ DỜI LẠI** |
 | **#16** | `feat/cdn-and-presigned-url` | **Cloudflare CDN Proxy Caching & Presigned URL tải ảnh trực tiếp** | 🟢 **P3 (Low)** | `storage`, `photo` | 📋 **Backlog** |
 
@@ -203,17 +203,18 @@ flowchart TD
 ### PR #14: `test(ci): testcontainers-postgres-for-flyway-validation`
 - **Mức độ ưu tiên**: 🟡 **P1 - Cao (Chốt chặn kiểm thử tự động CI)**
 - **Nhánh đề xuất**: `test/ci-testcontainers-flyway-postgres`
+- **Trạng thái**: ✅ **Merged** (`4805256`)
 - **Mục tiêu**:
   1. Kiểm thử toàn bộ chuỗi 17 Flyway scripts (V1 đến V17) và các native query/index trên container PostgreSQL thật bằng Testcontainers.
   2. Đảm bảo mọi commit đẩy lên GitHub Actions đều được xác minh độc lập trên môi trường Postgres chuẩn mà không cần phụ thuộc vào Neon database bên ngoài.
 - **Các file thay đổi**:
-  - `build.gradle` (thêm dependency `org.testcontainers:postgresql:1.20.4`)
-  - `src/test/java/com/codegym/locketclone/config/PostgreSqlTestContainerConfig.java` *(Tạo mới)*
-  - `src/test/resources/application.yml`
-  - `.github/workflows/ci.yml`
+  - `build.gradle` (thêm `org.testcontainers:postgresql:1.20.4` và `junit-jupiter:1.20.4`)
+  - `src/test/java/com/codegym/locketclone/db/FlywayMigrationPostgreSqlTest.java` *(Tạo mới)*
+  - `docs/pr14-testcontainers-flyway-postgres.md` *(Tạo mới)*
 - **Tiêu chí nghiệm thu & Test Checklist**:
-  - [ ] Chạy `./gradlew test` tự động kích hoạt container PostgreSQL và kiểm tra 17 script migration thành công.
-  - [ ] GitHub Actions CI workflow chạy hoàn tất kiểm thử mà không bị lỗi.
+  - [x] Chạy `./gradlew test` tự động kích hoạt container PostgreSQL khi có Docker và kiểm tra 17 script migration thành công.
+  - [x] Chạy local không có Docker daemon tự động skip an toàn không gây lỗi build.
+  - [x] GitHub Actions CI workflow chạy hoàn tất kiểm thử mà không bị lỗi.
 
 ---
 
