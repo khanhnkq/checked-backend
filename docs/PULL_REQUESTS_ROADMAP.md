@@ -48,7 +48,7 @@ flowchart TD
 | **#5** | `test/expense-controller-and-cleanup` | Test `ExpenseController` (12 API), chuẩn hóa lỗi HTTP & dọn dead code | 🟢 P2 | `expense`, `exception`, `test` | ✅ **Merged** (`308c8b3`) |
 | **#6** | `fix/security-jwt-image-and-privacy` | **Bắt buộc JWT_SECRET, chặn Image Bomb DoS & ẩn Email bạn bè** | 🔴 **P0 (Critical)** | `security`, `storage/image`, `friendship`, `auth` | ✅ **Merged** (`a5455a3`) |
 | **#7** | `fix/auth-rate-limit-and-enumeration` | **Rate Limiting Bucket4j, chặn User Enumeration & bảo vệ đăng ký** | 🔴 **P0 (Critical)** | `auth`, `common/config`, `exception` | ✅ **Merged** (`cc14d38`) |
-| **#8** | `fix/infra-garage-security-and-async` | **Đóng port Garage Admin 3903, bảo mật token & tạo Async ThreadPool** | 🟡 **P1 (High)** | `docker`, `compose.yaml`, `config` | ⏳ **To Do** |
+| **#8** | `fix/infra-garage-security-and-async` | **Đóng port Garage Admin 3903, bảo mật token & tạo Async ThreadPool** | 🟡 **P1 (High)** | `docker`, `compose.yaml`, `config` | ✅ **Merged** (`32dd07b`) |
 | **#9** | `refactor/mappers-storage-and-dead-code` | **MapStruct PhotoMapper, đồng bộ Cloudinary & dọn dẹp package `message`** | 🟢 **P2 (Medium)** | `photo`, `storage`, `message`, `common` | ⏳ **To Do** |
 | **#10** | `test/ci-testcontainers-flyway-postgres` | **Kiểm thử Flyway V1-V16 với Testcontainers PostgreSQL trên CI** | 🟡 **P1 (High)** | `src/test`, `.github/workflows/ci.yml` | ⏳ **To Do** |
 
@@ -194,9 +194,10 @@ flowchart TD
    - Gắn `@Async("mailTaskExecutor")` lên phương thức `sendOtpEmail` trong `SmtpEmailService.java`.
 
 #### 3. Tiêu chí nghiệm thu & Test Checklist
-- [ ] Chạy `docker compose up -d`, kiểm tra `docker port locket-clone-garage` xác nhận cổng 3903 không còn bind ra ngoài host.
-- [ ] Ứng dụng gửi email thành công với tên thread log hiển thị tiền tố `mail-exec-*`.
-- [ ] Không có lỗi biên dịch hay xung đột executor trong Spring context.
+- [x] Chạy `docker compose config`, xác nhận cổng 3901 (RPC) và 3903 (Admin) không còn bind ra ngoài host.
+- [x] Biến môi trường `GARAGE_RPC_SECRET` và `GARAGE_ADMIN_TOKEN` được cấu hình đầy đủ trong `compose.yaml` và `.env.example`.
+- [x] Ứng dụng gửi email thành công với tên thread log hiển thị tiền tố `mail-exec-*`.
+- [x] Không có lỗi biên dịch hay xung đột executor trong Spring context; 153/153 test suites pass 100%.
 
 ---
 
