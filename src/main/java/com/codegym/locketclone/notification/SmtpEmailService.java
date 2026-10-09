@@ -31,8 +31,8 @@ public class SmtpEmailService implements EmailService {
             SimpleMailMessage message = new SimpleMailMessage();
             message.setFrom(fromEmail);
             message.setTo(toEmail);
-            message.setSubject("Mã xác thực SnapWidget");
-            message.setText("Chào " + displayName + ", mã xác thực SnapWidget của bạn là " + otpCode);
+            message.setSubject("Mã xác thực Checked");
+            message.setText("Chào " + displayName + ", mã xác thực Checked của bạn là " + otpCode);
             mailSender.send(message);
             log.info("Đã gửi email OTP thành công tới {}", toEmail);
         } catch (Exception ex) {

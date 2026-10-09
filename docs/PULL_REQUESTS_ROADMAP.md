@@ -228,10 +228,11 @@ flowchart TD
    - Sửa tiêu đề email OTP từ "SnapWidget" thành "Locket Clone" trong `SmtpEmailService`.
 
 #### 3. Tiêu chí nghiệm thu & Test Checklist
-- [ ] Test suite mới `ExpenseControllerTest` PASS 100%.
-- [ ] Gửi request tới URL không tồn tại `/api/v1/unknown` nhận HTTP 404 (thay vì 500).
-- [ ] Gửi request POST tới endpoint chỉ hỗ trợ GET nhận HTTP 405 (thay vì 500).
-- [ ] Chạy toàn bộ test `./gradlew clean test` đạt 100% PASS không có lỗi hồi quy.
+- [x] Test suite mới `ExpenseControllerTest` PASS 100% (bao phủ 21 test cases trên cả 12 endpoints).
+- [x] Bổ sung xử lý `NoResourceFoundException` trả về HTTP 404 (thay vì 500).
+- [x] Bổ sung xử lý `HttpRequestMethodNotSupportedException` trả về HTTP 405 (thay vì 500).
+- [x] Xóa dead code `CloudinaryService`, `UploadedImage`, loại bỏ duplicate lombok trong `build.gradle`, đổi brand email sang Checked.
+- [x] Chạy toàn bộ test `./gradlew clean test` đạt 100% PASS không có lỗi hồi quy.
 
 ---
 
