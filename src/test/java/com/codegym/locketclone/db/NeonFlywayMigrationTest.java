@@ -21,6 +21,7 @@ class NeonFlywayMigrationTest {
         registry.add("spring.datasource.username", () -> "neondb_owner");
         registry.add("spring.datasource.password", () -> "npg_UHF6EBJK3MCG");
         registry.add("spring.datasource.driver-class-name", () -> "org.postgresql.Driver");
+        registry.add("spring.jpa.properties.hibernate.dialect", () -> "org.hibernate.dialect.PostgreSQLDialect");
         registry.add("spring.flyway.enabled", () -> "true");
         registry.add("spring.jpa.hibernate.ddl-auto", () -> "validate");
     }
