@@ -15,15 +15,16 @@ services:
   garage:
     image: 'dxflrs/garage:v1.1.0'
     container_name: locket-clone-garage
+    environment:
+      - GARAGE_RPC_SECRET=${GARAGE_RPC_SECRET:-b4a8e23f98234857ef129845cd782345ba892345ef129845cd782345ba892345}
+      - GARAGE_ADMIN_TOKEN=${GARAGE_ADMIN_TOKEN:-garage_admin_secret_token_change_in_production}
     volumes:
       - ./docker/garage/garage.toml:/etc/garage.toml
       - garage_meta:/var/lib/garage/meta
       - garage_data:/var/lib/garage/data
     ports:
       - '3900:3900' # S3 API
-      - '3901:3901' # RPC
       - '3902:3902' # S3 Web (Public Image CDN)
-      - '3903:3903' # Admin API
     restart: unless-stopped
 
   garage-init:
@@ -34,6 +35,8 @@ services:
     depends_on:
       - garage
     environment:
+      - GARAGE_RPC_SECRET=${GARAGE_RPC_SECRET:-b4a8e23f98234857ef129845cd782345ba892345ef129845cd782345ba892345}
+      - GARAGE_ADMIN_TOKEN=${GARAGE_ADMIN_TOKEN:-garage_admin_secret_token_change_in_production}
       - GARAGE_ACCESS_KEY_ID=${GARAGE_ACCESS_KEY_ID:-GK000000000000000000000001}
       - GARAGE_SECRET_ACCESS_KEY=${GARAGE_SECRET_ACCESS_KEY:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
       - GARAGE_BUCKET=${GARAGE_BUCKET:-locket-photos}

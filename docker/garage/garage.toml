@@ -6,6 +6,7 @@ replication_factor = 1
 
 rpc_bind_addr = "0.0.0.0:3901"
 rpc_public_addr = "garage:3901"
+# Note: rpc_secret can be overridden at runtime via GARAGE_RPC_SECRET env var
 rpc_secret = "b4a8e23f98234857ef129845cd782345ba892345ef129845cd782345ba892345"
 
 [s3_api]
@@ -19,4 +20,5 @@ root_domain = ".web.garage"
 
 [admin]
 api_bind_addr = "0.0.0.0:3903"
+# Note: admin_token can be overridden at runtime via GARAGE_ADMIN_TOKEN env var
 admin_token = "garage_admin_secret_token_change_in_production"

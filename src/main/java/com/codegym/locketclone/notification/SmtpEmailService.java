@@ -22,7 +22,7 @@ public class SmtpEmailService implements EmailService {
     @Value("${locket.mail.from:${spring.mail.username}}")
     private String fromEmail;
 
-    @Async
+    @Async("mailTaskExecutor")
     @Override
     public void sendOtpEmail(String toEmail, String recipientName, String otpCode) {
         try {

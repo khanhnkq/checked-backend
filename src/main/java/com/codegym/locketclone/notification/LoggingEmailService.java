@@ -8,10 +8,10 @@ import org.springframework.util.StringUtils;
 @Service
 @Slf4j
 public class LoggingEmailService implements EmailService {
-    @Async
+    @Async("mailTaskExecutor")
     @Override
     public void sendOtpEmail(String toEmail, String recipientName, String otpCode) {
         String displayName = StringUtils.hasText(recipientName) ? recipientName.trim() : "bạn";
-        log.info("Sending OTP email to {} with content: Chào {}, mã xác thực SnapWidget của bạn là {}", toEmail, displayName, otpCode);
+        log.info("Sending OTP email to {} with content: Chào {}, mã xác thực Checked của bạn là {}", toEmail, displayName, otpCode);
     }
 }
