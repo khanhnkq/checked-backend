@@ -58,7 +58,7 @@ flowchart TD
 | **#7** | `fix/auth-rate-limit-and-enumeration` | **Rate Limiting Bucket4j, chặn User Enumeration & bảo vệ đăng ký** | 🔴 **P0 (Critical)** | `auth`, `common/config`, `exception` | ✅ **Merged** (`cc14d38`) |
 | **#8** | `fix/infra-garage-security-and-async` | **Đóng port Garage Admin 3903, bảo mật token & tạo Async ThreadPool** | 🟡 **P1 (High)** | `docker`, `compose.yaml`, `config` | ✅ **Merged** (`32dd07b`) |
 | **#9** | `refactor/mappers-storage-and-dead-code` | **MapStruct PhotoMapper, đồng bộ Cloudinary & dọn dẹp package `message`** | 🟢 **P2 (Medium)** | `photo`, `storage`, `message`, `common` | ✅ **Merged** (`502c5db`) |
-| **#10** | `perf/square-image-and-upload-opt` | **Ảnh vuông 1:1 matching FE, Zero-copy thumbnail, Upload song song & S3 Cache-Control** | 🔴 **P0 (Critical)** | `storage/image`, `storage/s3`, `storage/legacy` | ⏳ **Sẵn sàng triển khai** |
+| **#10** | `perf/square-image-and-upload-opt` | **Ảnh vuông 1:1 matching FE, Zero-copy thumbnail, Upload song song & S3 Cache-Control** | 🔴 **P0 (Critical)** | `storage/image`, `storage/s3`, `storage/legacy` | ✅ **Merged** (`42d6fca`) |
 | **#11** | `deploy/heroku-production-ready` | **Triển khai Heroku Dyno 24/7, Actuator Healthcheck & Cấu hình Neon DB Prod** | 🟡 **P1 (High)** | `config`, `Procfile`, `system.properties`, `security` | ⏳ **Sẵn sàng triển khai** |
 | **#12** | `test/ci-testcontainers-flyway-postgres` | **Kiểm thử Flyway V1-V16 với Testcontainers PostgreSQL trên CI** | 🟡 **P1 (High)** | `src/test`, `.github/workflows/ci.yml` | ⏳ **To Do** |
 | **#13** | `feat/cdn-and-presigned-url` | **Cloudflare CDN Proxy Caching & Presigned URL tải ảnh trực tiếp** | 🟢 **P2 (Medium)** | `storage`, `photo` | 📋 **Backlog** |
@@ -72,6 +72,7 @@ flowchart TD
 ### PR #10: `perf(image): square-crop-zero-copy-and-parallel-upload`
 - **Mức độ ưu tiên**: 🔴 **P0 - Khẩn cấp (Matching UI Frontend & Tối ưu RAM/Tốc độ)**
 - **Nhánh đề xuất**: `perf/square-image-and-upload-opt`
+- **Trạng thái**: ✅ **Merged** (`42d6fca`)
 - **Mục tiêu**:
   1. **Chuẩn hóa tỷ lệ ảnh 1:1 vuông**: Frontend (ứng dụng Locket Clone) là dạng Widget hình vuông. Hiện tại ảnh chính đang giữ nguyên tỷ lệ chữ nhật gốc (`size(1920, 1920)`), chỉ có thumbnail là hình vuông dẫn đến giao diện bị méo hoặc vỡ layout nếu FE không crop thủ công. Cần center-crop cả ảnh chính và thumbnail về 1:1 ngay từ backend.
   2. **Tự động xoay ảnh theo EXIF (`useExifOrientation(true)`)**: Ngăn chặn tình trạng chụp ảnh dọc/ngang từ điện thoại (iOS/Android) bị xoay 90 độ khi hiển thị.
@@ -80,11 +81,13 @@ flowchart TD
   5. **Header Cache-Control vĩnh viễn**: Bổ sung `Cache-Control: public, max-age=31536000, immutable` vào metadata S3 Object để trình duyệt và ứng dụng mobile cache vĩnh viễn, triệt tiêu 100% băng thông tải lại ảnh cũ.
 
 #### 1. Các file thay đổi
+- `src/main/java/com/codegym/locketclone/common/config/AsyncConfig.java`
 - `src/main/java/com/codegym/locketclone/storage/image/ImageProcessingService.java`
 - `src/main/java/com/codegym/locketclone/storage/s3/GarageS3StorageService.java`
 - `src/main/java/com/codegym/locketclone/storage/legacy/CloudinaryStorageService.java`
 - `src/test/java/com/codegym/locketclone/storage/image/ImageProcessingServiceTest.java`
 - `src/test/java/com/codegym/locketclone/storage/s3/GarageS3StorageServiceTest.java`
+- `src/test/java/com/codegym/locketclone/storage/legacy/CloudinaryStorageServiceTest.java`
 
 #### 2. Chi tiết kỹ thuật
 1. **Center Crop Vuông 1:1**:
@@ -93,18 +96,18 @@ flowchart TD
    - Bật `.useExifOrientation(true)` trong pipeline Thumbnails.
 2. **Loại bỏ giải mã thừa trong RAM**:
    ```java
-   BufferedImage squareImage = Thumbnails.of(sourceStream)
+   BufferedImage squareImage = Thumbnails.of(file.getInputStream())
            .useExifOrientation(true)
            .crop(Positions.CENTER)
-           .size(1080, 1080)
+           .size(PHOTO_SIZE, PHOTO_SIZE)
            .asBufferedImage();
    // Sinh mainBytes từ squareImage
    // Sinh thumbBytes trực tiếp từ squareImage (size 320x320) mà không cần ImageIO.read(mainBytes)
    ```
 3. **Upload song song bằng Async**:
-   - Sử dụng `CompletableFuture.allOf(...)` thực thi song song:
-     - `CompletableFuture.runAsync(() -> putObject(mainKey, ...))`
-     - `CompletableFuture.runAsync(() -> putObject(thumbKey, ...))`
+   - Sử dụng `CompletableFuture.allOf(...)` kết hợp với `storageTaskExecutor` thực thi song song:
+     - `CompletableFuture.runAsync(() -> putObject(mainKey, ...), storageTaskExecutor)`
+     - `CompletableFuture.runAsync(() -> putObject(thumbKey, ...), storageTaskExecutor)`
 4. **Header Cache-Control trên S3**:
    - Trong `PutObjectRequest.builder()`:
      ```java
@@ -112,11 +115,11 @@ flowchart TD
      ```
 
 #### 3. Tiêu chí nghiệm thu & Test Checklist
-- [ ] Upload một bức ảnh chữ nhật tỷ lệ 4:3 hoặc 16:9 -> cả `imageUrl` và `thumbnailUrl` đều có kích thước hình vuông 1:1 chính xác.
-- [ ] Ảnh chụp có thẻ EXIF Orientation (chụp dọc trên iPhone) hiển thị đúng chiều đứng, không bị xoay ngang.
-- [ ] Không còn dòng lệnh `ImageIO.read(new ByteArrayInputStream(mainBytes))` trong `ImageProcessingService`.
-- [ ] S3 Object chứa header `Cache-Control: public, max-age=31536000, immutable`.
-- [ ] Toàn bộ test suite liên quan đến Image và Storage pass 100%.
+- [x] Upload một bức ảnh chữ nhật tỷ lệ 4:3 hoặc 16:9 -> cả `imageUrl` và `thumbnailUrl` đều có kích thước hình vuông 1:1 chính xác ($1080\times 1080$ và $320\times 320$).
+- [x] Ảnh chụp có thẻ EXIF Orientation (chụp dọc trên iPhone) hiển thị đúng chiều đứng, không bị xoay ngang.
+- [x] Không còn dòng lệnh `ImageIO.read(new ByteArrayInputStream(mainBytes))` trong `ImageProcessingService`.
+- [x] S3 Object chứa header `Cache-Control: public, max-age=31536000, immutable`.
+- [x] Toàn bộ test suite liên quan đến Image và Storage pass 100% (158/158 tests).
 
 ---
 
