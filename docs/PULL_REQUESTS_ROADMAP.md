@@ -34,7 +34,7 @@ flowchart TD
 
     subgraph PHASE3["🟡 Phase 3: Tối ưu SQL, DB Tuning & CI Testcontainers"]
         PR10["PR #10: perf(image)\nẢnh vuông 1:1, Zero-copy, Upload song song & S3 Cache-Control\n(Merged: 42d6fca)"]
-        PR11["PR #11: perf(db)\nTriệt tiêu N+1 Query Friend List & Rút gọn Token Query\n(P0 - Khẩn cấp)"]
+        PR11["PR #11: perf(db)\nTriệt tiêu N+1 Query Friend List & Rút gọn Token Query\n(Merged: 503e98a)"]
         PR12["PR #12: perf(query)\nBỏ COALESCE dùng B-Tree Index & Gộp Query Cashflow\n(P0 - Khẩn cấp)"]
         PR13["PR #13: perf(db)\nMigration V17 Lower Index, Tắt OSIV & JDBC Batching 25\n(P1 - Cao)"]
         PR14["PR #14: test(ci)\nTestcontainers PostgreSQL kiểm thử Flyway V1-V17 trên CI\n(P1 - Cao)"]
@@ -69,7 +69,7 @@ flowchart TD
 | **#8** | `fix/infra-garage-security-and-async` | **Đóng port Garage Admin 3903, bảo mật token & tạo Async ThreadPool** | 🟡 **P1 (High)** | `docker`, `compose.yaml`, `config` | ✅ **Merged** (`32dd07b`) |
 | **#9** | `refactor/mappers-storage-and-dead-code` | **MapStruct PhotoMapper, đồng bộ Cloudinary & dọn dẹp package `message`** | 🟢 **P2 (Medium)** | `photo`, `storage`, `message`, `common` | ✅ **Merged** (`502c5db`) |
 | **#10** | `perf/square-image-and-upload-opt` | **Ảnh vuông 1:1 matching FE, Zero-copy thumbnail, Upload song song & S3 Cache-Control** | 🔴 **P0 (Critical)** | `storage/image`, `storage/s3`, `storage/legacy` | ✅ **Merged** (`42d6fca`) |
-| **#11** | `perf/sql-friendship-n-plus-one` | **Triệt tiêu N+1 Query Friend List (`JOIN FETCH`), Read-Only Tx & Tối ưu Invite Token Query** | 🔴 **P0 (Critical)** | `friendship`, `friendship/invite` | ⏳ **Sẵn sàng triển khai** |
+| **#11** | `perf/sql-friendship-n-plus-one` | **Triệt tiêu N+1 Query Friend List (`JOIN FETCH`), Read-Only Tx & Tối ưu Invite Token Query** | 🔴 **P0 (Critical)** | `friendship`, `friendship/invite` | ✅ **Merged** (`503e98a`) |
 | **#12** | `perf/sql-unwrap-coalesce-indexes` | **Bỏ `COALESCE` kích hoạt B-Tree Index Scan & Gộp Query Cashflow (INCOME/EXPENSE)** | 🔴 **P0 (Critical)** | `photo`, `expense` | ⏳ **To Do** |
 | **#13** | `perf/db-tuning-and-lower-indexes` | **Migration V17 Lower Index, Tắt OSIV, Bật JDBC Batching 25 & Khử Login Duplicate Query** | 🟡 **P1 (High)** | `db/migration`, `config`, `auth` | ⏳ **To Do** |
 | **#14** | `test/ci-testcontainers-flyway-postgres` | **Kiểm thử Flyway V1-V17 với Testcontainers PostgreSQL trên CI** | 🟡 **P1 (High)** | `src/test`, `.github/workflows/ci.yml` | ⏳ **To Do** |

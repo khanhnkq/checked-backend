@@ -181,10 +181,10 @@ validateAcceptableLink(link);
 
 ## 5. ✅ Tiêu Chí Nghiệm Thu & Test Checklist
 
-- [ ] Lệnh truy vấn `findAllAcceptedFriends` chứa đầy đủ mệnh đề `JOIN FETCH f.user JOIN FETCH f.friend`.
-- [ ] Khi chạy `GET /api/v1/friendships`, Hibernate chỉ sinh ra **1 câu lệnh SELECT duy nhất** kết hợp `INNER JOIN`.
-- [ ] Thông tin trả về của bạn bè (`id`, `username`, `displayName`, `avatarUrl`) không bị rỗng và không bị ảnh hưởng.
-- [ ] Phương thức `acceptByToken` hoạt động chính xác với cả token hợp lệ, token hết hạn, và token bị thu hồi.
-- [ ] Toàn bộ 158/158 bài kiểm thử tự động (Unit Test & Integration Test) đều **PASS 100%**.
-- [ ] Bản build `bootJar` thành công không có bất kỳ warning hay lỗi biên dịch nào.
-- [ ] **Tuân thủ quy định**: Tuyệt đối không thực hiện bất kỳ lệnh deploy nào lên Heroku.
+- [x] Lệnh truy vấn `findAllAcceptedFriends` chứa đầy đủ mệnh đề `JOIN FETCH f.user JOIN FETCH f.friend`.
+- [x] Khi chạy `GET /api/v1/friendships`, Hibernate chỉ sinh ra **1 câu lệnh SELECT duy nhất** kết hợp `INNER JOIN`.
+- [x] Thông tin trả về của bạn bè (`id`, `username`, `displayName`, `avatarUrl`) không bị rỗng và không bị ảnh hưởng.
+- [x] Phương thức `acceptByToken` hoạt động chính xác với cả token hợp lệ, token hết hạn, và token bị thu hồi.
+- [x] Toàn bộ 158/158 bài kiểm thử tự động (Unit Test & Integration Test) đều **PASS 100%**.
+- [x] Bản build `bootJar` thành công không có bất kỳ warning hay lỗi biên dịch nào.
+- [x] **Tuân thủ quy định**: Tuyệt đối không thực hiện bất kỳ lệnh deploy nào lên Heroku.
