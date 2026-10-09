@@ -559,6 +559,45 @@ class PhotoServiceImplTest {
         verify(photoRepository).save(photo);
     }
 
+    @Test
+    void uploadPhoto_whenDbSaveFails_cleansUpS3FileAndThrowsException() throws Exception {
+        UUID senderId = UUID.randomUUID();
+        User sender = user(senderId, "sender@example.com", "sender", "Sender User");
+        MockMultipartFile file = new MockMultipartFile("file", "photo.jpg", "image/jpeg", "data".getBytes());
+        LocalDateTime takenAt = LocalDateTime.of(2026, 3, 12, 10, 30);
+
+        when(userRepository.findById(senderId)).thenReturn(Optional.of(sender));
+        when(userRepository.findAllById(any())).thenReturn(List.of(sender));
+        when(storageService.uploadPhoto(file)).thenReturn(new UploadedFile(
+                "https://cdn.example.com/photo.jpg",
+                "https://cdn.example.com/photo_thumb.jpg",
+                "public-id-cleanup-test",
+                "image/jpeg",
+                12345L,
+                1080,
+                1920
+        ));
+        when(photoRepository.save(any(Photo.class))).thenThrow(new RuntimeException("Database connection failure"));
+
+        AppException exception = assertThrows(AppException.class, () ->
+                photoService.uploadPhoto(
+                        file,
+                        "Cafe",
+                        new BigDecimal("20000"),
+                        null,
+                        null,
+                        null,
+                        RecipientScope.ALL_FRIENDS,
+                        null,
+                        takenAt,
+                        senderId
+                )
+        );
+
+        assertEquals(ErrorCode.UNCATEGORIZED_EXCEPTION, exception.getErrorCode());
+        verify(storageService).deleteFile("public-id-cleanup-test");
+    }
+
     private User user(UUID id, String email, String username, String displayName) {
         String[] nameParts = displayName.split(" ", 2);
         return User.builder()

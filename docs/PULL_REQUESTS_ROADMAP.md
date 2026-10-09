@@ -190,10 +190,10 @@ flowchart TD
    - Đánh dấu `readOnly = true` cho các phương thức truy vấn đọc trong `ExpenseServiceImpl` và `PhotoServiceImpl`.
 
 #### 3. Tiêu chí nghiệm thu & Test Checklist
-- [ ] Upload ảnh hoạt động bình thường, file lưu lên S3 và metadata lưu vào DB.
-- [ ] Giả lập lỗi DB khi lưu photo: Xác nhận file vừa upload lên S3 được xóa dọn dẹp tự động.
-- [ ] Gọi `PATCH /api/v1/users/me/settings/personal-info`, kiểm tra Caffeine Cache của user đó bị evict ngay lập tức.
-- [ ] User chưa xác thực email khi gửi JWT bị `JwtAuthenticationFilter` chặn với HTTP 403 / 401.
+- [x] Upload ảnh hoạt động bình thường, file lưu lên S3 và metadata lưu vào DB.
+- [x] Giả lập lỗi DB khi lưu photo: Xác nhận file vừa upload lên S3 được xóa dọn dẹp tự động (`PhotoServiceImplTest`).
+- [x] Gọi `PATCH /api/v1/users/me/settings/personal-info`, kiểm tra Caffeine Cache của user đó bị evict ngay lập tức (`@CacheEvict`).
+- [x] User chưa xác thực email khi gửi JWT bị `JwtAuthenticationFilter` chặn với HTTP 403 / 401 (`UserPrincipal#isEnabled` phản ánh `isVerified`).
 
 ---
 

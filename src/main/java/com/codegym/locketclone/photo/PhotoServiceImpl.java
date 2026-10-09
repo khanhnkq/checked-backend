@@ -18,14 +18,16 @@ import com.codegym.locketclone.storage.StorageService;
 import com.codegym.locketclone.storage.UploadedFile;
 import com.codegym.locketclone.user.User;
 import com.codegym.locketclone.user.UserRepository;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -55,9 +57,15 @@ public class PhotoServiceImpl implements PhotoService {
     private final StorageService storageService;
     private final PhotoMapper photoMapper;
 
+    @Autowired(required = false)
+    private TransactionTemplate transactionTemplate;
+
+    public void setTransactionTemplate(TransactionTemplate transactionTemplate) {
+        this.transactionTemplate = transactionTemplate;
+    }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public Slice<PhotoResponse> getFeedPhotos(UUID userId, UUID friendId, Pageable pageable) {
         ensureUserExists(userId);
         if (friendId == null) {
@@ -70,14 +78,14 @@ public class PhotoServiceImpl implements PhotoService {
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public Page<PhotoResponse> getMyPhotos(UUID userId, Pageable pageable) {
         ensureUserExists(userId);
         return photoRepository.findMyPhotos(userId, PhotoStatus.DELETED, pageable).map(photoMapper::toResponse);
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public PhotoResponse getPhotoDetail(UUID userId, UUID photoId) {
         ensureUserExists(userId);
         Photo photo = photoRepository.findAccessiblePhotoById(photoId, userId, PhotoStatus.DELETED)
@@ -86,7 +94,6 @@ public class PhotoServiceImpl implements PhotoService {
     }
 
     @Override
-    @Transactional
     public PhotoResponse uploadPhoto(MultipartFile file,
                                      String caption,
                                      BigDecimal amount,
@@ -106,10 +113,16 @@ public class PhotoServiceImpl implements PhotoService {
         TransactionType type = resolveTransactionType(transactionType);
         Category category = resolveCategory(senderId, categoryId, type);
 
+        log.info("Bắt đầu upload ảnh cho user: {} với scope: {}", senderId, effectiveScope);
+        UploadedFile uploadedImage;
         try {
-            log.info("Bắt đầu upload ảnh cho user: {} với scope: {}", senderId, effectiveScope);
-            UploadedFile uploadedImage = storageService.uploadPhoto(file);
+            uploadedImage = storageService.uploadPhoto(file);
+        } catch (IOException e) {
+            log.error("Lỗi khi xử lý file upload cho user {}: {}", senderId, e.getMessage(), e);
+            throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION);
+        }
 
+        try {
             Photo photo = Photo.builder()
                     .sender(sender)
                     .imageUrl(uploadedImage.secureUrl())
@@ -130,15 +143,31 @@ public class PhotoServiceImpl implements PhotoService {
                     .takenAt(takenAt)
                     .build();
 
-            Photo savedPhoto = photoRepository.save(photo);
-            saveRecipients(savedPhoto, recipients);
+            Photo savedPhoto = savePhotoAndRecipientsInTx(photo, recipients);
 
             log.info("Lưu Photo vào Database thành công, ID: {}, recipients: {}", savedPhoto.getId(), recipients.size());
             return photoMapper.toResponse(savedPhoto);
-        } catch (IOException e) {
-            log.error("Lỗi khi xử lý file upload cho user {}: {}", senderId, e.getMessage(), e);
+        } catch (Exception ex) {
+            log.error("Lỗi khi lưu Photo vào database, tiến hành dọn dẹp file S3: {}", uploadedImage.key(), ex);
+            storageService.deleteFile(uploadedImage.key());
+            if (ex instanceof AppException appException) {
+                throw appException;
+            }
             throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION);
         }
+    }
+
+    private Photo savePhotoAndRecipientsInTx(Photo photo, List<User> recipients) {
+        if (transactionTemplate != null) {
+            return transactionTemplate.execute(status -> {
+                Photo saved = photoRepository.save(photo);
+                saveRecipients(saved, recipients);
+                return saved;
+            });
+        }
+        Photo saved = photoRepository.save(photo);
+        saveRecipients(saved, recipients);
+        return saved;
     }
 
     @Override
@@ -201,7 +230,7 @@ public class PhotoServiceImpl implements PhotoService {
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public PhotoReactionSummaryResponse getReactionSummary(UUID userId, UUID photoId) {
         ensureUserExists(userId);
         requireAccessiblePhoto(photoId, userId);

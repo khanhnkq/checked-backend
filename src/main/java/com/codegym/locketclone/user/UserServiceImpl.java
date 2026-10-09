@@ -81,6 +81,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @CacheEvict(value = "users", key = "#userId")
     @Transactional
     public UserResponse updatePersonalInfo(UUID userId, UpdatePersonalInfoRequest request) {
         UpdateProfileRequest mappedRequest = new UpdateProfileRequest(

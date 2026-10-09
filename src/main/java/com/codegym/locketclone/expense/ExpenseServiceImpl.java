@@ -8,11 +8,11 @@ import com.codegym.locketclone.photo.PhotoRepository;
 import com.codegym.locketclone.photo.PhotoStatus;
 import com.codegym.locketclone.user.User;
 import com.codegym.locketclone.user.UserRepository;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
@@ -44,7 +44,7 @@ public class ExpenseServiceImpl implements ExpenseService {
     private final PhotoRepository photoRepository;
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public List<CategoryResponse> getCategories(UUID userId) {
         ensureUserExists(userId);
         return categoryRepository.findVisibleActiveCategories(userId)
@@ -117,7 +117,7 @@ public class ExpenseServiceImpl implements ExpenseService {
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public BudgetResponse getBudget(UUID userId, String monthKey) {
         ensureUserExists(userId);
         YearMonth yearMonth = parseMonthKey(monthKey);
@@ -182,13 +182,13 @@ public class ExpenseServiceImpl implements ExpenseService {
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public Page<ExpenseItemResponse> getExpenseEntries(UUID userId, String monthKey, Pageable pageable) {
         return getExpenseEntries(userId, monthKey, TransactionType.EXPENSE, pageable);
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public Page<ExpenseItemResponse> getExpenseEntries(UUID userId, String monthKey, TransactionType type, Pageable pageable) {
         ensureUserExists(userId);
         YearMonth yearMonth = parseMonthKey(monthKey);
@@ -206,7 +206,7 @@ public class ExpenseServiceImpl implements ExpenseService {
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public Page<ExpenseItemResponse> getExpenseEntriesByPeriod(
             UUID userId,
             EntryPeriod period,
@@ -234,7 +234,7 @@ public class ExpenseServiceImpl implements ExpenseService {
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public ExpenseSummaryResponse getExpenseSummary(UUID userId, String monthKey) {
         ensureUserExists(userId);
         YearMonth yearMonth = parseMonthKey(monthKey);
@@ -276,7 +276,7 @@ public class ExpenseServiceImpl implements ExpenseService {
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public CashflowSummaryResponse getCashflowSummary(UUID userId, String monthKey) {
         ensureUserExists(userId);
         YearMonth yearMonth = parseMonthKey(monthKey);
@@ -338,7 +338,7 @@ public class ExpenseServiceImpl implements ExpenseService {
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public YearlyCashflowSummaryResponse getYearlyCashflowSummary(UUID userId, Integer year) {
         ensureUserExists(userId);
         if (year == null || year < 1970 || year > 3000) {
@@ -397,7 +397,7 @@ public class ExpenseServiceImpl implements ExpenseService {
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public List<TopCategoryResponse> getTopCategories(
             UUID userId,
             String monthKey,
@@ -458,7 +458,7 @@ public class ExpenseServiceImpl implements ExpenseService {
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public SavingsGoalResponse getSavingsGoal(UUID userId, String monthKey) {
         ensureUserExists(userId);
         YearMonth yearMonth = parseMonthKey(monthKey);
