@@ -1,11 +1,11 @@
 package com.codegym.locketclone.friendship.invite;
 
+import com.codegym.locketclone.friendship.dto.FriendProfileResponse;
 import com.codegym.locketclone.friendship.invite.dto.AcceptFriendInviteLinkRequest;
 import com.codegym.locketclone.friendship.invite.dto.AcceptFriendInviteLinkResponse;
 import com.codegym.locketclone.friendship.invite.dto.CreateFriendInviteLinkRequest;
 import com.codegym.locketclone.friendship.invite.dto.FriendInviteLinkResponse;
 import com.codegym.locketclone.security.service.UserPrincipal;
-import com.codegym.locketclone.user.dto.UserResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -100,7 +100,7 @@ class FriendInviteLinkControllerTest {
         AcceptFriendInviteLinkResponse response = new AcceptFriendInviteLinkResponse(
                 UUID.randomUUID(),
                 "ACCEPTED",
-                UserResponse.builder().id(UUID.randomUUID()).username("owner").build(),
+                new FriendProfileResponse(UUID.randomUUID(), "owner", "Owner", "User", "Owner User", null, false),
                 LocalDateTime.now()
         );
         when(friendInviteLinkService.acceptByToken(principal.getId(), "invite-token")).thenReturn(response);

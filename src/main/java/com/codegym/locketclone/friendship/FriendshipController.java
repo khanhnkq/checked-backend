@@ -2,8 +2,8 @@ package com.codegym.locketclone.friendship;
 
 import com.codegym.locketclone.common.exception.AppException;
 import com.codegym.locketclone.common.exception.ErrorCode;
+import com.codegym.locketclone.friendship.dto.FriendProfileResponse;
 import com.codegym.locketclone.security.service.UserPrincipal;
-import com.codegym.locketclone.user.dto.UserResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -23,9 +23,9 @@ public class FriendshipController {
 
     private final FriendshipService friendshipService;
 
-    @Operation(summary = "Lấy danh sách tất cả bạn bè", description = "Trả về danh sách tất cả người dùng đang là bạn bè của tài khoản hiện tại.")
+    @Operation(summary = "Lấy danh sách tất cả bạn bè", description = "Trả về danh sách tất cả người dùng đang là bạn bè của tài khoản hiện tại (ẩn email cá nhân).")
     @GetMapping
-    public ResponseEntity<List<UserResponse>> getMyFriends(@AuthenticationPrincipal UserPrincipal userPrincipal) {
+    public ResponseEntity<List<FriendProfileResponse>> getMyFriends(@AuthenticationPrincipal UserPrincipal userPrincipal) {
         UserPrincipal currentUser = requireAuthenticatedUser(userPrincipal);
         return ResponseEntity.ok(friendshipService.getAllFriends(currentUser.getId()));
     }

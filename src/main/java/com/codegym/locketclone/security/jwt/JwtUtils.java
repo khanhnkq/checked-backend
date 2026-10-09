@@ -7,9 +7,11 @@ import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import javax.crypto.SecretKey;
 import java.util.Date;
@@ -18,16 +20,39 @@ import java.util.UUID;
 @Component
 @Slf4j
 public class JwtUtils {
-    @Value("${locket.app.jwtSecret}")
+    @Value("${locket.app.jwtSecret:}")
     private String jwtSecret;
 
-    @Value("${locket.app.jwtExpirationMs}")
+    @Value("${locket.app.jwtExpirationMs:86400000}")
     private int jwtExpirationMs;
 
+    private SecretKey signingKey;
+
+    @PostConstruct
+    public void init() {
+        this.signingKey = validateAndBuildSigningKey(this.jwtSecret);
+    }
+
+    public SecretKey validateAndBuildSigningKey(String secret) {
+        if (!StringUtils.hasText(secret)) {
+            throw new IllegalStateException("Cấu hình locket.app.jwtSecret không được để trống!");
+        }
+        try {
+            byte[] keyBytes = Decoders.BASE64.decode(secret.trim());
+            if (keyBytes.length < 32) {
+                throw new IllegalStateException("locket.app.jwtSecret phải có độ dài tối thiểu 256 bits (32 bytes sau khi decode Base64) để đảm bảo an toàn HMAC-SHA!");
+            }
+            return Keys.hmacShaKeyFor(keyBytes);
+        } catch (RuntimeException ex) {
+            throw new IllegalStateException("locket.app.jwtSecret không đúng định dạng Base64 hợp lệ: " + ex.getMessage(), ex);
+        }
+    }
+
     private SecretKey getSigningKey() {
-        // app.jwtSecret PHẢI là Base64 hợp lệ
-        byte[] keyBytes = Decoders.BASE64.decode(jwtSecret);
-        return Keys.hmacShaKeyFor(keyBytes);
+        if (this.signingKey == null) {
+            this.signingKey = validateAndBuildSigningKey(this.jwtSecret);
+        }
+        return this.signingKey;
     }
 
     public String generateToken(UserPrincipal userPrincipal) {

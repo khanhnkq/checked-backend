@@ -1,8 +1,8 @@
 package com.codegym.locketclone.friendship;
 
 import com.codegym.locketclone.common.mapper.UserMapper;
+import com.codegym.locketclone.friendship.dto.FriendProfileResponse;
 import com.codegym.locketclone.user.User;
-import com.codegym.locketclone.user.dto.UserResponse;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -53,14 +53,14 @@ class FriendshipServiceImplTest {
                 .build();
 
         when(friendshipRepository.findAllAcceptedFriends(currentUserId)).thenReturn(List.of(row1, row2));
-        when(userMapper.toResponse(friendA)).thenReturn(UserResponse.builder().id(friendAId).username("friend_a").build());
-        when(userMapper.toResponse(friendB)).thenReturn(UserResponse.builder().id(friendBId).username("friend_b").build());
+        when(userMapper.toFriendProfileResponse(friendA)).thenReturn(new FriendProfileResponse(friendAId, "friend_a", "A", "User", "A User", null, false));
+        when(userMapper.toFriendProfileResponse(friendB)).thenReturn(new FriendProfileResponse(friendBId, "friend_b", "B", "User", "B User", null, false));
 
-        List<UserResponse> result = friendshipService.getAllFriends(currentUserId);
+        List<FriendProfileResponse> result = friendshipService.getAllFriends(currentUserId);
 
         assertEquals(2, result.size());
-        assertEquals(friendAId, result.get(0).getId());
-        assertEquals(friendBId, result.get(1).getId());
+        assertEquals(friendAId, result.get(0).id());
+        assertEquals(friendBId, result.get(1).id());
         verify(friendshipRepository).findAllAcceptedFriends(currentUserId);
     }
 }

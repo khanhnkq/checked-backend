@@ -29,7 +29,7 @@ class AuthControllerTest {
 
     @Test
     void register_returnsCreatedMessage() {
-        RegisterRequest request = new RegisterRequest("khanh@example.com", "khanh_dev", "123456");
+        RegisterRequest request = new RegisterRequest("khanh@example.com", "khanh_dev", "password123");
         RegisterResponse registerResponse = new RegisterResponse(
                 "Đăng ký thành công, vui lòng kiểm tra email để lấy mã OTP",
                 "khanh@example.com",

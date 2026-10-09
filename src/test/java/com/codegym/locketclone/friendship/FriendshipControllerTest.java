@@ -2,8 +2,8 @@ package com.codegym.locketclone.friendship;
 
 import com.codegym.locketclone.common.exception.AppException;
 import com.codegym.locketclone.common.exception.ErrorCode;
+import com.codegym.locketclone.friendship.dto.FriendProfileResponse;
 import com.codegym.locketclone.security.service.UserPrincipal;
-import com.codegym.locketclone.user.dto.UserResponse;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -39,9 +39,9 @@ class FriendshipControllerTest {
                 null,
                 AuthorityUtils.createAuthorityList("ROLE_USER")
         );
-        List<UserResponse> friends = List.of(
-                UserResponse.builder().id(UUID.randomUUID()).username("friend_1").build(),
-                UserResponse.builder().id(UUID.randomUUID()).username("friend_2").build()
+        List<FriendProfileResponse> friends = List.of(
+                new FriendProfileResponse(UUID.randomUUID(), "friend_1", "Friend", "One", "Friend One", null, false),
+                new FriendProfileResponse(UUID.randomUUID(), "friend_2", "Friend", "Two", "Friend Two", null, true)
         );
         when(friendshipService.getAllFriends(userId)).thenReturn(friends);
 

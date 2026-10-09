@@ -1,5 +1,7 @@
 package com.codegym.locketclone.storage.image;
 
+import com.codegym.locketclone.common.exception.AppException;
+import com.codegym.locketclone.common.exception.ErrorCode;
 import lombok.extern.slf4j.Slf4j;
 import net.coobird.thumbnailator.Thumbnails;
 import net.coobird.thumbnailator.geometry.Positions;
@@ -7,15 +9,19 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.imageio.ImageIO;
+import javax.imageio.ImageReader;
+import javax.imageio.stream.ImageInputStream;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Iterator;
 
 @Service
 @Slf4j
 public class ImageProcessingService {
 
+    public static final int MAX_INPUT_DIMENSION = 8192;
     private static final int MAX_PHOTO_DIMENSION = 1920;
     private static final int PHOTO_THUMB_SIZE = 320;
     private static final int AVATAR_SIZE = 500;
@@ -101,6 +107,31 @@ public class ImageProcessingService {
     private void validateFile(MultipartFile file) throws IOException {
         if (file == null || file.isEmpty()) {
             throw new IOException("Tệp hình ảnh không được để trống.");
+        }
+        validateImageDimensions(file);
+    }
+
+    private void validateImageDimensions(MultipartFile file) throws IOException {
+        try (ImageInputStream iis = ImageIO.createImageInputStream(file.getInputStream())) {
+            if (iis == null) {
+                throw new AppException(ErrorCode.INVALID_PHOTO_FILE);
+            }
+            Iterator<ImageReader> readers = ImageIO.getImageReaders(iis);
+            if (!readers.hasNext()) {
+                throw new AppException(ErrorCode.INVALID_PHOTO_FILE);
+            }
+            ImageReader reader = readers.next();
+            try {
+                reader.setInput(iis, true, true);
+                int width = reader.getWidth(0);
+                int height = reader.getHeight(0);
+                if (width <= 0 || height <= 0 || width > MAX_INPUT_DIMENSION || height > MAX_INPUT_DIMENSION) {
+                    log.warn("Kích thước ảnh vượt quá giới hạn an toàn: {}x{} (tối đa {}px)", width, height, MAX_INPUT_DIMENSION);
+                    throw new AppException(ErrorCode.INVALID_PHOTO_FILE);
+                }
+            } finally {
+                reader.dispose();
+            }
         }
     }
 }

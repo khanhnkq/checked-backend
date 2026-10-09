@@ -1,5 +1,6 @@
 package com.codegym.locketclone.common.mapper;
 
+import com.codegym.locketclone.friendship.dto.FriendProfileResponse;
 import com.codegym.locketclone.user.User;
 import com.codegym.locketclone.user.dto.PublicUserProfileResponse;
 import com.codegym.locketclone.user.dto.UserResponse;
@@ -10,4 +11,5 @@ import org.mapstruct.MappingConstants;
 public interface UserMapper {
     UserResponse toResponse(User user);
     PublicUserProfileResponse toPublicResponse(User user);
+    FriendProfileResponse toFriendProfileResponse(User user);
 }

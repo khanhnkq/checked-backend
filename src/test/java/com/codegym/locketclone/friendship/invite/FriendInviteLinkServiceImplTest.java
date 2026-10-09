@@ -9,7 +9,7 @@ import com.codegym.locketclone.friendship.FriendshipStatus;
 import com.codegym.locketclone.friendship.invite.dto.CreateFriendInviteLinkRequest;
 import com.codegym.locketclone.user.User;
 import com.codegym.locketclone.user.UserRepository;
-import com.codegym.locketclone.user.dto.UserResponse;
+import com.codegym.locketclone.friendship.dto.FriendProfileResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -112,7 +112,7 @@ class FriendInviteLinkServiceImplTest {
         when(friendshipRepository.findAcceptedBetweenUsers(ownerId, currentUserId)).thenReturn(Optional.empty());
         when(friendshipRepository.findBetweenUsers(ownerId, currentUserId)).thenReturn(List.of());
         when(friendshipRepository.save(any(Friendship.class))).thenReturn(createdFriendship);
-        when(userMapper.toResponse(owner)).thenReturn(UserResponse.builder().id(ownerId).username("owner").build());
+        when(userMapper.toFriendProfileResponse(owner)).thenReturn(new FriendProfileResponse(ownerId, "owner", "Owner", "User", "Owner User", null, false));
 
         var response = service.acceptByToken(currentUserId, "invite-token");
 
@@ -149,7 +149,7 @@ class FriendInviteLinkServiceImplTest {
         when(userRepository.findById(currentUserId)).thenReturn(Optional.of(currentUser));
         when(friendInviteLinkRepository.findByTokenAndRevokedAtIsNull("invite-token")).thenReturn(Optional.of(link));
         when(friendshipRepository.findAcceptedBetweenUsers(ownerId, currentUserId)).thenReturn(Optional.of(existingFriendship));
-        when(userMapper.toResponse(owner)).thenReturn(UserResponse.builder().id(ownerId).username("owner").build());
+        when(userMapper.toFriendProfileResponse(owner)).thenReturn(new FriendProfileResponse(ownerId, "owner", "Owner", "User", "Owner User", null, false));
 
         var response = service.acceptByToken(currentUserId, "invite-token");
 
@@ -192,7 +192,7 @@ class FriendInviteLinkServiceImplTest {
         when(friendshipRepository.findBetweenUsers(ownerId, currentUserId)).thenReturn(List.of());
         when(friendshipRepository.save(any(Friendship.class)))
                 .thenThrow(new org.springframework.dao.DataIntegrityViolationException("Duplicate key uk_friendships_bidirectional"));
-        when(userMapper.toResponse(owner)).thenReturn(UserResponse.builder().id(ownerId).username("owner").build());
+        when(userMapper.toFriendProfileResponse(owner)).thenReturn(new FriendProfileResponse(ownerId, "owner", "Owner", "User", "Owner User", null, false));
 
         var response = service.acceptByToken(currentUserId, "invite-token");
 
@@ -231,7 +231,7 @@ class FriendInviteLinkServiceImplTest {
         when(friendInviteLinkRepository.findByTokenAndRevokedAtIsNull("invite-token")).thenReturn(Optional.of(link));
         when(friendshipRepository.findAcceptedBetweenUsers(ownerId, currentUserId)).thenReturn(Optional.empty());
         when(friendshipRepository.findBetweenUsers(ownerId, currentUserId)).thenReturn(List.of(acceptedCandidate));
-        when(userMapper.toResponse(owner)).thenReturn(UserResponse.builder().id(ownerId).username("owner").build());
+        when(userMapper.toFriendProfileResponse(owner)).thenReturn(new FriendProfileResponse(ownerId, "owner", "Owner", "User", "Owner User", null, false));
 
         var response = service.acceptByToken(currentUserId, "invite-token");
 

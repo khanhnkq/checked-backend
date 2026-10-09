@@ -46,10 +46,10 @@ class AuthServiceImplTest {
 
     @Test
     void register_createsPendingUserAndSendsOtpEmail() {
-        RegisterRequest request = new RegisterRequest("Khanh@Example.com", "khanh_dev", "123456");
+        RegisterRequest request = new RegisterRequest("Khanh@Example.com", "khanh_dev", "password123");
         when(userRepository.findByEmailIgnoreCase("khanh@example.com")).thenReturn(Optional.empty());
         when(userRepository.findByUsernameIgnoreCase("khanh_dev")).thenReturn(Optional.empty());
-        when(passwordEncoder.encode("123456")).thenReturn("encoded-password");
+        when(passwordEncoder.encode("password123")).thenReturn("encoded-password");
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         RegisterResponse result = authService.register(request);

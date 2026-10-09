@@ -43,8 +43,19 @@ class RegisterRequestValidationTest {
     }
 
     @Test
-    void registerRequest_passwordShorterThan6Chars_failsValidation() {
-        RegisterRequest request = new RegisterRequest("test@example.com", "valid_user", "12345");
+    void registerRequest_passwordShorterThan8Chars_failsValidation() {
+        RegisterRequest request = new RegisterRequest("test@example.com", "valid_user", "Pass123");
+        Set<ConstraintViolation<RegisterRequest>> violations = validator.validate(request);
+
+        assertFalse(violations.isEmpty());
+        boolean hasPasswordError = violations.stream()
+                .anyMatch(v -> v.getPropertyPath().toString().equals("password"));
+        assertTrue(hasPasswordError);
+    }
+
+    @Test
+    void registerRequest_passwordMissingDigit_failsValidation() {
+        RegisterRequest request = new RegisterRequest("test@example.com", "valid_user", "PasswordNoDigits");
         Set<ConstraintViolation<RegisterRequest>> violations = validator.validate(request);
 
         assertFalse(violations.isEmpty());

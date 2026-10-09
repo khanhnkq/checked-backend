@@ -122,7 +122,7 @@ public class FriendInviteLinkServiceImpl implements FriendInviteLinkService {
             return new AcceptFriendInviteLinkResponse(
                     friendship.getId(),
                     friendship.getStatus().name(),
-                    userMapper.toResponse(link.getOwner()),
+                    userMapper.toFriendProfileResponse(link.getOwner()),
                     LocalDateTime.now()
             );
         }
@@ -149,7 +149,7 @@ public class FriendInviteLinkServiceImpl implements FriendInviteLinkService {
         return new AcceptFriendInviteLinkResponse(
                 friendship.getId(),
                 friendship.getStatus().name(),
-                userMapper.toResponse(link.getOwner()),
+                userMapper.toFriendProfileResponse(link.getOwner()),
                 LocalDateTime.now()
         );
     }

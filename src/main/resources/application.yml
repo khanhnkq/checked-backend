@@ -3,7 +3,7 @@ server:
 
 locket:
   app:
-    jwtSecret: ${JWT_SECRET:dGVzdC1qd3Qtc2VjcmV0LXRlc3Qtand0LXNlY3JldC10ZXN0LWp3dC1zZWNyZXQ=}
+    jwtSecret: ${JWT_SECRET}
     jwtExpirationMs: ${JWT_EXPIRATION_MS:86400000} # 24 giờ
   mail:
     from: ${MAIL_FROM:${MAIL_USERNAME:dev@locketclone.com}}

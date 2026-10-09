@@ -74,4 +74,27 @@ class ImageProcessingServiceTest {
         MockMultipartFile emptyFile = new MockMultipartFile("file", "empty.jpg", "image/jpeg", new byte[0]);
         assertThrows(IOException.class, () -> imageProcessingService.processPhoto(emptyFile));
     }
+
+    @Test
+    void processPhoto_throwsWhenImageExceedsMaxDimension() throws IOException {
+        byte[] largeDimensionBytes = createTestImage(8193, 100);
+        MockMultipartFile file = new MockMultipartFile("file", "huge.jpg", "image/jpeg", largeDimensionBytes);
+
+        com.codegym.locketclone.common.exception.AppException ex = assertThrows(
+                com.codegym.locketclone.common.exception.AppException.class,
+                () -> imageProcessingService.processPhoto(file)
+        );
+        assertEquals(com.codegym.locketclone.common.exception.ErrorCode.INVALID_PHOTO_FILE, ex.getErrorCode());
+    }
+
+    @Test
+    void processPhoto_throwsWhenImageContentCorrupted() {
+        MockMultipartFile corruptFile = new MockMultipartFile("file", "corrupt.jpg", "image/jpeg", new byte[]{1, 2, 3, 4, 5});
+
+        com.codegym.locketclone.common.exception.AppException ex = assertThrows(
+                com.codegym.locketclone.common.exception.AppException.class,
+                () -> imageProcessingService.processPhoto(corruptFile)
+        );
+        assertEquals(com.codegym.locketclone.common.exception.ErrorCode.INVALID_PHOTO_FILE, ex.getErrorCode());
+    }
 }
