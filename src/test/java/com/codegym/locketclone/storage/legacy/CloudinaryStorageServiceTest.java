@@ -55,12 +55,12 @@ class CloudinaryStorageServiceTest {
         when(imageProcessingService.processPhoto(file)).thenReturn(processed);
 
         Map<String, Object> mainResult = Map.of(
-                "secure_url", "https://res.cloudinary.com/demo/image/upload/locket/photos/sample.jpg",
-                "public_id", "locket/photos/sample"
+                "secure_url", "https://res.cloudinary.com/demo/image/upload/checked/photos/sample.jpg",
+                "public_id", "checked/photos/sample"
         );
         Map<String, Object> thumbResult = Map.of(
-                "secure_url", "https://res.cloudinary.com/demo/image/upload/locket/photos/sample_thumb.jpg",
-                "public_id", "locket/photos/sample_thumb"
+                "secure_url", "https://res.cloudinary.com/demo/image/upload/checked/photos/sample_thumb.jpg",
+                "public_id", "checked/photos/sample_thumb"
         );
 
         when(uploader.upload(eq(processed.originalBytes()), any(Map.class))).thenReturn(mainResult);
@@ -69,9 +69,9 @@ class CloudinaryStorageServiceTest {
         UploadedFile result = cloudinaryStorageService.uploadPhoto(file);
 
         assertNotNull(result);
-        assertEquals("https://res.cloudinary.com/demo/image/upload/locket/photos/sample.jpg", result.secureUrl());
-        assertEquals("https://res.cloudinary.com/demo/image/upload/locket/photos/sample_thumb.jpg", result.thumbnailUrl());
-        assertEquals("locket/photos/sample", result.key());
+        assertEquals("https://res.cloudinary.com/demo/image/upload/checked/photos/sample.jpg", result.secureUrl());
+        assertEquals("https://res.cloudinary.com/demo/image/upload/checked/photos/sample_thumb.jpg", result.thumbnailUrl());
+        assertEquals("checked/photos/sample", result.key());
         assertEquals("image/jpeg", result.mimeType());
         assertEquals(1080, result.width());
         assertEquals(1080, result.height());
@@ -94,12 +94,12 @@ class CloudinaryStorageServiceTest {
         when(imageProcessingService.processAvatar(file)).thenReturn(processed);
 
         Map<String, Object> mainResult = Map.of(
-                "secure_url", "https://res.cloudinary.com/demo/image/upload/locket/avatars/user1.jpg",
-                "public_id", "locket/avatars/user1"
+                "secure_url", "https://res.cloudinary.com/demo/image/upload/checked/avatars/user1.jpg",
+                "public_id", "checked/avatars/user1"
         );
         Map<String, Object> thumbResult = Map.of(
-                "secure_url", "https://res.cloudinary.com/demo/image/upload/locket/avatars/user1_thumb.jpg",
-                "public_id", "locket/avatars/user1_thumb"
+                "secure_url", "https://res.cloudinary.com/demo/image/upload/checked/avatars/user1_thumb.jpg",
+                "public_id", "checked/avatars/user1_thumb"
         );
 
         when(uploader.upload(eq(processed.originalBytes()), any(Map.class))).thenReturn(mainResult);
@@ -108,9 +108,9 @@ class CloudinaryStorageServiceTest {
         UploadedFile result = cloudinaryStorageService.uploadAvatar(file);
 
         assertNotNull(result);
-        assertEquals("https://res.cloudinary.com/demo/image/upload/locket/avatars/user1.jpg", result.secureUrl());
-        assertEquals("https://res.cloudinary.com/demo/image/upload/locket/avatars/user1_thumb.jpg", result.thumbnailUrl());
-        assertEquals("locket/avatars/user1", result.key());
+        assertEquals("https://res.cloudinary.com/demo/image/upload/checked/avatars/user1.jpg", result.secureUrl());
+        assertEquals("https://res.cloudinary.com/demo/image/upload/checked/avatars/user1_thumb.jpg", result.thumbnailUrl());
+        assertEquals("checked/avatars/user1", result.key());
 
         verify(uploader, times(2)).upload(any(byte[].class), any(Map.class));
     }
@@ -135,10 +135,10 @@ class CloudinaryStorageServiceTest {
 
     @Test
     void deleteFile_destroysMainAndThumbnail() throws Exception {
-        cloudinaryStorageService.deleteFile("locket/photos/sample");
+        cloudinaryStorageService.deleteFile("checked/photos/sample");
 
-        verify(uploader, times(1)).destroy(eq("locket/photos/sample"), any(Map.class));
-        verify(uploader, times(1)).destroy(eq("locket/photos/sample_thumb"), any(Map.class));
+        verify(uploader, times(1)).destroy(eq("checked/photos/sample"), any(Map.class));
+        verify(uploader, times(1)).destroy(eq("checked/photos/sample_thumb"), any(Map.class));
     }
 
     @Test

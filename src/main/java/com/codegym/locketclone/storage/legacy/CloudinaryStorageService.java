@@ -33,13 +33,13 @@ public class CloudinaryStorageService implements StorageService {
     @Override
     public UploadedFile uploadPhoto(MultipartFile file) throws IOException {
         ProcessedImage processed = imageProcessingService.processPhoto(file);
-        return uploadProcessed(processed, "locket/photos");
+        return uploadProcessed(processed, "checked/photos");
     }
 
     @Override
     public UploadedFile uploadAvatar(MultipartFile file) throws IOException {
         ProcessedImage processed = imageProcessingService.processAvatar(file);
-        return uploadProcessed(processed, "locket/avatars");
+        return uploadProcessed(processed, "checked/avatars");
     }
 
     @Override
