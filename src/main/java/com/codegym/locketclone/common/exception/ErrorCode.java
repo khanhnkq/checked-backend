@@ -49,6 +49,8 @@ public enum ErrorCode {
     FRIEND_INVITE_LINK_REVOKED(HttpStatus.GONE, "Link mời kết bạn đã bị thu hồi"),
     FRIEND_INVITE_LINK_MAX_USES_REACHED(HttpStatus.CONFLICT, "Link mời kết bạn đã đạt số lượt sử dụng tối đa"),
     FRIEND_ALREADY_EXISTS(HttpStatus.CONFLICT, "Hai người dùng đã là bạn bè"),
+    CALORIE_LOG_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy bản ghi calo"),
+    INVALID_CALORIE_AMOUNT(HttpStatus.BAD_REQUEST, "Số lượng calo phải lớn hơn 0"),
 
     // 429 Too Many Requests
     TOO_MANY_REQUESTS(HttpStatus.TOO_MANY_REQUESTS, "Bạn đã gửi quá nhiều yêu cầu. Vui lòng thử lại sau."),

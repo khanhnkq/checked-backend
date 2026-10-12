@@ -1,5 +1,6 @@
 package com.codegym.locketclone.photo;
 
+import com.codegym.locketclone.calorie.CalorieService;
 import com.codegym.locketclone.common.exception.AppException;
 import com.codegym.locketclone.common.exception.ErrorCode;
 import com.codegym.locketclone.common.mapper.PhotoMapper;
@@ -62,6 +63,13 @@ public class PhotoServiceImpl implements PhotoService {
 
     public void setTransactionTemplate(TransactionTemplate transactionTemplate) {
         this.transactionTemplate = transactionTemplate;
+    }
+
+    @Autowired(required = false)
+    private CalorieService calorieService;
+
+    public void setCalorieService(CalorieService calorieService) {
+        this.calorieService = calorieService;
     }
 
     @Override
@@ -172,12 +180,24 @@ public class PhotoServiceImpl implements PhotoService {
             return transactionTemplate.execute(status -> {
                 Photo saved = photoRepository.save(photo);
                 saveRecipients(saved, recipients);
+                triggerCalorieLogIfPresent(saved);
                 return saved;
             });
         }
         Photo saved = photoRepository.save(photo);
         saveRecipients(saved, recipients);
+        triggerCalorieLogIfPresent(saved);
         return saved;
+    }
+
+    private void triggerCalorieLogIfPresent(Photo photo) {
+        if (calorieService != null && photo != null && photo.getCalories() != null && photo.getCalories() > 0) {
+            try {
+                calorieService.createLogFromPhoto(photo);
+            } catch (Exception ex) {
+                log.warn("Không thể tự động tạo CalorieLog từ Photo ID: {}: {}", photo.getId(), ex.getMessage());
+            }
+        }
     }
 
     @Override
