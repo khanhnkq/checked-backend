@@ -31,5 +31,10 @@ public record PhotoResponse(
         Integer width,
         Integer height,
         LocalDateTime takenAt,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        String locationName,
+        BigDecimal latitude,
+        BigDecimal longitude,
+        String dishName,
+        Integer calories
 ) {}

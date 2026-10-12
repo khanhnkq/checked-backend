@@ -103,6 +103,11 @@ public class PhotoServiceImpl implements PhotoService {
                                      RecipientScope recipientScope,
                                      List<UUID> recipientIds,
                                      LocalDateTime takenAt,
+                                     String locationName,
+                                     BigDecimal latitude,
+                                     BigDecimal longitude,
+                                     String dishName,
+                                     Integer calories,
                                      UUID senderId) {
         validateFile(file);
         validateAmount(amount);
@@ -141,6 +146,11 @@ public class PhotoServiceImpl implements PhotoService {
                     .height(uploadedImage.height())
                     .recipientCount(recipients.size())
                     .takenAt(takenAt)
+                    .locationName(locationName)
+                    .latitude(latitude)
+                    .longitude(longitude)
+                    .dishName(dishName)
+                    .calories(calories)
                     .build();
 
             Photo savedPhoto = savePhotoAndRecipientsInTx(photo, recipients);

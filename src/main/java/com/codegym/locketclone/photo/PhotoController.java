@@ -49,6 +49,11 @@ public class PhotoController {
             @RequestParam(value = "audienceMode", required = false) RecipientScope audienceMode,
             @RequestParam(value = "recipientIds", required = false) List<UUID> recipientIds,
             @RequestParam(value = "takenAt", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime takenAt,
+            @RequestParam(value = "locationName", required = false) String locationName,
+            @RequestParam(value = "latitude", required = false) BigDecimal latitude,
+            @RequestParam(value = "longitude", required = false) BigDecimal longitude,
+            @RequestParam(value = "dishName", required = false) String dishName,
+            @RequestParam(value = "calories", required = false) Integer calories,
             @AuthenticationPrincipal UserPrincipal currentUser
     ) {
         RecipientScope effectiveScope = recipientScope != null
@@ -65,6 +70,11 @@ public class PhotoController {
                 effectiveScope,
                 recipientIds,
                 takenAt,
+                locationName,
+                latitude,
+                longitude,
+                dishName,
+                calories,
                 currentUser.getId()
         );
 

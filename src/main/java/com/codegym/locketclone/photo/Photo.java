@@ -94,6 +94,21 @@ public class Photo {
     @Column(name = "transaction_type", nullable = false, length = 20)
     private TransactionType transactionType = TransactionType.EXPENSE;
 
+    @Column(name = "location_name", length = 255)
+    private String locationName;
+
+    @Column(name = "latitude", precision = 10, scale = 7)
+    private BigDecimal latitude;
+
+    @Column(name = "longitude", precision = 10, scale = 7)
+    private BigDecimal longitude;
+
+    @Column(name = "dish_name", length = 150)
+    private String dishName;
+
+    @Column(name = "calories")
+    private Integer calories;
+
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

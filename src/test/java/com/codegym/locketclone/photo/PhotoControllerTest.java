@@ -73,6 +73,11 @@ class PhotoControllerTest {
                 eq(RecipientScope.SELECTED_FRIENDS),
                 eq(List.of(recipientId)),
                 eq(takenAt),
+                eq("Highlands Coffee"),
+                eq(new BigDecimal("10.7769")),
+                eq(new BigDecimal("106.7009")),
+                eq("Cà phê sữa đá"),
+                eq(180),
                 eq(userId)
         )).thenReturn(response);
 
@@ -87,6 +92,11 @@ class PhotoControllerTest {
                 RecipientScope.SELECTED_FRIENDS,
                 List.of(recipientId),
                 takenAt,
+                "Highlands Coffee",
+                new BigDecimal("10.7769"),
+                new BigDecimal("106.7009"),
+                "Cà phê sữa đá",
+                180,
                 principal
         );
 
@@ -102,6 +112,11 @@ class PhotoControllerTest {
                 RecipientScope.SELECTED_FRIENDS,
                 List.of(recipientId),
                 takenAt,
+                "Highlands Coffee",
+                new BigDecimal("10.7769"),
+                new BigDecimal("106.7009"),
+                "Cà phê sữa đá",
+                180,
                 userId
         );
     }
