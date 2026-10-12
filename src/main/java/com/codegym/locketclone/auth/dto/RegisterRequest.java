@@ -10,7 +10,6 @@ public record RegisterRequest(
         @Email(message = "Email không đúng định dạng")
         String email,
 
-        @NotBlank(message = "Username không được để trống")
         @Size(max = 50, message = "Username không được vượt quá 50 ký tự")
         String username,
 
@@ -19,6 +18,8 @@ public record RegisterRequest(
         @Pattern(regexp = "^(?=.*[0-9]).*$", message = "Mật khẩu phải chứa ít nhất một chữ số")
         String password
 ) {
-
+    public RegisterRequest(String email, String password) {
+        this(email, null, password);
+    }
 }
 

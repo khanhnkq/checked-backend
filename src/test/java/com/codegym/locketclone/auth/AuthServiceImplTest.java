@@ -256,21 +256,26 @@ class AuthServiceImplTest {
     }
 
     @Test
-    void register_throwsEmailAlreadyExists_whenPendingUserRegisteredWithDifferentUsername() {
-        RegisterRequest request = new RegisterRequest("khanh@example.com", "attacker_user", "password123");
+    void register_resendsOtp_whenPendingUserRegisteredWithOrWithoutUsername() {
+        RegisterRequest request = new RegisterRequest("khanh@example.com", "newpassword123");
         User pendingUser = User.builder()
                 .id(UUID.randomUUID())
                 .email("khanh@example.com")
                 .username("khanh_dev")
+                .password("old-encoded-password")
                 .isVerified(false)
+                .otpExpiresAt(LocalDateTime.now().plusMinutes(3))
                 .build();
 
         when(userRepository.findByEmailIgnoreCase("khanh@example.com")).thenReturn(Optional.of(pendingUser));
+        when(passwordEncoder.encode("newpassword123")).thenReturn("new-encoded-password");
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        AppException exception = assertThrows(AppException.class, () -> authService.register(request));
+        RegisterResponse result = authService.register(request);
 
-        assertEquals(ErrorCode.EMAIL_ALREADY_EXISTS, exception.getErrorCode());
-        verify(emailService, never()).sendOtpEmail(any(), any(), any());
+        assertEquals("VERIFY_OTP", result.nextStep());
+        verify(emailService).sendOtpEmail(eq("khanh@example.com"), eq("khanh_dev"), matches("\\d{6}"));
+        verify(userRepository).save(pendingUser);
     }
 
     @Test

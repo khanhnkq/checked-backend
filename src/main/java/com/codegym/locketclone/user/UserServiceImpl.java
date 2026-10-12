@@ -55,7 +55,7 @@ public class UserServiceImpl implements UserService {
         if (request.username() != null) {
             String username = request.username().trim();
             if (!username.equalsIgnoreCase(user.getUsername()) && userRepository.existsByUsernameIgnoreCase(username)) {
-                throw new AppException(ErrorCode.USER_ALREADY_EXISTS);
+                throw new AppException(ErrorCode.USERNAME_ALREADY_EXISTS);
             }
             user.setUsername(username);
         }

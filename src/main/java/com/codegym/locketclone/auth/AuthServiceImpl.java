@@ -129,10 +129,6 @@ public class AuthServiceImpl implements AuthService {
             throw new AppException(ErrorCode.EMAIL_ALREADY_EXISTS);
         }
 
-        if (!existingUser.getUsername().equalsIgnoreCase(username)) {
-            throw new AppException(ErrorCode.EMAIL_ALREADY_EXISTS);
-        }
-
         // Enforce 60-second cooldown between OTP requests (5-minute expiry, cooldown if > 4 minutes remain)
         if (existingUser.getOtpExpiresAt() != null
                 && existingUser.getOtpExpiresAt().isAfter(LocalDateTime.now().plusMinutes(OTP_EXPIRY_MINUTES - 1))) {
@@ -148,10 +144,11 @@ public class AuthServiceImpl implements AuthService {
     }
 
     private User createPendingUser(String email, String username, String rawPassword, String otpCode, LocalDateTime otpExpiresAt) {
-        validateUsernameAvailability(username, null);
+        String finalUsername = StringUtils.hasText(username) ? username : generateDefaultUsername(email);
+        validateUsernameAvailability(finalUsername, null);
         return User.builder()
                 .email(email)
-                .username(username)
+                .username(finalUsername)
                 .password(passwordEncoder.encode(rawPassword))
                 .isVerified(false)
                 .otpCode(otpCode)
@@ -159,6 +156,23 @@ public class AuthServiceImpl implements AuthService {
                 .otpFailedAttempts(0)
                 .isGoldMember(false)
                 .build();
+    }
+
+    private String generateDefaultUsername(String email) {
+        String base = email.contains("@") ? email.substring(0, email.indexOf('@')).replaceAll("[^a-zA-Z0-9_]", "") : "user";
+        if (base.length() < 3) base = "user" + base;
+        if (base.length() > 30) base = base.substring(0, 30);
+        String candidate = base;
+        int suffix = 1;
+        while (userRepository.existsByUsernameIgnoreCase(candidate)) {
+            candidate = base + "_" + (SECURE_RANDOM.nextInt(9000) + 1000);
+            suffix++;
+            if (suffix > 10) {
+                candidate = "user_" + UUID.randomUUID().toString().replace("-", "").substring(0, 10);
+                break;
+            }
+        }
+        return candidate;
     }
 
     private void validateUsernameAvailability(String username, UUID currentUserId) {
@@ -211,7 +225,7 @@ public class AuthServiceImpl implements AuthService {
 
     private String normalizeUsername(String username) {
         if (!StringUtils.hasText(username)) {
-            throw new AppException(ErrorCode.INVALID_REQUEST);
+            return null;
         }
         return username.trim().toLowerCase(Locale.ROOT);
     }
