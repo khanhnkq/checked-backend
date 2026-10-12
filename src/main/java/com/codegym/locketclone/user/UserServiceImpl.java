@@ -72,6 +72,10 @@ public class UserServiceImpl implements UserService {
             user.setAvatarUrl(request.avatarUrl().trim());
         }
 
+        if (request.dob() != null) {
+            user.setDob(request.dob());
+        }
+
         if (!StringUtils.hasText(user.getUsername())) {
             throw new AppException(ErrorCode.INVALID_REQUEST);
         }
@@ -88,7 +92,8 @@ public class UserServiceImpl implements UserService {
                 request.username(),
                 request.firstName(),
                 request.lastName(),
-                request.avatarUrl()
+                request.avatarUrl(),
+                request.dob()
         );
         return updateCurrentUserProfile(userId, mappedRequest);
     }

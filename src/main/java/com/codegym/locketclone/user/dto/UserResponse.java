@@ -1,7 +1,9 @@
 package com.codegym.locketclone.user.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.*;
 
+import java.time.LocalDate;
 import java.util.UUID;
 
 @Data
@@ -19,4 +21,6 @@ public class UserResponse {
     private Boolean isVerified;
     private Boolean isGoldMember;
     private Boolean profileCompleted;
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+    private LocalDate dob;
 }
