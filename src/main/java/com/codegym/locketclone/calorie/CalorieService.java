@@ -13,5 +13,8 @@ public interface CalorieService {
     MonthlyCalorieSummaryDTO getMonthlySummary(UUID userId, String monthKey);
     CalorieLogItemDTO createManualLog(UUID userId, CreateCalorieLogRequestDTO request);
     void deleteLog(UUID userId, UUID logId);
-    void createLogFromPhoto(Photo photo);
+    void createLogFromPhoto(Photo photo, MealType preferredMealType);
+    default void createLogFromPhoto(Photo photo) {
+        createLogFromPhoto(photo, null);
+    }
 }

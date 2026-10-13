@@ -78,6 +78,7 @@ class PhotoControllerTest {
                 eq(new BigDecimal("106.7009")),
                 eq("Cà phê sữa đá"),
                 eq(180),
+                eq(com.codegym.locketclone.calorie.MealType.BREAKFAST),
                 eq(userId)
         )).thenReturn(response);
 
@@ -97,6 +98,7 @@ class PhotoControllerTest {
                 new BigDecimal("106.7009"),
                 "Cà phê sữa đá",
                 180,
+                com.codegym.locketclone.calorie.MealType.BREAKFAST,
                 principal
         );
 
@@ -117,6 +119,7 @@ class PhotoControllerTest {
                 new BigDecimal("106.7009"),
                 "Cà phê sữa đá",
                 180,
+                com.codegym.locketclone.calorie.MealType.BREAKFAST,
                 userId
         );
     }

@@ -173,7 +173,7 @@ public class CalorieServiceImpl implements CalorieService {
 
     @Override
     @Transactional
-    public void createLogFromPhoto(Photo photo) {
+    public void createLogFromPhoto(Photo photo, MealType preferredMealType) {
         if (photo == null || photo.getCalories() == null || photo.getCalories() <= 0) {
             return;
         }
@@ -184,7 +184,7 @@ public class CalorieServiceImpl implements CalorieService {
         }
 
         LocalDateTime loggedAt = photo.getOccurredAt() != null ? photo.getOccurredAt() : LocalDateTime.now();
-        MealType mealType = inferMealType(loggedAt);
+        MealType mealType = preferredMealType != null ? preferredMealType : inferMealType(loggedAt);
 
         CalorieLog logEntity = CalorieLog.builder()
                 .user(photo.getSender())

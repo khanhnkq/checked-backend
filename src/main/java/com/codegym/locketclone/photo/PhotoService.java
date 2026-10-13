@@ -35,7 +35,25 @@ public interface PhotoService {
                               List<UUID> recipientIds,
                               LocalDateTime takenAt,
                               UUID senderId) {
-        return uploadPhoto(file, caption, amount, transactionType, note, categoryId, recipientScope, recipientIds, takenAt, null, null, null, null, null, senderId);
+        return uploadPhoto(file, caption, amount, transactionType, note, categoryId, recipientScope, recipientIds, takenAt, null, null, null, null, null, null, senderId);
+    }
+
+    default PhotoResponse uploadPhoto(MultipartFile file,
+                              String caption,
+                              BigDecimal amount,
+                              String transactionType,
+                              String note,
+                              UUID categoryId,
+                              RecipientScope recipientScope,
+                              List<UUID> recipientIds,
+                              LocalDateTime takenAt,
+                              String locationName,
+                              BigDecimal latitude,
+                              BigDecimal longitude,
+                              String dishName,
+                              Integer calories,
+                              UUID senderId) {
+        return uploadPhoto(file, caption, amount, transactionType, note, categoryId, recipientScope, recipientIds, takenAt, locationName, latitude, longitude, dishName, calories, null, senderId);
     }
 
     PhotoResponse uploadPhoto(MultipartFile file,
@@ -52,6 +70,7 @@ public interface PhotoService {
                               BigDecimal longitude,
                               String dishName,
                               Integer calories,
+                              com.codegym.locketclone.calorie.MealType mealType,
                               UUID senderId);
 
     PhotoResponse updatePhotoExpense(UUID userId, UUID photoId, UpdatePhotoExpenseRequest request);

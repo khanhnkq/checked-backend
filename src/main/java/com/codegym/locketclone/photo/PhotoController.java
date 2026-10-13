@@ -54,6 +54,7 @@ public class PhotoController {
             @RequestParam(value = "longitude", required = false) BigDecimal longitude,
             @RequestParam(value = "dishName", required = false) String dishName,
             @RequestParam(value = "calories", required = false) Integer calories,
+            @RequestParam(value = "mealType", required = false) com.codegym.locketclone.calorie.MealType mealType,
             @AuthenticationPrincipal UserPrincipal currentUser
     ) {
         RecipientScope effectiveScope = recipientScope != null
@@ -75,6 +76,7 @@ public class PhotoController {
                 longitude,
                 dishName,
                 calories,
+                mealType,
                 currentUser.getId()
         );
 

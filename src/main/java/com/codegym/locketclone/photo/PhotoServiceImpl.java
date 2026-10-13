@@ -1,6 +1,7 @@
 package com.codegym.locketclone.photo;
 
 import com.codegym.locketclone.calorie.CalorieService;
+import com.codegym.locketclone.calorie.MealType;
 import com.codegym.locketclone.common.exception.AppException;
 import com.codegym.locketclone.common.exception.ErrorCode;
 import com.codegym.locketclone.common.mapper.PhotoMapper;
@@ -116,6 +117,7 @@ public class PhotoServiceImpl implements PhotoService {
                                      BigDecimal longitude,
                                      String dishName,
                                      Integer calories,
+                                     MealType mealType,
                                      UUID senderId) {
         validateFile(file);
         validateAmount(amount);
@@ -161,7 +163,7 @@ public class PhotoServiceImpl implements PhotoService {
                     .calories(calories)
                     .build();
 
-            Photo savedPhoto = savePhotoAndRecipientsInTx(photo, recipients);
+            Photo savedPhoto = savePhotoAndRecipientsInTx(photo, recipients, mealType);
 
             log.info("Lưu Photo vào Database thành công, ID: {}, recipients: {}", savedPhoto.getId(), recipients.size());
             return photoMapper.toResponse(savedPhoto);
@@ -175,25 +177,25 @@ public class PhotoServiceImpl implements PhotoService {
         }
     }
 
-    private Photo savePhotoAndRecipientsInTx(Photo photo, List<User> recipients) {
+    private Photo savePhotoAndRecipientsInTx(Photo photo, List<User> recipients, MealType mealType) {
         if (transactionTemplate != null) {
             return transactionTemplate.execute(status -> {
                 Photo saved = photoRepository.save(photo);
                 saveRecipients(saved, recipients);
-                triggerCalorieLogIfPresent(saved);
+                triggerCalorieLogIfPresent(saved, mealType);
                 return saved;
             });
         }
         Photo saved = photoRepository.save(photo);
         saveRecipients(saved, recipients);
-        triggerCalorieLogIfPresent(saved);
+        triggerCalorieLogIfPresent(saved, mealType);
         return saved;
     }
 
-    private void triggerCalorieLogIfPresent(Photo photo) {
+    private void triggerCalorieLogIfPresent(Photo photo, MealType mealType) {
         if (calorieService != null && photo != null && photo.getCalories() != null && photo.getCalories() > 0) {
             try {
-                calorieService.createLogFromPhoto(photo);
+                calorieService.createLogFromPhoto(photo, mealType);
             } catch (Exception ex) {
                 log.warn("Không thể tự động tạo CalorieLog từ Photo ID: {}: {}", photo.getId(), ex.getMessage());
             }
