@@ -59,10 +59,14 @@ spring:
       connection-timeout: 30000
   mongodb:
     uri: ${SPRING_MONGODB_URI:${SPRING_DATA_MONGODB_URI:${MONGODB_URI:mongodb://localhost:27017/checked_chat}}}
+    uuid-representation: standard
+    representation:
+      uuid: standard
   data:
     mongodb:
       uri: ${SPRING_MONGODB_URI:${SPRING_DATA_MONGODB_URI:${MONGODB_URI:mongodb://localhost:27017/checked_chat}}}
       auto-index-creation: ${MONGODB_AUTO_INDEX_CREATION:true}
+      uuid-representation: standard
   docker:
     compose:
       enabled: ${SPRING_DOCKER_COMPOSE_ENABLED:false}
