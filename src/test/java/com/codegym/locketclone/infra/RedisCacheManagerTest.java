@@ -93,6 +93,37 @@ class RedisCacheManagerTest {
     }
 
     @Test
+    @DisplayName("Verify Redis Cache: Ghi, đọc List<FriendProfileResponse> qua Jackson Serializer")
+    void testFriendProfileListCaching() {
+        Cache friendsCache = cacheManager.getCache(CacheConfig.FRIENDS_CACHE);
+        assertNotNull(friendsCache, "Cache 'friends' phải tồn tại");
+
+        UUID userId = UUID.randomUUID();
+        com.codegym.locketclone.friendship.dto.FriendProfileResponse friend = com.codegym.locketclone.friendship.dto.FriendProfileResponse.builder()
+                .id(UUID.randomUUID())
+                .username("testfriend")
+                .firstName("Friend")
+                .lastName("Test")
+                .displayName("Friend Test")
+                .avatarUrl("https://example.com/avatar.jpg")
+                .isGoldMember(false)
+                .build();
+
+        friendsCache.put(userId, List.of(friend));
+
+        Cache.ValueWrapper wrapper = friendsCache.get(userId);
+        assertNotNull(wrapper, "Wrapper không được null");
+        Object val = wrapper.get();
+        assertInstanceOf(List.class, val);
+        List<?> list = (List<?>) val;
+        assertEquals(1, list.size());
+        assertInstanceOf(com.codegym.locketclone.friendship.dto.FriendProfileResponse.class, list.get(0));
+
+        assertTrue(friendsCache.evictIfPresent(userId));
+        assertNull(friendsCache.get(userId));
+    }
+
+    @Test
     @DisplayName("Verify Graceful Degradation: CustomCacheErrorHandler không làm ném lỗi sập app")
     void testCustomCacheErrorHandlerDegradation() {
         CustomCacheErrorHandler errorHandler = new CustomCacheErrorHandler();

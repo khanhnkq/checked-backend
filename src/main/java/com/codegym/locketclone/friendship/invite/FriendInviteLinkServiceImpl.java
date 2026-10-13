@@ -1,5 +1,6 @@
 package com.codegym.locketclone.friendship.invite;
 
+import com.codegym.locketclone.common.config.CacheConfig;
 import com.codegym.locketclone.common.exception.AppException;
 import com.codegym.locketclone.common.exception.ErrorCode;
 import com.codegym.locketclone.common.mapper.UserMapper;
@@ -14,6 +15,8 @@ import com.codegym.locketclone.user.UserRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
@@ -36,6 +39,7 @@ public class FriendInviteLinkServiceImpl implements FriendInviteLinkService {
     private final FriendshipRepository friendshipRepository;
     private final UserRepository userRepository;
     private final UserMapper userMapper;
+    private final CacheManager cacheManager;
 
     private final SecureRandom secureRandom = new SecureRandom();
 
@@ -138,11 +142,14 @@ public class FriendInviteLinkServiceImpl implements FriendInviteLinkService {
                     .orElseThrow(() -> ex);
         }
 
-        // 3. Chỉ tăng usedCount khi đây là lần kết bạn mới
+        // 3. Chỉ tăng usedCount và evict cache bạn bè khi đây là lần kết bạn mới
         if (!alreadyFriends) {
             int currentUsedCount = link.getUsedCount() == null ? 0 : link.getUsedCount();
             link.setUsedCount(currentUsedCount + 1);
             friendInviteLinkRepository.save(link);
+
+            evictFriendsCache(ownerUserId);
+            evictFriendsCache(currentUserId);
         }
 
         return new AcceptFriendInviteLinkResponse(
@@ -151,6 +158,15 @@ public class FriendInviteLinkServiceImpl implements FriendInviteLinkService {
                 userMapper.toFriendProfileResponse(link.getOwner()),
                 LocalDateTime.now()
         );
+    }
+
+    private void evictFriendsCache(UUID userId) {
+        if (userId != null && cacheManager != null) {
+            Cache cache = cacheManager.getCache(CacheConfig.FRIENDS_CACHE);
+            if (cache != null) {
+                cache.evict(userId);
+            }
+        }
     }
 
     private void ensureUserExists(UUID ownerUserId) {

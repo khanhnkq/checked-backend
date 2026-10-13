@@ -1,5 +1,6 @@
 package com.codegym.locketclone.user;
 
+import com.codegym.locketclone.common.config.CacheConfig;
 import com.codegym.locketclone.common.exception.AppException;
 import com.codegym.locketclone.common.exception.ErrorCode;
 import com.codegym.locketclone.common.mapper.UserMapper;
@@ -46,7 +47,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    @CacheEvict(value = "users", key = "#userId")
+    @CacheEvict(value = CacheConfig.USERS_CACHE, key = "#userId")
     @Transactional
     public UserResponse updateCurrentUserProfile(UUID userId, UpdateProfileRequest request) {
         User user = userRepository.findById(userId)
@@ -85,7 +86,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    @CacheEvict(value = "users", key = "#userId")
+    @CacheEvict(value = CacheConfig.USERS_CACHE, key = "#userId")
     @Transactional
     public UserResponse updatePersonalInfo(UUID userId, UpdatePersonalInfoRequest request) {
         UpdateProfileRequest mappedRequest = new UpdateProfileRequest(
@@ -99,7 +100,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    @CacheEvict(value = "users", key = "#userId")
+    @CacheEvict(value = CacheConfig.USERS_CACHE, key = "#userId")
     @Transactional
     public UserResponse updateAvatar(UUID userId, MultipartFile file) {
         validateAvatarFile(file);

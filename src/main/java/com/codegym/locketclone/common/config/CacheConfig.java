@@ -55,16 +55,15 @@ public class CacheConfig implements CachingConfigurer {
     @Bean
     @Primary
     public CacheManager cacheManager(RedisConnectionFactory connectionFactory) {
-        GenericJackson2JsonRedisSerializer jsonSerializer = new GenericJackson2JsonRedisSerializer()
-                .configure(mapper -> {
-                    mapper.registerModule(new JavaTimeModule());
-                    mapper.registerModule(new CoreJackson2Module());
-                    mapper.activateDefaultTyping(
-                            LaissezFaireSubTypeValidator.instance,
-                            ObjectMapper.DefaultTyping.NON_FINAL,
-                            JsonTypeInfo.As.PROPERTY
-                    );
-                });
+        ObjectMapper redisObjectMapper = new ObjectMapper();
+        redisObjectMapper.registerModule(new JavaTimeModule());
+        redisObjectMapper.registerModule(new CoreJackson2Module());
+        redisObjectMapper.activateDefaultTyping(
+                LaissezFaireSubTypeValidator.instance,
+                ObjectMapper.DefaultTyping.EVERYTHING,
+                JsonTypeInfo.As.WRAPPER_ARRAY
+        );
+        GenericJackson2JsonRedisSerializer jsonSerializer = new GenericJackson2JsonRedisSerializer(redisObjectMapper);
 
         RedisCacheConfiguration defaultConfig = RedisCacheConfiguration.defaultCacheConfig()
                 .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))

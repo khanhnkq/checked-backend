@@ -1,5 +1,6 @@
 package com.codegym.locketclone.security.service;
 
+import com.codegym.locketclone.common.config.CacheConfig;
 import com.codegym.locketclone.common.exception.AppException;
 import com.codegym.locketclone.common.exception.ErrorCode;
 import com.codegym.locketclone.user.User;
@@ -29,7 +30,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         return UserPrincipal.build(user);
     }
 
-    @Cacheable(value = "users", key = "#id")
+    @Cacheable(value = CacheConfig.USERS_CACHE, key = "#id")
     @Transactional
     public UserDetails loadUserById(UUID id) {
         User user = userRepository.findById(id)
