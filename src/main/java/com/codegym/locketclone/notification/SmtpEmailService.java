@@ -11,8 +11,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-@Service
-@Primary
+@Service("smtpEmailService")
 @RequiredArgsConstructor
 @ConditionalOnProperty(name = "spring.mail.host")
 @Slf4j
@@ -26,17 +25,24 @@ public class SmtpEmailService implements EmailService {
     @Override
     public void sendOtpEmail(String toEmail, String recipientName, String otpCode) {
         try {
-            String displayName = StringUtils.hasText(recipientName) ? recipientName.trim() : "bạn";
-
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom(fromEmail);
-            message.setTo(toEmail);
-            message.setSubject("Mã xác thực Checked");
-            message.setText("Chào " + displayName + ", mã xác thực Checked của bạn là " + otpCode);
-            mailSender.send(message);
-            log.info("Đã gửi email OTP thành công tới {}", toEmail);
+            sendOtpEmailDirect(toEmail, recipientName, otpCode);
         } catch (Exception ex) {
             log.error("Lỗi khi gửi email OTP tới {}: {}", toEmail, ex.getMessage(), ex);
         }
+    }
+
+    /**
+     * Gửi email OTP trực tiếp và ném exception nếu thất bại để RabbitMQ Consumer có thể retry / DLQ.
+     */
+    public void sendOtpEmailDirect(String toEmail, String recipientName, String otpCode) {
+        String displayName = StringUtils.hasText(recipientName) ? recipientName.trim() : "bạn";
+
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(fromEmail);
+        message.setTo(toEmail);
+        message.setSubject("Mã xác thực Checked");
+        message.setText("Chào " + displayName + ", mã xác thực Checked của bạn là " + otpCode);
+        mailSender.send(message);
+        log.info("Đã gửi email OTP thành công tới {}", toEmail);
     }
 }

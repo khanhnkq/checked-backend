@@ -94,4 +94,17 @@ public class RabbitMQConfig {
         template.setMessageConverter(jsonMessageConverter);
         return template;
     }
+
+    @Bean
+    public org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory rabbitListenerContainerFactory(
+            ConnectionFactory connectionFactory,
+            MessageConverter jsonMessageConverter
+    ) {
+        org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory factory =
+                new org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory();
+        factory.setConnectionFactory(connectionFactory);
+        factory.setMessageConverter(jsonMessageConverter);
+        factory.setDefaultRequeueRejected(false);
+        return factory;
+    }
 }

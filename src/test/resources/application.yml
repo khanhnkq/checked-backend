@@ -35,6 +35,15 @@ spring:
     virtual-host: ${RABBITMQ_VIRTUAL_HOST:/}
     ssl:
       enabled: ${RABBITMQ_SSL:false}
+    listener:
+      simple:
+        default-requeue-rejected: false
+        retry:
+          enabled: true
+          initial-interval: 500ms
+          max-attempts: 3
+          multiplier: 2.0
+          max-interval: 2000ms
 
 storage:
   type: garage

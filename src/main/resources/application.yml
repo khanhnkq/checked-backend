@@ -89,11 +89,15 @@ spring:
     ssl:
       enabled: ${RABBITMQ_SSL:false}
     connection-timeout: 5000ms
-    template:
-      retry:
-        enabled: true
-        initial-interval: 1000ms
-        max-attempts: 3
+    listener:
+      simple:
+        default-requeue-rejected: false
+        retry:
+          enabled: true
+          initial-interval: 1000ms
+          max-attempts: 3
+          multiplier: 2.0
+          max-interval: 5000ms
   docker:
     compose:
       enabled: ${SPRING_DOCKER_COMPOSE_ENABLED:false}

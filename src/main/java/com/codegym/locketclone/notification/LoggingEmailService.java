@@ -5,7 +5,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-@Service
+@Service("loggingEmailService")
 @Slf4j
 public class LoggingEmailService implements EmailService {
     @Async("mailTaskExecutor")

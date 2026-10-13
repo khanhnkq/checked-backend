@@ -151,8 +151,13 @@ class PhotoAndReactionCacheTest {
         assertNotNull(res1);
         assertEquals(0L, res1.totalCount());
 
-        // Xác nhận Redis chứa key reactions_summary::{photoId}
-        Cache.ValueWrapper wrapper = reactionsCache.get(photo.getId());
+        // Xác nhận Redis chứa key reactions_summary::{photoId} (hỗ trợ độ trễ mạng cloud Upstash TLS)
+        Cache.ValueWrapper wrapper = null;
+        for (int i = 0; i < 15; i++) {
+            wrapper = reactionsCache.get(photo.getId());
+            if (wrapper != null && wrapper.get() != null) break;
+            try { Thread.sleep(100); } catch (InterruptedException ignored) {}
+        }
         assertNotNull(wrapper, "Redis cache phải chứa key reactions_summary sau lần gọi 1");
         assertInstanceOf(PhotoReactionStats.class, wrapper.get());
 

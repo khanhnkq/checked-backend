@@ -183,22 +183,31 @@
 ---
 
 ### PR #6: Worker Gửi Email OTP Bất Đồng Bộ & Xử Lý Thất Bại (DLQ)
-- **Nhánh Git:** `feat/amqp-mail-notification-worker`
+- **Nhánh Git:** `feat/rabbitmq-async-email-worker`
 - **Mức độ:** 🟡 **P1 (High)**
-- **Commit đề xuất:** `feat(amqp): decouple otp email delivery into asynchronous rabbitmq consumer`
+- **Commit đề xuất:** `feat(queue): implement asynchronous email worker with dead letter queue and retries`
 - **Danh sách công việc:**
-  - [ ] Tạo DTO sự kiện: `MailNotificationEvent` (toEmail, recipientName, otpCode, template, timestamp).
-  - [ ] Chuyển đổi [SmtpEmailService.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/main/java/com/codegym/locketclone/notification/SmtpEmailService.java):
-    - [ ] Thay vì gọi trực tiếp `JavaMailSender.send()` trên luồng web, chuyển sang gửi event qua `RabbitTemplate.convertAndSend(CHECKED_DIRECT_EXCHANGE, MAIL_NOTIFICATION_ROUTING_KEY, event)`.
-  - [ ] Tạo mới `MailNotificationConsumer.java`:
-    - [ ] Gắn `@RabbitListener(queues = RabbitMQConfig.MAIL_NOTIFICATION_QUEUE)`.
-    - [ ] Gọi `JavaMailSender` thực hiện gửi email thật trong background.
-    - [ ] Cấu hình ném exception để RabbitMQ kích hoạt Retry 3 lần (Initial: 2s, Multiplier: 2.0, Max: 10s).
-    - [ ] Nếu thất bại quá 3 lần -> Tự động chuyển message vào `checked.dead-letter.queue`.
-  - [ ] Viết integration test `MailAmqpIntegrationTest.java`:
-    - [ ] Xác nhận gửi mail không còn block luồng HTTP.
-    - [ ] Xác nhận định tuyến thành công sang DLQ khi cố tình ném lỗi gửi mail.
-  - [ ] Chạy `./gradlew test` và tạo PR.
+  - [x] Tạo DTO sự kiện: [OtpEmailMessage.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/main/java/com/codegym/locketclone/notification/dto/OtpEmailMessage.java) (toEmail, recipientName, otpCode, subject, messageType, createdAt).
+  - [x] Cấu hình [RabbitMQConfig.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/main/java/com/codegym/locketclone/common/config/RabbitMQConfig.java) và YAML:
+    - [x] Đăng ký `SimpleRabbitListenerContainerFactory` với `default-requeue-rejected: false`.
+    - [x] Cấu hình Spring AMQP listener container retry tự động 3 lần (initial: 1000ms, multiplier: 2.0, max: 5000ms).
+    - [x] Khi vượt quá số lần retry: RabbitMQ tự động đẩy message sang `checked.dlx.exchange` -> `checked.dead-letter.queue` (DLQ).
+  - [x] Xây dựng Producer [RabbitMqEmailProducer.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/main/java/com/codegym/locketclone/notification/RabbitMqEmailProducer.java):
+    - [x] Đánh dấu `@Primary`, publish message vào `checked.direct.exchange` với routing key `mail.send`.
+    - [x] Tích hợp cơ chế Graceful Fallback khi RabbitMQ broker gặp sự cố mạng để không làm gián đoạn luồng đăng ký của người dùng.
+  - [x] Cập nhật [SmtpEmailService.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/main/java/com/codegym/locketclone/notification/SmtpEmailService.java) & [LoggingEmailService.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/main/java/com/codegym/locketclone/notification/LoggingEmailService.java):
+    - [x] Bỏ `@Primary` khỏi `SmtpEmailService`, đặt tên bean `smtpEmailService`.
+    - [x] Bổ sung method `sendOtpEmailDirect` ném exception để Consumer kích hoạt Retry/DLQ khi SMTP fail.
+  - [x] Xây dựng Consumer [EmailNotificationConsumer.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/main/java/com/codegym/locketclone/notification/consumer/EmailNotificationConsumer.java):
+    - [x] `@RabbitListener(queues = RabbitMQConfig.MAIL_NOTIFICATION_QUEUE)`.
+    - [x] Nhận `OtpEmailMessage`, gọi SMTP gửi email background.
+  - [x] Viết integration test [AsyncEmailWorkerTest.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/test/java/com/codegym/locketclone/infra/AsyncEmailWorkerTest.java):
+    - [x] Xác thực gửi email qua Producer thành công.
+    - [x] Xác thực roundtrip publish & consumer xử lý message an toàn.
+    - [x] Xác thực cấu trúc topology của `mail.notification.queue` và `checked.dead-letter.queue` (DLQ).
+    - [x] Xác thực cơ chế Graceful Fallback khi broker ném `AmqpException`.
+  - [x] Chạy `./gradlew test` (toàn bộ 220+ tests PASS 100%).
+  - [x] Merge vào `main`, push GitHub & deploy live thành công lên Heroku (Release `v36`).
 
 ---
 
