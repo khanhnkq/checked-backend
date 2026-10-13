@@ -2,6 +2,9 @@ package com.codegym.locketclone.photo;
 
 import com.codegym.locketclone.calorie.CalorieService;
 import com.codegym.locketclone.calorie.MealType;
+import com.codegym.locketclone.common.config.CacheConfig;
+import com.codegym.locketclone.common.dto.RestPage;
+import com.codegym.locketclone.common.dto.RestSlice;
 import com.codegym.locketclone.common.exception.AppException;
 import com.codegym.locketclone.common.exception.ErrorCode;
 import com.codegym.locketclone.common.mapper.PhotoMapper;
@@ -10,6 +13,7 @@ import com.codegym.locketclone.expense.CategoryRepository;
 import com.codegym.locketclone.expense.TransactionType;
 import com.codegym.locketclone.friendship.FriendshipRepository;
 import com.codegym.locketclone.photo.dto.PhotoReactionResponse;
+import com.codegym.locketclone.photo.dto.PhotoReactionStats;
 import com.codegym.locketclone.photo.dto.PhotoReactionSummaryResponse;
 import com.codegym.locketclone.photo.dto.PhotoReactorResponse;
 import com.codegym.locketclone.photo.dto.PhotoResponse;
@@ -23,6 +27,12 @@ import com.codegym.locketclone.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -73,12 +83,37 @@ public class PhotoServiceImpl implements PhotoService {
         this.calorieService = calorieService;
     }
 
+    @Autowired(required = false)
+    private CacheManager cacheManager;
+
+    public void setCacheManager(CacheManager cacheManager) {
+        this.cacheManager = cacheManager;
+    }
+
+    @Lazy
+    @Autowired(required = false)
+    private PhotoService self;
+
+    public void setSelf(PhotoService self) {
+        this.self = self;
+    }
+
+    private void evictCache(String cacheName, Object key) {
+        if (cacheManager != null && key != null) {
+            Cache cache = cacheManager.getCache(cacheName);
+            if (cache != null) {
+                cache.evict(key);
+            }
+        }
+    }
+
     @Override
+    @Cacheable(value = CacheConfig.FEED_CACHE, key = "#userId", condition = "#p2.pageNumber == 0 and #p1 == null")
     @Transactional(readOnly = true)
     public Slice<PhotoResponse> getFeedPhotos(UUID userId, UUID friendId, Pageable pageable) {
         ensureUserExists(userId);
         if (friendId == null) {
-            return photoRepository.findFeedPhotos(userId, PhotoStatus.DELETED, pageable).map(photoMapper::toResponse);
+            return RestSlice.from(photoRepository.findFeedPhotos(userId, PhotoStatus.DELETED, pageable).map(photoMapper::toResponse));
         }
 
         ensureUserExists(friendId);
@@ -87,13 +122,15 @@ public class PhotoServiceImpl implements PhotoService {
     }
 
     @Override
+    @Cacheable(value = CacheConfig.MY_PHOTOS_CACHE, key = "#userId", condition = "#p1.pageNumber == 0")
     @Transactional(readOnly = true)
     public Page<PhotoResponse> getMyPhotos(UUID userId, Pageable pageable) {
         ensureUserExists(userId);
-        return photoRepository.findMyPhotos(userId, PhotoStatus.DELETED, pageable).map(photoMapper::toResponse);
+        return RestPage.from(photoRepository.findMyPhotos(userId, PhotoStatus.DELETED, pageable).map(photoMapper::toResponse));
     }
 
     @Override
+    @Cacheable(value = CacheConfig.PHOTO_DETAIL_CACHE, key = "#userId + ':' + #photoId")
     @Transactional(readOnly = true)
     public PhotoResponse getPhotoDetail(UUID userId, UUID photoId) {
         ensureUserExists(userId);
@@ -164,6 +201,7 @@ public class PhotoServiceImpl implements PhotoService {
                     .build();
 
             Photo savedPhoto = savePhotoAndRecipientsInTx(photo, recipients, mealType);
+            evictCache(CacheConfig.MY_PHOTOS_CACHE, senderId);
 
             log.info("Lưu Photo vào Database thành công, ID: {}, recipients: {}", savedPhoto.getId(), recipients.size());
             return photoMapper.toResponse(savedPhoto);
@@ -203,6 +241,11 @@ public class PhotoServiceImpl implements PhotoService {
     }
 
     @Override
+    @Caching(evict = {
+            @CacheEvict(value = CacheConfig.PHOTO_DETAIL_CACHE, key = "#userId + ':' + #photoId"),
+            @CacheEvict(value = CacheConfig.FEED_CACHE, key = "#userId"),
+            @CacheEvict(value = CacheConfig.MY_PHOTOS_CACHE, key = "#userId")
+    })
     @Transactional
     public PhotoResponse updatePhotoExpense(UUID userId, UUID photoId, UpdatePhotoExpenseRequest request) {
         ensureUserExists(userId);
@@ -231,6 +274,7 @@ public class PhotoServiceImpl implements PhotoService {
     }
 
     @Override
+    @CacheEvict(value = CacheConfig.REACTIONS_SUMMARY_CACHE, key = "#photoId")
     @Transactional
     public PhotoReactionResponse upsertReaction(UUID userId, UUID photoId, UpsertPhotoReactionRequest request) {
         ensureUserExists(userId);
@@ -245,11 +289,13 @@ public class PhotoServiceImpl implements PhotoService {
 
         reaction.setReactionType(normalizedType);
         PhotoReaction saved = photoReactionRepository.save(reaction);
+        evictCache(CacheConfig.REACTIONS_SUMMARY_CACHE, photoId);
 
         return new PhotoReactionResponse(saved.getPhoto().getId(), saved.getUser().getId(), saved.getReactionType(), saved.getCreatedAt());
     }
 
     @Override
+    @CacheEvict(value = CacheConfig.REACTIONS_SUMMARY_CACHE, key = "#photoId")
     @Transactional
     public void removeReaction(UUID userId, UUID photoId) {
         ensureUserExists(userId);
@@ -259,14 +305,13 @@ public class PhotoServiceImpl implements PhotoService {
         }
 
         photoReactionRepository.deleteByPhotoIdAndUserId(photoId, userId);
+        evictCache(CacheConfig.REACTIONS_SUMMARY_CACHE, photoId);
     }
 
     @Override
+    @Cacheable(value = CacheConfig.REACTIONS_SUMMARY_CACHE, key = "#photoId")
     @Transactional(readOnly = true)
-    public PhotoReactionSummaryResponse getReactionSummary(UUID userId, UUID photoId) {
-        ensureUserExists(userId);
-        requireAccessiblePhoto(photoId, userId);
-
+    public PhotoReactionStats getReactionStats(UUID photoId) {
         List<Object[]> groupedRows = photoReactionRepository.summarizeByPhotoId(photoId);
         Map<String, Long> countsByType = new LinkedHashMap<>();
         long totalCount = 0L;
@@ -277,10 +322,6 @@ public class PhotoServiceImpl implements PhotoService {
             countsByType.put(type, safeCount);
             totalCount += safeCount;
         }
-
-        String myReaction = photoReactionRepository.findByPhotoIdAndUserId(photoId, userId)
-                .map(PhotoReaction::getReactionType)
-                .orElse(null);
 
         List<PhotoReactorResponse> reactors = photoReactionRepository
                 .findAllByPhotoIdWithUserOrderByCreatedAtDesc(photoId, PageRequest.of(0, REACTION_SUMMARY_REACTORS_LIMIT))
@@ -294,10 +335,30 @@ public class PhotoServiceImpl implements PhotoService {
                 ))
                 .toList();
 
-        return new PhotoReactionSummaryResponse(photoId, totalCount, myReaction, countsByType, reactors);
+        return new PhotoReactionStats(photoId, totalCount, countsByType, reactors);
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public PhotoReactionSummaryResponse getReactionSummary(UUID userId, UUID photoId) {
+        ensureUserExists(userId);
+        requireAccessiblePhoto(photoId, userId);
+
+        PhotoReactionStats stats = (self != null ? self : this).getReactionStats(photoId);
+
+        String myReaction = photoReactionRepository.findByPhotoIdAndUserId(photoId, userId)
+                .map(PhotoReaction::getReactionType)
+                .orElse(null);
+
+        return new PhotoReactionSummaryResponse(photoId, stats.totalCount(), myReaction, stats.countsByType(), stats.reactors());
+    }
+
+    @Override
+    @Caching(evict = {
+            @CacheEvict(value = CacheConfig.PHOTO_DETAIL_CACHE, key = "#userId + ':' + #photoId"),
+            @CacheEvict(value = CacheConfig.FEED_CACHE, key = "#userId"),
+            @CacheEvict(value = CacheConfig.MY_PHOTOS_CACHE, key = "#userId")
+    })
     @Transactional
     public PhotoResponse updatePhotoTransaction(UUID userId, UUID photoId, UpdatePhotoTransactionRequest request) {
         ensureUserExists(userId);
@@ -353,6 +414,12 @@ public class PhotoServiceImpl implements PhotoService {
     }
 
     @Override
+    @Caching(evict = {
+            @CacheEvict(value = CacheConfig.PHOTO_DETAIL_CACHE, key = "#userId + ':' + #photoId"),
+            @CacheEvict(value = CacheConfig.FEED_CACHE, key = "#userId"),
+            @CacheEvict(value = CacheConfig.MY_PHOTOS_CACHE, key = "#userId"),
+            @CacheEvict(value = CacheConfig.REACTIONS_SUMMARY_CACHE, key = "#photoId")
+    })
     @Transactional
     public void deleteTransaction(UUID userId, UUID photoId) {
         ensureUserExists(userId);
@@ -368,6 +435,11 @@ public class PhotoServiceImpl implements PhotoService {
         if (photo.getPublicId() != null) {
             storageService.deleteFile(photo.getPublicId());
         }
+
+        evictCache(CacheConfig.MY_PHOTOS_CACHE, userId);
+        evictCache(CacheConfig.FEED_CACHE, userId);
+        evictCache(CacheConfig.REACTIONS_SUMMARY_CACHE, photoId);
+        evictCache(CacheConfig.PHOTO_DETAIL_CACHE, userId + ":" + photoId);
     }
 
     private User ensureUserExists(UUID userId) {

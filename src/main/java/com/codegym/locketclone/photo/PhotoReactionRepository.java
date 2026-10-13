@@ -18,6 +18,10 @@ public interface PhotoReactionRepository extends JpaRepository<PhotoReaction, UU
 
     void deleteByPhotoIdAndUserId(UUID photoId, UUID userId);
 
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("DELETE FROM PhotoReaction pr WHERE pr.photo.id = :photoId")
+    void deleteByPhotoId(@Param("photoId") UUID photoId);
+
     @Query("""
             SELECT pr.reactionType, COUNT(pr)
             FROM PhotoReaction pr
