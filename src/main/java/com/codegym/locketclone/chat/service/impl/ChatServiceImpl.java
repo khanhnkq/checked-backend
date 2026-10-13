@@ -120,22 +120,27 @@ public class ChatServiceImpl implements ChatService {
             return Collections.emptyList();
         }
 
-        Set<UUID> friendIds = conversations.stream()
-                .flatMap(conv -> conv.getParticipantIds().stream())
-                .filter(id -> !id.equals(currentUserId))
-                .collect(Collectors.toSet());
+        // Đảm bảo chỉ giữ lại 1 cuộc hội thoại mới nhất cho mỗi bạn bè
+        Map<UUID, Conversation> latestByFriend = new LinkedHashMap<>();
+        for (Conversation conv : conversations) {
+            UUID friendId = conv.getParticipantIds().stream()
+                    .filter(id -> !id.equals(currentUserId))
+                    .findFirst()
+                    .orElse(null);
+            if (friendId != null && !latestByFriend.containsKey(friendId)) {
+                latestByFriend.put(friendId, conv);
+            }
+        }
 
+        Set<UUID> friendIds = latestByFriend.keySet();
         Map<UUID, User> userMap = userRepository.findAllById(friendIds).stream()
                 .collect(Collectors.toMap(User::getId, Function.identity()));
 
-        return conversations.stream()
-                .map(conv -> {
-                    UUID friendId = conv.getParticipantIds().stream()
-                            .filter(id -> !id.equals(currentUserId))
-                            .findFirst()
-                            .orElse(null);
-
-                    User friend = (friendId != null) ? userMap.get(friendId) : null;
+        return latestByFriend.entrySet().stream()
+                .map(entry -> {
+                    UUID friendId = entry.getKey();
+                    Conversation conv = entry.getValue();
+                    User friend = userMap.get(friendId);
                     long unreadCount = computeUnreadCount(conv, currentUserId);
 
                     return toConversationResponse(conv, friend, unreadCount);
