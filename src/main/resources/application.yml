@@ -18,6 +18,12 @@ app:
     register-capacity: ${RATE_LIMIT_REGISTER_CAPACITY:3}
     verify-capacity: ${RATE_LIMIT_VERIFY_CAPACITY:5}
     login-capacity: ${RATE_LIMIT_LOGIN_CAPACITY:10}
+  websocket:
+    heartbeat-incoming-ms: ${WS_HEARTBEAT_INCOMING_MS:10000}
+    heartbeat-outgoing-ms: ${WS_HEARTBEAT_OUTGOING_MS:10000}
+  chat:
+    default-page-size: ${CHAT_DEFAULT_PAGE_SIZE:30}
+    max-page-size: ${CHAT_MAX_PAGE_SIZE:50}
 
 storage:
   type: ${STORAGE_TYPE:garage}
@@ -50,6 +56,10 @@ spring:
       idle-timeout: 300000
       max-lifetime: 600000
       connection-timeout: 30000
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/checked_chat}
+      auto-index-creation: ${MONGODB_AUTO_INDEX_CREATION:true}
   docker:
     compose:
       enabled: ${SPRING_DOCKER_COMPOSE_ENABLED:false}
