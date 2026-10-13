@@ -24,7 +24,7 @@ import java.util.List;
 
 @Tag(name = "Chat", description = "Quản lý cuộc trò chuyện và tin nhắn 1-1 (MongoDB NoSQL)")
 @RestController
-@RequestMapping({"/api/v1/conversations", "/api/conversations"})
+@RequestMapping({"/api/v1/conversations", "/api/conversations", "/api/v1/chat", "/api/chat"})
 @RequiredArgsConstructor
 public class ChatController {
 
