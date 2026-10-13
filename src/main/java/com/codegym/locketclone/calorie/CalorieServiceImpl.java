@@ -1,6 +1,7 @@
 package com.codegym.locketclone.calorie;
 
 import com.codegym.locketclone.calorie.dto.*;
+import com.codegym.locketclone.common.config.CacheConfig;
 import com.codegym.locketclone.common.exception.AppException;
 import com.codegym.locketclone.common.exception.ErrorCode;
 import com.codegym.locketclone.photo.Photo;
@@ -8,6 +9,8 @@ import com.codegym.locketclone.user.User;
 import com.codegym.locketclone.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +30,13 @@ public class CalorieServiceImpl implements CalorieService {
     private final CalorieGoalRepository calorieGoalRepository;
     private final CalorieLogRepository calorieLogRepository;
     private final UserRepository userRepository;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private CacheManager cacheManager;
+
+    public void setCacheManager(CacheManager cacheManager) {
+        this.cacheManager = cacheManager;
+    }
 
     private static final int DEFAULT_CALORIE_TARGET = 2000;
     private static final DateTimeFormatter MONTH_KEY_FORMATTER = DateTimeFormatter.ofPattern("yyyyMM");
@@ -71,7 +81,7 @@ public class CalorieServiceImpl implements CalorieService {
         boolean isExceeded = consumed > target;
         int percentage = target > 0 ? (int) Math.round(((double) consumed / target) * 100) : 0;
 
-        List<CalorieLogItemDTO> meals = logs.stream().map(this::mapToItemDTO).toList();
+        List<CalorieLogItemDTO> meals = new ArrayList<>(logs.stream().map(this::mapToItemDTO).toList());
 
         return DailyCalorieSummaryDTO.builder()
                 .date(targetDate)
@@ -153,6 +163,7 @@ public class CalorieServiceImpl implements CalorieService {
                 .build();
 
         CalorieLog saved = calorieLogRepository.save(logEntity);
+        evictCalorieCaches(userId, loggedAt.toLocalDate());
         log.info("Tạo thủ công CalorieLog thành công cho user: {}, calo: {}", userId, saved.getCalories());
         return mapToItemDTO(saved);
     }
@@ -167,7 +178,9 @@ public class CalorieServiceImpl implements CalorieService {
             throw new AppException(ErrorCode.FORBIDDEN);
         }
 
+        LocalDate loggedDate = logEntity.getLoggedAt() != null ? logEntity.getLoggedAt().toLocalDate() : null;
         calorieLogRepository.delete(logEntity);
+        evictCalorieCaches(userId, loggedDate);
         log.info("Xóa CalorieLog ID: {} của user: {}", logId, userId);
     }
 
@@ -197,6 +210,7 @@ public class CalorieServiceImpl implements CalorieService {
                 .build();
 
         calorieLogRepository.save(logEntity);
+        evictCalorieCaches(photo.getSender().getId(), loggedAt.toLocalDate());
         log.info("Tự động tạo CalorieLog từ Photo ID: {}, calo: {}, bữa: {}", photo.getId(), photo.getCalories(), mealType);
     }
 
@@ -247,5 +261,26 @@ public class CalorieServiceImpl implements CalorieService {
                 .thumbnailUrl(thumbUrl)
                 .loggedAt(log.getLoggedAt())
                 .build();
+    }
+
+    @Override
+    public void evictCalorieCaches(UUID userId, LocalDate date) {
+        if (cacheManager == null || userId == null) {
+            return;
+        }
+        LocalDate targetDate = (date != null) ? date : LocalDate.now();
+        String dateStr = targetDate.toString();
+        String monthKey = targetDate.format(MONTH_KEY_FORMATTER);
+
+        Cache dailyCache = cacheManager.getCache(CacheConfig.CALORIE_DAILY_CACHE);
+        if (dailyCache != null) {
+            dailyCache.evict(userId + ":" + dateStr);
+        }
+
+        Cache summaryCache = cacheManager.getCache(CacheConfig.CALORIE_SUMMARY_CACHE);
+        if (summaryCache != null) {
+            summaryCache.evict(userId + ":" + monthKey);
+            summaryCache.evict(userId + ":");
+        }
     }
 }

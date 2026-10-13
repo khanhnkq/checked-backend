@@ -23,6 +23,13 @@ import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import com.codegym.locketclone.common.config.CacheConfig;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
@@ -43,17 +50,26 @@ public class ExpenseServiceImpl implements ExpenseService {
     private final SavingsGoalRepository savingsGoalRepository;
     private final PhotoRepository photoRepository;
 
-    @Override
-    @Transactional(readOnly = true)
-    public List<CategoryResponse> getCategories(UUID userId) {
-        ensureUserExists(userId);
-        return categoryRepository.findVisibleActiveCategories(userId)
-                .stream()
-                .map(this::toCategoryResponse)
-                .toList();
+    @Autowired(required = false)
+    private CacheManager cacheManager;
+
+    public void setCacheManager(CacheManager cacheManager) {
+        this.cacheManager = cacheManager;
     }
 
     @Override
+    @Cacheable(value = CacheConfig.EXPENSE_CATEGORIES_CACHE, key = "'list:' + #userId")
+    @Transactional(readOnly = true)
+    public List<CategoryResponse> getCategories(UUID userId) {
+        ensureUserExists(userId);
+        return new ArrayList<>(categoryRepository.findVisibleActiveCategories(userId)
+                .stream()
+                .map(this::toCategoryResponse)
+                .toList());
+    }
+
+    @Override
+    @CacheEvict(value = CacheConfig.EXPENSE_CATEGORIES_CACHE, key = "'list:' + #userId")
     @Transactional
     public CategoryResponse createCategory(UUID userId, CreateCategoryRequest request) {
         User user = ensureUserExists(userId);
@@ -77,6 +93,7 @@ public class ExpenseServiceImpl implements ExpenseService {
     }
 
     @Override
+    @CacheEvict(value = CacheConfig.EXPENSE_CATEGORIES_CACHE, key = "'list:' + #userId")
     @Transactional
     public CategoryResponse updateCategory(UUID userId, UUID categoryId, UpdateCategoryRequest request) {
         ensureUserExists(userId);
@@ -117,6 +134,7 @@ public class ExpenseServiceImpl implements ExpenseService {
     }
 
     @Override
+    @Cacheable(value = CacheConfig.EXPENSE_BUDGETS_CACHE, key = "#userId + ':' + (#monthKey != null ? #monthKey : '')")
     @Transactional(readOnly = true)
     public BudgetResponse getBudget(UUID userId, String monthKey) {
         ensureUserExists(userId);
@@ -155,6 +173,11 @@ public class ExpenseServiceImpl implements ExpenseService {
     }
 
     @Override
+    @Caching(evict = {
+            @CacheEvict(value = CacheConfig.EXPENSE_BUDGETS_CACHE, key = "#userId + ':' + (#monthKey != null ? #monthKey : '')"),
+            @CacheEvict(value = CacheConfig.EXPENSE_SUMMARY_CACHE, key = "#userId + ':' + (#monthKey != null ? #monthKey : '')"),
+            @CacheEvict(value = CacheConfig.EXPENSE_CASHFLOW_CACHE, key = "'m:' + #userId + ':' + (#monthKey != null ? #monthKey : '')")
+    })
     @Transactional
     public BudgetResponse upsertBudget(UUID userId, String monthKey, BudgetUpsertRequest request) {
         User user = ensureUserExists(userId);
@@ -234,6 +257,7 @@ public class ExpenseServiceImpl implements ExpenseService {
     }
 
     @Override
+    @Cacheable(value = CacheConfig.EXPENSE_SUMMARY_CACHE, key = "#userId + ':' + (#monthKey != null ? #monthKey : '')")
     @Transactional(readOnly = true)
     public ExpenseSummaryResponse getExpenseSummary(UUID userId, String monthKey) {
         ensureUserExists(userId);
@@ -258,11 +282,11 @@ public class ExpenseServiceImpl implements ExpenseService {
             percentUsed = rawPercent.intValue();
         }
 
-        List<CategorySpendResponse> byCategory = photoRepository
+        List<CategorySpendResponse> byCategory = new ArrayList<>(photoRepository
                 .summarizeTransactionByCategory(userId, PhotoStatus.DELETED, TransactionType.EXPENSE, monthRange.fromDate(), monthRange.toDate())
                 .stream()
                 .map(this::toCategorySpendResponse)
-                .toList();
+                .toList());
 
         return new ExpenseSummaryResponse(
                 normalizedMonthKey,
@@ -276,6 +300,7 @@ public class ExpenseServiceImpl implements ExpenseService {
     }
 
     @Override
+    @Cacheable(value = CacheConfig.EXPENSE_CASHFLOW_CACHE, key = "'m:' + #userId + ':' + (#monthKey != null ? #monthKey : '')")
     @Transactional(readOnly = true)
     public CashflowSummaryResponse getCashflowSummary(UUID userId, String monthKey) {
         ensureUserExists(userId);
@@ -306,17 +331,17 @@ public class ExpenseServiceImpl implements ExpenseService {
         }
 
         // By category
-        List<CategorySpendResponse> incomeByCategory = photoRepository
+        List<CategorySpendResponse> incomeByCategory = new ArrayList<>(photoRepository
                 .summarizeTransactionByCategory(userId, PhotoStatus.DELETED, TransactionType.INCOME, monthRange.fromDate(), monthRange.toDate())
                 .stream()
                 .map(this::toCategorySpendResponse)
-                .toList();
+                .toList());
 
-        List<CategorySpendResponse> expenseByCategory = photoRepository
+        List<CategorySpendResponse> expenseByCategory = new ArrayList<>(photoRepository
                 .summarizeTransactionByCategory(userId, PhotoStatus.DELETED, TransactionType.EXPENSE, monthRange.fromDate(), monthRange.toDate())
                 .stream()
                 .map(this::toCategorySpendResponse)
-                .toList();
+                .toList());
 
         return new CashflowSummaryResponse(
                 normalizedMonthKey,
@@ -333,6 +358,7 @@ public class ExpenseServiceImpl implements ExpenseService {
     }
 
     @Override
+    @Cacheable(value = CacheConfig.EXPENSE_CASHFLOW_CACHE, key = "'y:' + #userId + ':' + #year")
     @Transactional(readOnly = true)
     public YearlyCashflowSummaryResponse getYearlyCashflowSummary(UUID userId, Integer year) {
         ensureUserExists(userId);
@@ -387,7 +413,7 @@ public class ExpenseServiceImpl implements ExpenseService {
                 totalIncome,
                 totalExpense,
                 totalIncome.subtract(totalExpense),
-                months
+                new ArrayList<>(months)
         );
     }
 
@@ -646,6 +672,27 @@ public class ExpenseServiceImpl implements ExpenseService {
 
         private static DateRange fromMonth(YearMonth ym) {
             return of(ym.atDay(1).atStartOfDay(), ym.plusMonths(1).atDay(1).atStartOfDay());
+        }
+    }
+
+    @Override
+    public void evictExpenseCaches(UUID userId, String monthKey, Integer year) {
+        if (cacheManager == null || userId == null) {
+            return;
+        }
+        if (monthKey != null) {
+            Cache summaryCache = cacheManager.getCache(CacheConfig.EXPENSE_SUMMARY_CACHE);
+            if (summaryCache != null) summaryCache.evict(userId + ":" + monthKey);
+
+            Cache cashflowCache = cacheManager.getCache(CacheConfig.EXPENSE_CASHFLOW_CACHE);
+            if (cashflowCache != null) cashflowCache.evict("m:" + userId + ":" + monthKey);
+
+            Cache budgetCache = cacheManager.getCache(CacheConfig.EXPENSE_BUDGETS_CACHE);
+            if (budgetCache != null) budgetCache.evict(userId + ":" + monthKey);
+        }
+        if (year != null) {
+            Cache cashflowCache = cacheManager.getCache(CacheConfig.EXPENSE_CASHFLOW_CACHE);
+            if (cashflowCache != null) cashflowCache.evict("y:" + userId + ":" + year);
         }
     }
 }
