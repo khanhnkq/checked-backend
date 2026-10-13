@@ -1,7 +1,11 @@
 package com.codegym.locketclone.security.service;
 
 import com.codegym.locketclone.user.User;
+import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 import org.jspecify.annotations.Nullable;
 import org.springframework.security.core.GrantedAuthority;
@@ -15,6 +19,7 @@ import java.util.UUID;
 
 
 @Getter
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class UserPrincipal implements UserDetails {
     private final UUID id;
     private final String username;
@@ -22,6 +27,7 @@ public class UserPrincipal implements UserDetails {
     @JsonIgnore
     private final String password;
     private final Collection<? extends GrantedAuthority> authorities;
+    @JsonProperty("verified")
     private final boolean isVerified;
     private final String displayName;
     private final String avatarUrl;
@@ -40,7 +46,33 @@ public class UserPrincipal implements UserDetails {
         this.username = username;
         this.email = email;
         this.password = password;
-        this.authorities = authorities;
+        this.authorities = (authorities != null && !authorities.isEmpty())
+                ? authorities
+                : List.of(new SimpleGrantedAuthority("ROLE_USER"));
+        this.isVerified = isVerified;
+        this.displayName = displayName;
+        this.avatarUrl = avatarUrl;
+        this.profileCompleted = profileCompleted;
+    }
+
+    @JsonCreator
+    public UserPrincipal(
+            @JsonProperty("id") UUID id,
+            @JsonProperty("username") String username,
+            @JsonProperty("email") String email,
+            @JsonProperty(value = "password", required = false) String password,
+            @JsonProperty("authorities") List<SimpleGrantedAuthority> authorities,
+            @JsonProperty("verified") @JsonAlias("isVerified") boolean isVerified,
+            @JsonProperty("displayName") String displayName,
+            @JsonProperty("avatarUrl") String avatarUrl,
+            @JsonProperty("profileCompleted") Boolean profileCompleted) {
+        this.id = id;
+        this.username = username;
+        this.email = email;
+        this.password = password != null ? password : "";
+        this.authorities = (authorities != null && !authorities.isEmpty())
+                ? authorities
+                : List.of(new SimpleGrantedAuthority("ROLE_USER"));
         this.isVerified = isVerified;
         this.displayName = displayName;
         this.avatarUrl = avatarUrl;

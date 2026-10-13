@@ -3,6 +3,8 @@
 > **Trạng thái:** Bản thiết kế kiến trúc toàn diện (Comprehensive Architectural & Implementation Plan)  
 > **Dự án:** Checked Backend (`locket-clone-api`)  
 > **Môi trường triển khai:** Heroku (`heroku-7usd`, Region: `us-east-1`, 512MB RAM) kết hợp Cloud Managed Services  
+> **Lộ trình triển khai:** Xem chi tiết tại [REDIS_RABBITMQ_PR_ROADMAP.md](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/docs/REDIS_RABBITMQ_PR_ROADMAP.md)  
+> **Checklist tác vụ PR:** Theo dõi tiến độ tại [REDIS_RABBITMQ_PR_CHECKLIST.md](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/docs/REDIS_RABBITMQ_PR_CHECKLIST.md)  
 > **Tác giả:** Antigravity Engineering Team & Nguyễn Kim Quốc Khánh  
 > **Ngày cập nhật:** 13/10/2026 (Phiên bản Full-Stack Suite)  
 
@@ -296,6 +298,10 @@ flowchart LR
 ---
 
 ## 6. Lộ Trình Triển Khai Chi Tiết (4 Phases)
+
+> 📋 **Chi tiết danh sách Pull Requests & Checklist thao tác:**  
+> - Bảng ma trận & thiết kế PR: [REDIS_RABBITMQ_PR_ROADMAP.md](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/docs/REDIS_RABBITMQ_PR_ROADMAP.md)  
+> - Danh sách checklist tương tác `- [ ]`: [REDIS_RABBITMQ_PR_CHECKLIST.md](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/docs/REDIS_RABBITMQ_PR_CHECKLIST.md)  
 
 ### Phase 1: Dependencies, Cấu Hình Môi Trường & Kết Nối Cloud (ĐÃ HOÀN THÀNH 100% ✅)
 - **Kết quả nghiệm thu:**

@@ -12,6 +12,22 @@ spring:
         dialect: org.hibernate.dialect.H2Dialect
   flyway:
     enabled: false
+  data:
+    redis:
+      host: ${REDIS_HOST:adapting-moth-229902.upstash.io}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:gQAAAAAAA4IOAAIgcDE3ODJkNjY1ZjRmM2U0Zjk5OTY2YTVjODg5NTAwY2Q1Zg}
+      ssl:
+        enabled: ${REDIS_SSL:true}
+      timeout: 5000ms
+  rabbitmq:
+    host: ${RABBITMQ_HOST:leopard.lmq.cloudamqp.com}
+    port: ${RABBITMQ_PORT:5671}
+    username: ${RABBITMQ_USERNAME:kufeoult}
+    password: ${RABBITMQ_PASSWORD:mv1YvpuQOsWylToYRguVJyPtCYxdItsj}
+    virtual-host: ${RABBITMQ_VIRTUAL_HOST:kufeoult}
+    ssl:
+      enabled: ${RABBITMQ_SSL:true}
 
 storage:
   type: garage
