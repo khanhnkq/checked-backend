@@ -13,7 +13,7 @@
 
 - [x] **Phase 1: Dependencies, Cấu hình Môi trường & Kết nối Cloud TLS** *(Hoàn thành: Commit `59a0c19`, Release v29 UP)*
 - [ ] **Phase 2: Triển Khai Full-Stack Redis Caching Suite (5 Phân Vùng)**
-  - [ ] **PR #1:** Core RedisCacheManager đa TTL, Jackson Serializer & Graceful Degradation
+  - [x] **PR #1:** Core RedisCacheManager đa TTL, Jackson Serializer & Graceful Degradation *(Hoàn thành: Commits `bfb03cd`, `427c68f`, Heroku Release v31 UP)*
   - [ ] **PR #2:** Phân vùng 1: Cache User Identity & Danh sách Bạn bè
   - [ ] **PR #3:** Phân vùng 2: Cache Reactions Summary, Feed & Kho ảnh MyPhotos
   - [ ] **PR #4:** Phân vùng 3 & 4: Cache Dashboard Chi Tiêu & Nhật Ký Calo
@@ -33,8 +33,9 @@
 
 ### PR #1: Core RedisCacheManager Đa TTL, Jackson Serializer & Graceful Degradation
 - **Nhánh Git:** `feat/cache-infra-redis-manager-and-fallback`
-- **Mức độ:** 🔴 **P0 (Blocker - Phải làm trước tiên)**
-- **Commit đề xuất:** `feat(cache): implement multi-ttl redis cache manager with graceful degradation`
+- **Mức độ:** 🟢 **ĐÃ HOÀN THÀNH & LIVE TRÊN HEROKU** (Release `v31`)
+- **Commit đề xuất:** `feat(cache): implement multi-ttl redis cache manager with graceful degradation` (`bfb03cd`)
+- **Tối ưu Procfile:** `perf(jvm): optimize memory limits for 512mb heroku dyno with serial gc` (`427c68f`)
 - **Danh sách công việc:**
   - [x] Bổ sung `@JsonCreator` và `@JsonProperty` cho [UserPrincipal.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/main/java/com/codegym/locketclone/security/service/UserPrincipal.java) để tương thích Jackson Redis Serializer.
   - [x] Tạo mới [CustomCacheErrorHandler.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/main/java/com/codegym/locketclone/common/config/CustomCacheErrorHandler.java) kế thừa `CacheErrorHandler`:
@@ -56,7 +57,12 @@
     - [x] Test ghi/đọc đối tượng `UserPrincipal` từ cache Redis.
     - [x] Test fallback tự động khi mock Redis ném exception.
   - [x] Chạy `./gradlew test` (202/202 tests pass 100%).
-  - [ ] Commit push và deploy lên Heroku để test thực tế.
+  - [x] Commit push và deploy lên Heroku để test thực tế:
+    - [x] Buildpack Gradle compile & build thành công.
+    - [x] Release v31 khởi động trong 22.8 giây, Dyno UP.
+    - [x] Kiểm thử trực tiếp `GET /v3/api-docs` (HTTP 200 OK, latency ~1.6s).
+    - [x] Kiểm thử trực tiếp `POST /api/v1/auth/login` (HTTP 400 & 401 xử lý chuẩn xác, latency 360ms - 958ms).
+    - [x] Tối ưu SerialGC (`-XX:+UseSerialGC -Xmx180m -Xms96m`) giúp Dyno chạy mượt mà, không gặp lỗi R14.
 
 ---
 
