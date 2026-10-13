@@ -43,6 +43,35 @@ public class CloudinaryStorageService implements StorageService {
     }
 
     @Override
+    public UploadedFile uploadTempPhoto(MultipartFile file) throws IOException {
+        String fileUuid = UUID.randomUUID().toString();
+        String tempPublicId = "checked/temp/" + fileUuid;
+        Map<?, ?> uploadResult = cloudinary.uploader().upload(
+                file.getBytes(),
+                ObjectUtils.asMap("resource_type", "image", "public_id", tempPublicId)
+        );
+        String url = uploadResult.get("secure_url").toString();
+        String publicId = uploadResult.get("public_id").toString();
+        log.info("Uploaded temp raw photo to Cloudinary: {}", publicId);
+        return new UploadedFile(
+                url,
+                url,
+                publicId,
+                file.getContentType(),
+                file.getSize(),
+                null,
+                null
+        );
+    }
+
+    @Override
+    public UploadedFile processAndFinalizePhoto(String tempKey) throws IOException {
+        String mainUrl = cloudinary.url().transformation(new com.cloudinary.Transformation<>().width(1080).height(1080).crop("fill")).generate(tempKey);
+        String thumbUrl = cloudinary.url().transformation(new com.cloudinary.Transformation<>().width(320).height(320).crop("fill")).generate(tempKey);
+        return new UploadedFile(mainUrl, thumbUrl, tempKey, "image/jpeg", 50000L, 1080, 1080);
+    }
+
+    @Override
     public void deleteFile(String key) {
         if (key == null || key.isBlank()) {
             return;

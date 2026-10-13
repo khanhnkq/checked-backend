@@ -11,4 +11,12 @@ public interface StorageService {
     UploadedFile uploadAvatar(MultipartFile file) throws IOException;
 
     void deleteFile(String key);
+
+    default UploadedFile uploadTempPhoto(MultipartFile file) throws IOException {
+        return uploadPhoto(file);
+    }
+
+    default UploadedFile processAndFinalizePhoto(String tempKey) throws IOException {
+        throw new UnsupportedOperationException("processAndFinalizePhoto is not implemented");
+    }
 }

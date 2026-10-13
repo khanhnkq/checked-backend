@@ -10,9 +10,13 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import software.amazon.awssdk.core.ResponseBytes;
 import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.core.sync.ResponseTransformer;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.IOException;
@@ -33,6 +37,76 @@ public class GarageS3StorageService implements StorageService {
     private final S3StorageProperties properties;
     private final ImageProcessingService imageProcessingService;
     private final @Qualifier("storageTaskExecutor") Executor storageTaskExecutor;
+
+    @Override
+    public UploadedFile uploadTempPhoto(MultipartFile file) throws IOException {
+        String fileUuid = UUID.randomUUID().toString();
+        String originalFilename = file.getOriginalFilename();
+        String ext = "jpg";
+        if (originalFilename != null && originalFilename.lastIndexOf('.') > 0) {
+            ext = originalFilename.substring(originalFilename.lastIndexOf('.') + 1).toLowerCase();
+        }
+        String tempKey = "temp/photos/" + fileUuid + "." + ext;
+
+        s3Client.putObject(
+                PutObjectRequest.builder()
+                        .bucket(properties.getBucketName())
+                        .key(tempKey)
+                        .contentType(file.getContentType())
+                        .build(),
+                RequestBody.fromInputStream(file.getInputStream(), file.getSize())
+        );
+
+        String tempUrl = buildPublicUrl(tempKey);
+        log.info("Uploaded raw photo stream to Garage S3 tempKey: {}", tempKey);
+
+        return new UploadedFile(
+                tempUrl,
+                tempUrl,
+                tempKey,
+                file.getContentType(),
+                file.getSize(),
+                null,
+                null
+        );
+    }
+
+    @Override
+    public UploadedFile processAndFinalizePhoto(String tempKey) throws IOException {
+        ResponseBytes<GetObjectResponse> s3Bytes = s3Client.getObject(
+                GetObjectRequest.builder()
+                        .bucket(properties.getBucketName())
+                        .key(tempKey)
+                        .build(),
+                ResponseTransformer.toBytes()
+        );
+        byte[] rawBytes = s3Bytes.asByteArray();
+
+        ProcessedImage processed = imageProcessingService.processPhoto(rawBytes);
+        String yearMonth = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM"));
+        String fileUuid = UUID.randomUUID().toString();
+
+        String mainKey = "photos/" + yearMonth + "/" + fileUuid + "." + processed.extension();
+        String thumbKey = "photos/" + yearMonth + "/" + fileUuid + "_thumb." + processed.extension();
+
+        uploadInParallel(mainKey, processed.originalBytes(), thumbKey, processed.thumbnailBytes(), processed.mimeType());
+        deleteFile(tempKey);
+
+        String secureUrl = buildPublicUrl(mainKey);
+        String thumbnailUrl = buildPublicUrl(thumbKey);
+
+        log.info("Finalized processed photo to Garage S3. Main: {}, Thumb: {}, Deleted temp: {}", mainKey, thumbKey, tempKey);
+
+        return new UploadedFile(
+                secureUrl,
+                thumbnailUrl,
+                mainKey,
+                processed.mimeType(),
+                (long) processed.originalBytes().length,
+                processed.width(),
+                processed.height()
+        );
+    }
 
     @Override
     public UploadedFile uploadPhoto(MultipartFile file) throws IOException {

@@ -3,6 +3,7 @@ package com.codegym.locketclone.photo;
 import com.codegym.locketclone.calorie.CalorieService;
 import com.codegym.locketclone.calorie.MealType;
 import com.codegym.locketclone.common.config.CacheConfig;
+import com.codegym.locketclone.common.config.RabbitMQConfig;
 import com.codegym.locketclone.common.dto.RestPage;
 import com.codegym.locketclone.common.dto.RestSlice;
 import com.codegym.locketclone.common.exception.AppException;
@@ -18,6 +19,7 @@ import com.codegym.locketclone.photo.dto.PhotoReactionStats;
 import com.codegym.locketclone.photo.dto.PhotoReactionSummaryResponse;
 import com.codegym.locketclone.photo.dto.PhotoReactorResponse;
 import com.codegym.locketclone.photo.dto.PhotoResponse;
+import com.codegym.locketclone.photo.dto.PhotoUploadEvent;
 import com.codegym.locketclone.photo.dto.UpsertPhotoReactionRequest;
 import com.codegym.locketclone.photo.dto.UpdatePhotoExpenseRequest;
 import com.codegym.locketclone.photo.dto.UpdatePhotoTransactionRequest;
@@ -27,6 +29,7 @@ import com.codegym.locketclone.user.User;
 import com.codegym.locketclone.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
@@ -105,6 +108,13 @@ public class PhotoServiceImpl implements PhotoService {
 
     public void setSelf(PhotoService self) {
         this.self = self;
+    }
+
+    @Autowired(required = false)
+    private RabbitTemplate rabbitTemplate;
+
+    public void setRabbitTemplate(RabbitTemplate rabbitTemplate) {
+        this.rabbitTemplate = rabbitTemplate;
     }
 
     private void evictCache(String cacheName, Object key) {
@@ -204,17 +214,23 @@ public class PhotoServiceImpl implements PhotoService {
         log.info("Bắt đầu upload ảnh cho user: {} với scope: {}", senderId, effectiveScope);
         UploadedFile uploadedImage;
         try {
-            uploadedImage = storageService.uploadPhoto(file);
+            uploadedImage = storageService.uploadTempPhoto(file);
+            if (uploadedImage == null) {
+                uploadedImage = storageService.uploadPhoto(file);
+            }
         } catch (IOException e) {
             log.error("Lỗi khi xử lý file upload cho user {}: {}", senderId, e.getMessage(), e);
             throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION);
         }
 
         try {
+            boolean isAsync = (rabbitTemplate != null);
+            PhotoStatus initialStatus = isAsync ? PhotoStatus.PROCESSING : PhotoStatus.READY;
+
             Photo photo = Photo.builder()
                     .sender(sender)
                     .imageUrl(uploadedImage.secureUrl())
-                    .thumbnailUrl(uploadedImage.thumbnailUrl())
+                    .thumbnailUrl(uploadedImage.thumbnailUrl() != null ? uploadedImage.thumbnailUrl() : uploadedImage.secureUrl())
                     .publicId(uploadedImage.key())
                     .caption(caption)
                     .amount(amount)
@@ -222,7 +238,7 @@ public class PhotoServiceImpl implements PhotoService {
                     .note(normalizeNote(note))
                     .category(category)
                     .recipientScope(effectiveScope)
-                    .status(PhotoStatus.READY)
+                    .status(initialStatus)
                     .mimeType(uploadedImage.mimeType())
                     .fileSize(uploadedImage.bytes())
                     .width(uploadedImage.width())
@@ -236,11 +252,42 @@ public class PhotoServiceImpl implements PhotoService {
                     .calories(calories)
                     .build();
 
-            Photo savedPhoto = savePhotoAndRecipientsInTx(photo, recipients, mealType);
-            evictCache(CacheConfig.MY_PHOTOS_CACHE, senderId);
-            triggerExpenseEvictionIfPresent(senderId, savedPhoto);
+            Photo savedPhoto = savePhotoAndRecipientsInTx(photo, recipients, isAsync ? null : mealType);
 
-            log.info("Lưu Photo vào Database thành công, ID: {}, recipients: {}", savedPhoto.getId(), recipients.size());
+            if (isAsync) {
+                PhotoUploadEvent event = new PhotoUploadEvent(
+                        savedPhoto.getId(),
+                        senderId,
+                        uploadedImage.key(),
+                        caption,
+                        amount,
+                        type,
+                        normalizeNote(note),
+                        categoryId,
+                        effectiveScope,
+                        recipientIds,
+                        takenAt,
+                        locationName,
+                        latitude,
+                        longitude,
+                        dishName,
+                        calories,
+                        mealType
+                );
+                rabbitTemplate.convertAndSend(
+                        RabbitMQConfig.CHECKED_DIRECT_EXCHANGE,
+                        RabbitMQConfig.PHOTO_UPLOAD_ROUTING_KEY,
+                        event
+                );
+                log.info("Đã gửi PhotoUploadEvent vào RabbitMQ [{}] cho Photo ID: {}",
+                        RabbitMQConfig.PHOTO_UPLOAD_QUEUE, savedPhoto.getId());
+            } else {
+                evictCache(CacheConfig.MY_PHOTOS_CACHE, senderId);
+                triggerExpenseEvictionIfPresent(senderId, savedPhoto);
+            }
+
+            log.info("Upload Photo thành công (Status: {}), ID: {}, recipients: {}",
+                    savedPhoto.getStatus(), savedPhoto.getId(), recipients.size());
             return photoMapper.toResponse(savedPhoto);
         } catch (Exception ex) {
             log.error("Lỗi khi lưu Photo vào database, tiến hành dọn dẹp file S3: {}", uploadedImage.key(), ex);

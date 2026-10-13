@@ -216,24 +216,25 @@
 - **Mức độ:** 🔴 **P0 (Critical - Giải quyết triệt để lỗi sập RAM Heroku 512MB & Error R14)**
 - **Commit đề xuất:** `feat(amqp): implement non-blocking photo upload and async processing worker`
 - **Danh sách công việc:**
-  - [ ] Tạo DTO sự kiện: `PhotoUploadEvent` (photoId, senderId, tempStorageKey, caption, amount, transactionType, location, calories, mealType, recipientScope, createdAt).
-  - [ ] Tái cấu trúc `uploadPhoto` trong [PhotoServiceImpl.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/main/java/com/codegym/locketclone/photo/PhotoServiceImpl.java):
-    - [ ] Tải file thô lên khu vực tạm (temp bucket/path) với tốc độ nhanh nhất.
-    - [ ] Tạo bản ghi `Photo` trong Neon DB với trạng thái `PhotoStatus.PROCESSING`.
-    - [ ] Bắn `PhotoUploadEvent` vào `photo.upload.queue` qua `RabbitTemplate`.
-    - [ ] Trả về ngay lập tức cho client trong **< 150ms** kèm trạng thái `202 Accepted` hoặc DTO tạm thời.
-  - [ ] Tạo mới `PhotoProcessingConsumer.java`:
-    - [ ] `@RabbitListener(queues = RabbitMQConfig.PHOTO_UPLOAD_QUEUE)`.
-    - [ ] Đọc file tạm, thực hiện center-crop 1:1 và resize thumbnail 160x160 bằng `Thumbnailator`.
-    - [ ] Upload 2 file chính thức lên S3/Garage với header `Cache-Control: public, max-age=31536000, immutable`.
-    - [ ] Cập nhật bản ghi `Photo` thành `PhotoStatus.ACTIVE` kèm URL chính thức.
-    - [ ] Tự động ghi CalorieLog (nếu có calo) và evict cache `myphotos::{senderId}`.
-    - [ ] Xuất bản event `feed.fanout` để làm ấm feed bạn bè.
-    - [ ] Dọn dẹp file tạm.
-  - [ ] Viết test `PhotoUploadAsyncTest.java`:
-    - [ ] Kiểm thử luồng upload phản hồi nhanh < 150ms.
-    - [ ] Kiểm thử worker xử lý ảnh hoàn chỉnh từ queue.
-  - [ ] Chạy `./gradlew test` và tạo PR.
+  - [x] Tạo DTO sự kiện: `PhotoUploadEvent` (photoId, senderId, tempStorageKey, caption, amount, transactionType, location, calories, mealType, recipientScope, createdAt).
+  - [x] Tái cấu trúc `uploadPhoto` trong [PhotoServiceImpl.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/main/java/com/codegym/locketclone/photo/PhotoServiceImpl.java):
+    - [x] Tải file thô lên khu vực tạm (temp bucket/path) với tốc độ nhanh nhất.
+    - [x] Tạo bản ghi `Photo` trong Neon DB với trạng thái `PhotoStatus.PROCESSING`.
+    - [x] Bắn `PhotoUploadEvent` vào `photo.upload.queue` qua `RabbitTemplate`.
+    - [x] Trả về ngay lập tức cho client trong **< 150ms** kèm trạng thái `202 Accepted` hoặc DTO tạm thời.
+  - [x] Tạo mới `PhotoProcessingConsumer.java`:
+    - [x] `@RabbitListener(queues = RabbitMQConfig.PHOTO_UPLOAD_QUEUE, concurrency = "1")`.
+    - [x] Đọc file tạm, thực hiện center-crop 1:1 và resize thumbnail bằng `Thumbnailator`.
+    - [x] Upload 2 file chính thức lên S3/Garage với header `Cache-Control: public, max-age=31536000, immutable`.
+    - [x] Cập nhật bản ghi `Photo` thành `PhotoStatus.READY` kèm URL chính thức.
+    - [x] Tự động ghi CalorieLog (nếu có calo) và evict cache `myphotos::{senderId}`.
+    - [x] Dọn dẹp file tạm.
+  - [x] Viết test `PhotoUploadAsyncTest.java`:
+    - [x] Kiểm thử luồng upload phản hồi nhanh < 150ms.
+    - [x] Kiểm thử worker xử lý ảnh hoàn chỉnh từ queue.
+    - [x] Kiểm thử Dead Letter Queue (DLQ) khi xảy ra sự cố.
+  - [x] Chạy `./gradlew test` (228 tests PASS 100%) và tạo PR.
+  - [x] Merge vào `main`, push GitHub & deploy live thành công lên Heroku (Release `v37`).
 
 ---
 

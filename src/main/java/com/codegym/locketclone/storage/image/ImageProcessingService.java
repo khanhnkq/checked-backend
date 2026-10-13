@@ -69,6 +69,47 @@ public class ImageProcessingService {
         );
     }
 
+    public ProcessedImage processPhoto(byte[] imageBytes) throws IOException {
+        validateBytes(imageBytes);
+
+        // 1. Center crop 1:1 square & resize to 1080x1080 in memory with EXIF orientation
+        BufferedImage squareImage = Thumbnails.of(new java.io.ByteArrayInputStream(imageBytes))
+                .useExifOrientation(true)
+                .crop(Positions.CENTER)
+                .size(PHOTO_SIZE, PHOTO_SIZE)
+                .asBufferedImage();
+
+        int width = squareImage.getWidth();
+        int height = squareImage.getHeight();
+
+        // 2. Encode main photo bytes (1080x1080, high quality)
+        ByteArrayOutputStream mainBaos = new ByteArrayOutputStream();
+        Thumbnails.of(squareImage)
+                .size(PHOTO_SIZE, PHOTO_SIZE)
+                .outputFormat("jpg")
+                .outputQuality(JPEG_QUALITY_HIGH)
+                .toOutputStream(mainBaos);
+        byte[] mainBytes = mainBaos.toByteArray();
+
+        // 3. Encode thumbnail bytes directly from squareImage in RAM (downscaled to 320x320)
+        ByteArrayOutputStream thumbBaos = new ByteArrayOutputStream();
+        Thumbnails.of(squareImage)
+                .size(PHOTO_THUMB_SIZE, PHOTO_THUMB_SIZE)
+                .outputFormat("jpg")
+                .outputQuality(JPEG_QUALITY_THUMB)
+                .toOutputStream(thumbBaos);
+        byte[] thumbBytes = thumbBaos.toByteArray();
+
+        return new ProcessedImage(
+                mainBytes,
+                thumbBytes,
+                "jpg",
+                "image/jpeg",
+                width,
+                height
+        );
+    }
+
     public ProcessedImage processAvatar(MultipartFile file) throws IOException {
         validateFile(file);
 
@@ -119,6 +160,33 @@ public class ImageProcessingService {
 
     private void validateImageDimensions(MultipartFile file) throws IOException {
         try (ImageInputStream iis = ImageIO.createImageInputStream(file.getInputStream())) {
+            if (iis == null) {
+                throw new AppException(ErrorCode.INVALID_PHOTO_FILE);
+            }
+            Iterator<ImageReader> readers = ImageIO.getImageReaders(iis);
+            if (!readers.hasNext()) {
+                throw new AppException(ErrorCode.INVALID_PHOTO_FILE);
+            }
+            ImageReader reader = readers.next();
+            try {
+                reader.setInput(iis, true, true);
+                int width = reader.getWidth(0);
+                int height = reader.getHeight(0);
+                if (width <= 0 || height <= 0 || width > MAX_INPUT_DIMENSION || height > MAX_INPUT_DIMENSION) {
+                    log.warn("Kích thước ảnh vượt quá giới hạn an toàn: {}x{} (tối đa {}px)", width, height, MAX_INPUT_DIMENSION);
+                    throw new AppException(ErrorCode.INVALID_PHOTO_FILE);
+                }
+            } finally {
+                reader.dispose();
+            }
+        }
+    }
+
+    private void validateBytes(byte[] bytes) throws IOException {
+        if (bytes == null || bytes.length == 0) {
+            throw new IOException("Dữ liệu hình ảnh không được để trống.");
+        }
+        try (ImageInputStream iis = ImageIO.createImageInputStream(new java.io.ByteArrayInputStream(bytes))) {
             if (iis == null) {
                 throw new AppException(ErrorCode.INVALID_PHOTO_FILE);
             }
