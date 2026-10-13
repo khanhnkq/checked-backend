@@ -15,7 +15,7 @@
 - [ ] **Phase 2: Triển Khai Full-Stack Redis Caching Suite (5 Phân Vùng)**
   - [x] **PR #1:** Core RedisCacheManager đa TTL, Jackson Serializer & Graceful Degradation *(Hoàn thành: Commits `bfb03cd`, `427c68f`, Heroku Release v31 UP)*
   - [x] **PR #2:** Phân vùng 1: Cache User Identity & Danh sách Bạn bè *(Hoàn thành: Commit `5ebeb79`, Heroku Release v32 UP)*
-  - [ ] **PR #3:** Phân vùng 2: Cache Reactions Summary, Feed & Kho ảnh MyPhotos
+  - [x] **PR #3:** Phân vùng 2: Cache Reactions Summary, Feed & Kho ảnh MyPhotos *(Hoàn thành: Commit `e52ba7f`, Heroku Release v33 UP)*
   - [ ] **PR #4:** Phân vùng 3 & 4: Cache Dashboard Chi Tiêu & Nhật Ký Calo
   - [ ] **PR #5:** Phân vùng 5: Cache Badge Tin Nhắn Chưa Đọc (Chat Unread)
 - [ ] **Phase 3: RabbitMQ Event Producer & Consumer Pipeline**
@@ -95,24 +95,33 @@
 
 ### PR #3: Phân Vùng 2 - Cache Reactions Summary, Feed & Kho Ảnh MyPhotos
 - **Nhánh Git:** `feat/cache-partition-photo-and-reactions`
-- **Mức độ:** 🔴 **P0 (Critical - Điểm nóng hiệu năng lớn nhất)**
-- **Commit đề xuất:** `feat(cache): cache photo reactions summary, feed, and myphotos with smart eviction`
+- **Mức độ:** 🟢 **ĐÃ HOÀN THÀNH & LIVE TRÊN HEROKU** (Release `v33`)
+- **Commit:** `feat(cache): implement partition 2 caching for photo reactions summary, feed, and myphotos with smart eviction (PR #3)` (`e52ba7f`)
+- **Kế hoạch chi tiết:** [PR3_CACHE_PHOTO_AND_REACTIONS.md](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/docs/PR3_CACHE_PHOTO_AND_REACTIONS.md)
 - **Danh sách công việc:**
-  - [ ] Tái cấu trúc logic phản hồi cảm xúc trong [PhotoServiceImpl.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/main/java/com/codegym/locketclone/photo/PhotoServiceImpl.java):
-    - [ ] Tách phần thống kê chung (tổng số count, count theo loại emoji, 5 người thả tim gần nhất) ra method riêng để cache: `@Cacheable(value = "reactions_summary", key = "#photoId")`.
-    - [ ] Kết hợp với `myReaction` của người dùng hiện tại trong tầng service trước khi trả về [PhotoReactionSummaryResponse](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/main/java/com/codegym/locketclone/photo/dto/PhotoReactionSummaryResponse.java).
-    - [ ] Thêm `@CacheEvict(value = "reactions_summary", key = "#photoId")` khi `reactToPhoto` hoặc `removeReaction`.
-  - [ ] Tích hợp cache Feed & Kho ảnh trong [PhotoServiceImpl.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/main/java/com/codegym/locketclone/photo/PhotoServiceImpl.java):
-    - [ ] Cache trang đầu feed của người dùng: `@Cacheable(value = "feed", key = "#userId", condition = "#pageable.pageNumber == 0 && #friendId == null")`.
-    - [ ] Cache trang đầu ảnh cá nhân: `@Cacheable(value = "myphotos", key = "#userId", condition = "#pageable.pageNumber == 0")`.
-    - [ ] Cache chi tiết ảnh: `@Cacheable(value = "photo_detail", key = "#photoId")`.
-  - [ ] Xử lý eviction khi người dùng đăng ảnh mới hoặc xóa ảnh:
-    - [ ] Evict `myphotos::{userId}` của người đăng.
-    - [ ] Evict `photo_detail::{photoId}` khi cập nhật hoặc xóa ảnh.
-  - [ ] Viết integration test đo lường:
-    - [ ] Lần gọi thứ 2 của `getReactionSummary` trả về từ cache trong < 2ms.
-    - [ ] Sau khi thả tim mới, cache tự xóa và tính toán lại chính xác.
-  - [ ] Chạy `./gradlew test` và tạo PR.
+  - [x] Tạo DTO an toàn cho Jackson Redis:
+    - [x] [RestSlice.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/main/java/com/codegym/locketclone/common/dto/RestSlice.java): wrapper cho `Slice<T>` với `ArrayList<T>` nội bộ và `@JsonCreator`.
+    - [x] [RestPage.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/main/java/com/codegym/locketclone/common/dto/RestPage.java): wrapper cho `Page<T>` với `ArrayList<T>` nội bộ và `@JsonCreator`.
+    - [x] [PhotoReactionStats.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/main/java/com/codegym/locketclone/photo/dto/PhotoReactionStats.java): DTO chứa dữ liệu tóm tắt reaction cho photo.
+  - [x] Tái cấu trúc logic phản hồi cảm xúc trong [PhotoServiceImpl.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/main/java/com/codegym/locketclone/photo/PhotoServiceImpl.java):
+    - [x] Tách phần thống kê chung (tổng số count, count theo loại emoji, 5 người thả tim gần nhất) ra method `getReactionStats` với `@Cacheable(value = CacheConfig.REACTIONS_SUMMARY_CACHE, key = "#photoId")` (TTL: 15 phút).
+    - [x] Kết hợp `myReaction` người dùng hiện tại ở tầng service trước khi trả về `PhotoReactionSummaryResponse`.
+    - [x] Thêm `@CacheEvict(value = CacheConfig.REACTIONS_SUMMARY_CACHE, key = "#photoId")` khi `upsertReaction` và `removeReaction`.
+  - [x] Tích hợp cache Feed & Kho ảnh trong [PhotoService.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/main/java/com/codegym/locketclone/photo/PhotoService.java) & [PhotoServiceImpl.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/main/java/com/codegym/locketclone/photo/PhotoServiceImpl.java):
+    - [x] Cache trang đầu feed của người dùng: `@Cacheable(value = CacheConfig.FEED_CACHE, key = "#userId", condition = "#p2.pageNumber == 0 and #p1 == null")` (TTL: 10 phút).
+    - [x] Cache trang đầu ảnh cá nhân: `@Cacheable(value = CacheConfig.MY_PHOTOS_CACHE, key = "#userId", condition = "#p1.pageNumber == 0")` (TTL: 15 phút).
+    - [x] Cache chi tiết ảnh: `@Cacheable(value = CacheConfig.PHOTO_DETAIL_CACHE, key = "#userId + ':' + #photoId")` (TTL: 30 phút).
+  - [x] Xử lý eviction đa phân vùng với `@Caching(evict = { ... })`:
+    - [x] Cập nhật expense / transaction: evict đồng thời `PHOTO_DETAIL_CACHE`, `FEED_CACHE`, `MY_PHOTOS_CACHE`.
+    - [x] Xóa ảnh `deleteTransaction`: evict đồng thời cả 4 phân vùng `PHOTO_DETAIL_CACHE`, `FEED_CACHE`, `MY_PHOTOS_CACHE`, `REACTIONS_SUMMARY_CACHE`.
+  - [x] Viết integration test [PhotoAndReactionCacheTest.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/test/java/com/codegym/locketclone/infra/PhotoAndReactionCacheTest.java):
+    - [x] Xác thực `photo_detail` nạp cache và evict khi update expense.
+    - [x] Xác thực `reactions_summary` nạp cache, hit cache lần 2, và evict khi thả/xóa reaction.
+    - [x] Xác thực serialize/deserialize `RestSlice` & `RestPage` qua Redis cho feed & myphotos trang 0.
+    - [x] Xác thực `deleteTransaction` evict sạch cache `feed` và `myphotos`.
+  - [x] Chạy `./gradlew test` (toàn bộ 211 tests PASS 100%).
+  - [x] Merge vào `main`, push GitHub & deploy thành công lên Heroku (Release `v33`).
+  - [x] Dyno khởi động thành công trong 22.9s, live và healthy trên Heroku.
 
 ---
 
