@@ -6,6 +6,8 @@ import com.codegym.locketclone.chat.dto.response.MessageResponse;
 import com.codegym.locketclone.chat.dto.websocket.MarkChatReadPayload;
 import com.codegym.locketclone.chat.dto.websocket.ReadReceiptEvent;
 import com.codegym.locketclone.chat.dto.websocket.SendChatMessagePayload;
+import com.codegym.locketclone.chat.dto.websocket.TypingIndicatorEvent;
+import com.codegym.locketclone.chat.dto.websocket.TypingIndicatorPayload;
 import com.codegym.locketclone.chat.service.ChatService;
 import com.codegym.locketclone.common.exception.AppException;
 import com.codegym.locketclone.common.exception.ErrorResponse;
@@ -88,6 +90,30 @@ public class ChatWebSocketController {
             messagingTemplate.convertAndSendToUser(partnerId.toString(), "/queue/read-receipts", event);
             log.info("Đã gửi sự kiện đã đọc: convId={}, reader={}, partner={}",
                     payload.getConversationId(), readerId, partnerId);
+        }
+    }
+
+    @MessageMapping("/chat.typing")
+    public void handleTyping(@Valid @Payload TypingIndicatorPayload payload, Principal principal) {
+        if (principal == null || payload == null || payload.getConversationId() == null) {
+            log.warn("Bỏ qua typing STOMP: Principal hoặc payload không hợp lệ");
+            return;
+        }
+
+        UUID senderId = parsePrincipalId(principal);
+        if (senderId == null) {
+            return;
+        }
+
+        UUID recipientId = chatService.getRecipientId(payload.getConversationId(), senderId);
+        if (recipientId != null) {
+            TypingIndicatorEvent event = TypingIndicatorEvent.builder()
+                    .conversationId(payload.getConversationId())
+                    .userId(senderId)
+                    .isTyping(payload.isTyping())
+                    .build();
+
+            messagingTemplate.convertAndSendToUser(recipientId.toString(), "/queue/typing", event);
         }
     }
 

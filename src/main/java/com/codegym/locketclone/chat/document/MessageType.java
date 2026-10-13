@@ -2,5 +2,6 @@ package com.codegym.locketclone.chat.document;
 
 public enum MessageType {
     TEXT,
-    PHOTO_REPLY
+    PHOTO_REPLY,
+    REVOKED
 }

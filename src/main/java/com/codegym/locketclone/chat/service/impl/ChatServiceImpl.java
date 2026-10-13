@@ -2,6 +2,8 @@ package com.codegym.locketclone.chat.service.impl;
 
 import com.codegym.locketclone.chat.document.*;
 import com.codegym.locketclone.chat.dto.request.CreateConversationRequest;
+import com.codegym.locketclone.chat.dto.request.DeleteMode;
+import com.codegym.locketclone.chat.dto.request.PhotoReplyRequest;
 import com.codegym.locketclone.chat.dto.request.SendMessageRequest;
 import com.codegym.locketclone.chat.dto.response.*;
 import com.codegym.locketclone.chat.repository.ConversationRepository;
@@ -10,6 +12,9 @@ import com.codegym.locketclone.chat.service.ChatService;
 import com.codegym.locketclone.common.exception.AppException;
 import com.codegym.locketclone.common.exception.ErrorCode;
 import com.codegym.locketclone.friendship.FriendshipRepository;
+import com.codegym.locketclone.photo.Photo;
+import com.codegym.locketclone.photo.PhotoRepository;
+import com.codegym.locketclone.photo.PhotoStatus;
 import com.codegym.locketclone.user.User;
 import com.codegym.locketclone.user.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -22,9 +27,12 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 import java.util.function.Function;
@@ -40,13 +48,18 @@ public class ChatServiceImpl implements ChatService {
     private final MessageRepository messageRepository;
     private final UserRepository userRepository;
     private final FriendshipRepository friendshipRepository;
+    private final PhotoRepository photoRepository;
     private final MongoTemplate mongoTemplate;
+    private final SimpMessagingTemplate messagingTemplate;
 
     @Value("${app.chat.default-page-size:30}")
     private int defaultPageSize = 30;
 
     @Value("${app.chat.max-page-size:50}")
     private int maxPageSize = 50;
+
+    @Value("${app.chat.revoke-time-limit-minutes:60}")
+    private long revokeTimeLimitMinutes = 60;
 
     @Override
     public ConversationResponse getOrCreateConversation(UUID currentUserId, CreateConversationRequest request) {
@@ -163,6 +176,7 @@ public class ChatServiceImpl implements ChatService {
         UUID otherUserId = getOtherParticipantId(conversation, currentUserId);
 
         List<MessageResponse> responseList = messages.stream()
+                .filter(m -> m.getDeletedFor() == null || !m.getDeletedFor().contains(currentUserId))
                 .map(m -> toMessageResponse(m, currentUserId, otherUserId))
                 .toList();
 
@@ -184,12 +198,17 @@ public class ChatServiceImpl implements ChatService {
         if (request.getReplyToMessageId() != null && !request.getReplyToMessageId().isBlank()) {
             replyToInfo = messageRepository.findById(request.getReplyToMessageId())
                     .filter(rm -> conversationId.equals(rm.getConversationId())) // Chặn trích dẫn tin nhắn từ cuộc trò chuyện khác
-                    .map(rm -> ReplyToInfo.builder()
-                            .messageId(rm.getId())
-                            .senderId(rm.getSenderId())
-                            .content(rm.getContent())
-                            .type(rm.getType())
-                            .build())
+                    .map(rm -> {
+                        String content = (rm.getType() == MessageType.REVOKED)
+                                ? "Tin nhắn đã được thu hồi"
+                                : rm.getContent();
+                        return ReplyToInfo.builder()
+                                .messageId(rm.getId())
+                                .senderId(rm.getSenderId())
+                                .content(content)
+                                .type(rm.getType())
+                                .build();
+                    })
                     .orElse(null);
         }
 
@@ -198,6 +217,19 @@ public class ChatServiceImpl implements ChatService {
         if (messageType == MessageType.PHOTO_REPLY && (photoContext == null || photoContext.getPhotoId() == null)) {
             messageType = MessageType.TEXT;
             photoContext = null;
+        } else if (messageType == MessageType.PHOTO_REPLY) {
+            Photo photo = photoRepository.findAccessiblePhotoById(photoContext.getPhotoId(), currentUserId, PhotoStatus.DELETED)
+                    .orElse(null);
+            if (photo != null) {
+                String imageUrl = StringUtils.hasText(photo.getThumbnailUrl()) ? photo.getThumbnailUrl() : photo.getImageUrl();
+                photoContext.setImageUrl(imageUrl);
+                if (photo.getSender() != null) {
+                    photoContext.setSenderName(photo.getSender().getDisplayName());
+                }
+            } else {
+                messageType = MessageType.TEXT;
+                photoContext = null;
+            }
         }
 
         Instant now = Instant.now();
@@ -270,6 +302,144 @@ public class ChatServiceImpl implements ChatService {
 
         validateParticipant(conversation, currentUserId);
         return getOtherParticipantId(conversation, currentUserId);
+    }
+
+    @Override
+    public MessageResponse replyToPhoto(UUID currentUserId, UUID photoId, PhotoReplyRequest request) {
+        Photo photo = photoRepository.findAccessiblePhotoById(photoId, currentUserId, PhotoStatus.DELETED)
+                .orElseThrow(() -> new AppException(ErrorCode.PHOTO_NOT_ACCESSIBLE));
+
+        UUID photoOwnerId = photo.getSender().getId();
+        if (currentUserId.equals(photoOwnerId)) {
+            throw new AppException(ErrorCode.CANNOT_CHAT_WITH_SELF);
+        }
+
+        // Tạo hoặc lấy conversation 1-1 với chủ ảnh
+        CreateConversationRequest createConvReq = CreateConversationRequest.builder()
+                .friendId(photoOwnerId)
+                .build();
+        ConversationResponse convResponse = getOrCreateConversation(currentUserId, createConvReq);
+        String conversationId = convResponse.getId();
+
+        // Tạo snapshot photoContext tin cậy từ database
+        String imageUrl = StringUtils.hasText(photo.getThumbnailUrl()) ? photo.getThumbnailUrl() : photo.getImageUrl();
+        PhotoContextInfo photoContext = PhotoContextInfo.builder()
+                .photoId(photo.getId())
+                .imageUrl(imageUrl)
+                .senderName(photo.getSender().getDisplayName())
+                .build();
+
+        SendMessageRequest sendMsgReq = SendMessageRequest.builder()
+                .content(request.getContent())
+                .type(MessageType.PHOTO_REPLY)
+                .replyToMessageId(request.getReplyToMessageId())
+                .photoContext(photoContext)
+                .build();
+
+        MessageResponse response = sendMessage(currentUserId, conversationId, sendMsgReq);
+
+        // Gửi realtime qua STOMP WebSocket
+        try {
+            messagingTemplate.convertAndSendToUser(photoOwnerId.toString(), "/queue/messages", response);
+            messagingTemplate.convertAndSendToUser(currentUserId.toString(), "/queue/messages", response);
+        } catch (Exception ex) {
+            log.warn("Lỗi gửi tin nhắn realtime WebSocket qua Photo Reply: {}", ex.getMessage());
+        }
+
+        return response;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public UnreadTotalResponse getTotalUnreadCount(UUID currentUserId) {
+        List<Conversation> conversations = conversationRepository
+                .findByParticipantIdsContainingOrderByUpdatedAtDesc(currentUserId);
+
+        long total = conversations.stream()
+                .mapToLong(conv -> computeUnreadCount(conv, currentUserId))
+                .sum();
+
+        return UnreadTotalResponse.builder()
+                .totalUnread(total)
+                .build();
+    }
+
+    @Override
+    public void deleteMessage(UUID currentUserId, String conversationId, String messageId, DeleteMode mode) {
+        Conversation conversation = conversationRepository.findById(conversationId)
+                .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND));
+
+        validateParticipant(conversation, currentUserId);
+
+        Message message = messageRepository.findById(messageId)
+                .orElseThrow(() -> new AppException(ErrorCode.MESSAGE_NOT_FOUND));
+
+        if (!conversationId.equals(message.getConversationId())) {
+            throw new AppException(ErrorCode.MESSAGE_NOT_FOUND);
+        }
+
+        if (mode == null) {
+            mode = DeleteMode.FOR_ME;
+        }
+
+        if (mode == DeleteMode.FOR_ME) {
+            if (message.getDeletedFor() == null) {
+                message.setDeletedFor(new HashSet<>());
+            }
+            message.getDeletedFor().add(currentUserId);
+            messageRepository.save(message);
+            log.info("User {} đã xóa tin nhắn {} ở phía mình", currentUserId, messageId);
+            return;
+        }
+
+        if (mode == DeleteMode.FOR_EVERYONE) {
+            if (!currentUserId.equals(message.getSenderId())) {
+                throw new AppException(ErrorCode.CANNOT_REVOKE_OTHERS_MESSAGE);
+            }
+
+            if (message.getType() == MessageType.REVOKED) {
+                log.info("Tin nhắn {} đã được thu hồi trước đó", messageId);
+                return;
+            }
+
+            Instant now = Instant.now();
+            Instant sentAt = message.getSentAt() != null ? message.getSentAt() : now;
+            long diffMinutes = Duration.between(sentAt, now).toMinutes();
+            if (diffMinutes > revokeTimeLimitMinutes) {
+                throw new AppException(ErrorCode.MESSAGE_REVOKE_TIME_EXPIRED);
+            }
+
+            message.setContent("Tin nhắn đã được thu hồi");
+            message.setType(MessageType.REVOKED);
+            message.setPhotoContext(null);
+            message.setReplyTo(null);
+            messageRepository.save(message);
+
+            // Cập nhật lastMessage nếu tin bị thu hồi là tin cuối
+            if (conversation.getLastMessage() != null && messageId.equals(conversation.getLastMessage().getMessageId())) {
+                conversation.getLastMessage().setContent("Tin nhắn đã được thu hồi");
+                conversation.getLastMessage().setType(MessageType.REVOKED);
+                conversationRepository.save(conversation);
+            }
+
+            MessageRevokedEvent event = MessageRevokedEvent.builder()
+                    .conversationId(conversationId)
+                    .messageId(messageId)
+                    .revokedAt(now)
+                    .build();
+
+            UUID recipientId = getOtherParticipantId(conversation, currentUserId);
+            try {
+                if (recipientId != null) {
+                    messagingTemplate.convertAndSendToUser(recipientId.toString(), "/queue/message-revoked", event);
+                }
+                messagingTemplate.convertAndSendToUser(currentUserId.toString(), "/queue/message-revoked", event);
+            } catch (Exception ex) {
+                log.warn("Lỗi gửi sự kiện thu hồi tin nhắn WebSocket: {}", ex.getMessage());
+            }
+
+            log.info("User {} đã thu hồi tin nhắn {} trong hội thoại {}", currentUserId, messageId, conversationId);
+        }
     }
 
     private List<UUID> sortParticipants(UUID u1, UUID u2) {

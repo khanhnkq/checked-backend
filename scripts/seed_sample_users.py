@@ -1,12 +1,17 @@
+import os
 import uuid
 import datetime
 import psycopg2
 
-DB_URL = "postgresql://neondb_owner:npg_UHF6EBJK3MCG@ep-summer-darkness-b3unuia8-pooler.c-4.ap-southeast-1.aws.neon.tech:5432/neondb?sslmode=require"
-TARGET_EMAIL = "khanhnkq.dev@gmail.com"
+# Lấy cấu hình từ biến môi trường để đảm bảo không lộ credentials
+DB_URL = os.getenv("DB_URL")
+if not DB_URL:
+    raise ValueError("Vui lòng thiết lập biến môi trường DB_URL trước khi chạy script (ví dụ: export DB_URL=postgresql://user:pass@host/db)")
 
-# Reusable BCrypt hash from target user
-BCRYPT_PASSWORD_HASH = "$2a$10$rOH5cXTjNu7FOEwpuw00C.UKB3tMUyxNRI5tgfcTmcv1GIBsIITRG"
+TARGET_EMAIL = os.getenv("TARGET_EMAIL", "khanhnkq.dev@gmail.com")
+
+# Mật khẩu hash mẫu (có thể ghi đè qua SAMPLE_PASSWORD_HASH)
+BCRYPT_PASSWORD_HASH = os.getenv("SAMPLE_PASSWORD_HASH", "$2a$10$rOH5cXTjNu7FOEwpuw00C.UKB3tMUyxNRI5tgfcTmcv1GIBsIITRG")
 
 SAMPLE_USERS = [
     {

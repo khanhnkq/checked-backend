@@ -1,11 +1,13 @@
 package com.codegym.locketclone.chat.controller;
 
 import com.codegym.locketclone.chat.dto.request.CreateConversationRequest;
+import com.codegym.locketclone.chat.dto.request.DeleteMode;
 import com.codegym.locketclone.chat.dto.request.SendMessageRequest;
 import com.codegym.locketclone.chat.dto.response.ConversationResponse;
 import com.codegym.locketclone.chat.dto.response.MarkReadResponse;
 import com.codegym.locketclone.chat.dto.response.MessageCursorPageResponse;
 import com.codegym.locketclone.chat.dto.response.MessageResponse;
+import com.codegym.locketclone.chat.dto.response.UnreadTotalResponse;
 import com.codegym.locketclone.chat.service.ChatService;
 import com.codegym.locketclone.security.service.UserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
@@ -74,5 +76,25 @@ public class ChatController {
             @PathVariable String conversationId
     ) {
         return ResponseEntity.ok(chatService.markAsRead(currentUser.getId(), conversationId));
+    }
+
+    @Operation(summary = "Lấy tổng số tin nhắn chưa đọc của tôi trên tất cả các cuộc trò chuyện")
+    @GetMapping("/unread-total")
+    public ResponseEntity<UnreadTotalResponse> getTotalUnreadCount(
+            @AuthenticationPrincipal UserPrincipal currentUser
+    ) {
+        return ResponseEntity.ok(chatService.getTotalUnreadCount(currentUser.getId()));
+    }
+
+    @Operation(summary = "Xóa hoặc thu hồi tin nhắn trong cuộc trò chuyện")
+    @DeleteMapping("/{conversationId}/messages/{messageId}")
+    public ResponseEntity<Void> deleteMessage(
+            @AuthenticationPrincipal UserPrincipal currentUser,
+            @PathVariable String conversationId,
+            @PathVariable String messageId,
+            @RequestParam(defaultValue = "FOR_ME") DeleteMode mode
+    ) {
+        chatService.deleteMessage(currentUser.getId(), conversationId, messageId, mode);
+        return ResponseEntity.noContent().build();
     }
 }

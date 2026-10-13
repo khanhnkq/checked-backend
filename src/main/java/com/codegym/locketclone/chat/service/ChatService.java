@@ -1,11 +1,14 @@
 package com.codegym.locketclone.chat.service;
 
 import com.codegym.locketclone.chat.dto.request.CreateConversationRequest;
+import com.codegym.locketclone.chat.dto.request.DeleteMode;
+import com.codegym.locketclone.chat.dto.request.PhotoReplyRequest;
 import com.codegym.locketclone.chat.dto.request.SendMessageRequest;
 import com.codegym.locketclone.chat.dto.response.ConversationResponse;
 import com.codegym.locketclone.chat.dto.response.MarkReadResponse;
 import com.codegym.locketclone.chat.dto.response.MessageCursorPageResponse;
 import com.codegym.locketclone.chat.dto.response.MessageResponse;
+import com.codegym.locketclone.chat.dto.response.UnreadTotalResponse;
 
 import java.time.Instant;
 import java.util.List;
@@ -24,4 +27,10 @@ public interface ChatService {
     MarkReadResponse markAsRead(UUID currentUserId, String conversationId);
 
     UUID getRecipientId(String conversationId, UUID currentUserId);
+
+    MessageResponse replyToPhoto(UUID currentUserId, UUID photoId, PhotoReplyRequest request);
+
+    UnreadTotalResponse getTotalUnreadCount(UUID currentUserId);
+
+    void deleteMessage(UUID currentUserId, String conversationId, String messageId, DeleteMode mode);
 }

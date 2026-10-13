@@ -2,11 +2,13 @@ package com.codegym.locketclone.chat;
 
 import com.codegym.locketclone.chat.document.*;
 import com.codegym.locketclone.chat.dto.request.CreateConversationRequest;
+import com.codegym.locketclone.chat.dto.request.DeleteMode;
 import com.codegym.locketclone.chat.dto.request.SendMessageRequest;
 import com.codegym.locketclone.chat.dto.response.ConversationResponse;
 import com.codegym.locketclone.chat.dto.response.MarkReadResponse;
 import com.codegym.locketclone.chat.dto.response.MessageCursorPageResponse;
 import com.codegym.locketclone.chat.dto.response.MessageResponse;
+import com.codegym.locketclone.chat.dto.response.UnreadTotalResponse;
 import com.codegym.locketclone.chat.repository.ConversationRepository;
 import com.codegym.locketclone.chat.repository.MessageRepository;
 import com.codegym.locketclone.chat.service.impl.ChatServiceImpl;
@@ -14,8 +16,10 @@ import com.codegym.locketclone.common.exception.AppException;
 import com.codegym.locketclone.common.exception.ErrorCode;
 import com.codegym.locketclone.friendship.Friendship;
 import com.codegym.locketclone.friendship.FriendshipRepository;
+import com.codegym.locketclone.photo.PhotoRepository;
 import com.codegym.locketclone.user.User;
 import com.codegym.locketclone.user.UserRepository;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -51,7 +55,13 @@ class ChatServiceImplTest {
     private FriendshipRepository friendshipRepository;
 
     @Mock
+    private PhotoRepository photoRepository;
+
+    @Mock
     private MongoTemplate mongoTemplate;
+
+    @Mock
+    private SimpMessagingTemplate messagingTemplate;
 
     private ChatServiceImpl chatService;
 
@@ -66,7 +76,9 @@ class ChatServiceImplTest {
                 messageRepository,
                 userRepository,
                 friendshipRepository,
-                mongoTemplate
+                photoRepository,
+                mongoTemplate,
+                messagingTemplate
         );
 
         currentUserId = UUID.fromString("11111111-1111-1111-1111-111111111111");
@@ -409,5 +421,146 @@ class ChatServiceImplTest {
         String json = mapper.writeValueAsString(response);
         assertTrue(json.contains("\"hasMore\":true"));
         assertFalse(json.contains("\"more\":true"));
+    }
+
+    @Test
+    @DisplayName("getTotalUnreadCount - Tính tổng unread count chính xác")
+    void getTotalUnreadCount_success() {
+        Conversation conv1 = Conversation.builder()
+                .id("conv-1")
+                .participantIds(List.of(currentUserId, friendId))
+                .lastMessage(LastMessageInfo.builder()
+                        .senderId(friendId)
+                        .sentAt(Instant.now())
+                        .build())
+                .build();
+
+        Conversation conv2 = Conversation.builder()
+                .id("conv-2")
+                .participantIds(List.of(currentUserId, friendId))
+                .lastMessage(LastMessageInfo.builder()
+                        .senderId(currentUserId)
+                        .sentAt(Instant.now())
+                        .build())
+                .build();
+
+        when(conversationRepository.findByParticipantIdsContainingOrderByUpdatedAtDesc(currentUserId))
+                .thenReturn(List.of(conv1, conv2));
+        when(messageRepository.countByConversationIdAndSenderIdNotAndReadByNotContaining("conv-1", currentUserId, currentUserId))
+                .thenReturn(3L);
+
+        UnreadTotalResponse total = chatService.getTotalUnreadCount(currentUserId);
+
+        assertNotNull(total);
+        assertEquals(3L, total.getTotalUnread());
+    }
+
+    @Test
+    @DisplayName("deleteMessage - Xóa FOR_ME thêm user vào deletedFor")
+    void deleteMessage_forMe_success() {
+        Conversation conv = Conversation.builder()
+                .id("conv-1")
+                .participantIds(List.of(currentUserId, friendId))
+                .build();
+
+        Message msg = Message.builder()
+                .id("msg-1")
+                .conversationId("conv-1")
+                .senderId(friendId)
+                .content("Chào")
+                .deletedFor(new HashSet<>())
+                .build();
+
+        when(conversationRepository.findById("conv-1")).thenReturn(Optional.of(conv));
+        when(messageRepository.findById("msg-1")).thenReturn(Optional.of(msg));
+
+        chatService.deleteMessage(currentUserId, "conv-1", "msg-1", DeleteMode.FOR_ME);
+
+        assertTrue(msg.getDeletedFor().contains(currentUserId));
+        verify(messageRepository).save(msg);
+        verifyNoInteractions(messagingTemplate);
+    }
+
+    @Test
+    @DisplayName("deleteMessage - Thu hồi FOR_EVERYONE thành công khi là người gửi")
+    void deleteMessage_forEveryone_success() {
+        Conversation conv = Conversation.builder()
+                .id("conv-1")
+                .participantIds(List.of(currentUserId, friendId))
+                .lastMessage(LastMessageInfo.builder()
+                        .messageId("msg-1")
+                        .content("Nội dung cũ")
+                        .build())
+                .build();
+
+        Message msg = Message.builder()
+                .id("msg-1")
+                .conversationId("conv-1")
+                .senderId(currentUserId)
+                .content("Nội dung cũ")
+                .sentAt(Instant.now().minusSeconds(60))
+                .build();
+
+        when(conversationRepository.findById("conv-1")).thenReturn(Optional.of(conv));
+        when(messageRepository.findById("msg-1")).thenReturn(Optional.of(msg));
+
+        chatService.deleteMessage(currentUserId, "conv-1", "msg-1", DeleteMode.FOR_EVERYONE);
+
+        assertEquals("Tin nhắn đã được thu hồi", msg.getContent());
+        assertEquals(MessageType.REVOKED, msg.getType());
+        verify(messageRepository).save(msg);
+        verify(conversationRepository).save(conv);
+        verify(messagingTemplate).convertAndSendToUser(eq(friendId.toString()), eq("/queue/message-revoked"), any());
+        verify(messagingTemplate).convertAndSendToUser(eq(currentUserId.toString()), eq("/queue/message-revoked"), any());
+    }
+
+    @Test
+    @DisplayName("deleteMessage - Ném ngoại lệ khi thu hồi tin nhắn của người khác")
+    void deleteMessage_forEveryone_whenNotSender_throwsException() {
+        Conversation conv = Conversation.builder()
+                .id("conv-1")
+                .participantIds(List.of(currentUserId, friendId))
+                .build();
+
+        Message msg = Message.builder()
+                .id("msg-1")
+                .conversationId("conv-1")
+                .senderId(friendId)
+                .sentAt(Instant.now())
+                .build();
+
+        when(conversationRepository.findById("conv-1")).thenReturn(Optional.of(conv));
+        when(messageRepository.findById("msg-1")).thenReturn(Optional.of(msg));
+
+        AppException ex = assertThrows(AppException.class,
+                () -> chatService.deleteMessage(currentUserId, "conv-1", "msg-1", DeleteMode.FOR_EVERYONE));
+
+        assertEquals(ErrorCode.CANNOT_REVOKE_OTHERS_MESSAGE, ex.getErrorCode());
+        verify(messageRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("deleteMessage - Ném ngoại lệ khi thu hồi tin nhắn đã quá thời hạn")
+    void deleteMessage_forEveryone_whenExpired_throwsException() {
+        Conversation conv = Conversation.builder()
+                .id("conv-1")
+                .participantIds(List.of(currentUserId, friendId))
+                .build();
+
+        Message msg = Message.builder()
+                .id("msg-1")
+                .conversationId("conv-1")
+                .senderId(currentUserId)
+                .sentAt(Instant.now().minusSeconds(7200)) // 2 tiếng trước (> 60 phút)
+                .build();
+
+        when(conversationRepository.findById("conv-1")).thenReturn(Optional.of(conv));
+        when(messageRepository.findById("msg-1")).thenReturn(Optional.of(msg));
+
+        AppException ex = assertThrows(AppException.class,
+                () -> chatService.deleteMessage(currentUserId, "conv-1", "msg-1", DeleteMode.FOR_EVERYONE));
+
+        assertEquals(ErrorCode.MESSAGE_REVOKE_TIME_EXPIRED, ex.getErrorCode());
+        verify(messageRepository, never()).save(any());
     }
 }

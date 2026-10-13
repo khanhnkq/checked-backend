@@ -27,6 +27,9 @@ import org.springframework.web.multipart.MultipartFile;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import com.codegym.locketclone.chat.dto.request.PhotoReplyRequest;
+import com.codegym.locketclone.chat.dto.response.MessageResponse;
+import com.codegym.locketclone.chat.service.ChatService;
 import java.util.UUID;
 
 @Tag(name = "Photos", description = "Chia sẻ khoảnh khắc ảnh kèm giao dịch chi tiêu, feed ảnh bạn bè, cảm xúc (reactions)")
@@ -35,6 +38,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class PhotoController {
     private final PhotoService photoService;
+    private final ChatService chatService;
 
     @Operation(summary = "Đăng tải ảnh khoảnh khắc mới", description = "Upload ảnh (JPEG/PNG/WEBP) kèm thông tin tài chính (số tiền, danh mục, loại giao dịch, ghi chú) và phạm vi bạn bè nhận ảnh (ALL_FRIENDS hoặc SELECTED_FRIENDS).")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -172,5 +176,16 @@ public class PhotoController {
     ) {
         photoService.deleteTransaction(currentUser.getId(), photoId);
         return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "Phản hồi ảnh trực tiếp vào cuộc trò chuyện 1-1", description = "Gửi tin nhắn phản hồi từ màn hình xem ảnh/feed trực tiếp vào luồng chat với bạn bè.")
+    @PostMapping("/{photoId}/reply")
+    public ResponseEntity<MessageResponse> replyToPhoto(
+            @PathVariable UUID photoId,
+            @AuthenticationPrincipal UserPrincipal currentUser,
+            @Valid @RequestBody PhotoReplyRequest request
+    ) {
+        MessageResponse response = chatService.replyToPhoto(currentUser.getId(), photoId, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 }

@@ -55,6 +55,9 @@ public enum ErrorCode {
     INVALID_CALORIE_AMOUNT(HttpStatus.BAD_REQUEST, "Số lượng calo phải lớn hơn 0"),
     CONVERSATION_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy cuộc trò chuyện"),
     MESSAGE_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy tin nhắn"),
+    PHOTO_NOT_ACCESSIBLE(HttpStatus.FORBIDDEN, "Bạn không có quyền truy cập hoặc phản hồi bức ảnh này"),
+    CANNOT_REVOKE_OTHERS_MESSAGE(HttpStatus.FORBIDDEN, "Bạn chỉ có thể thu hồi tin nhắn do chính mình gửi"),
+    MESSAGE_REVOKE_TIME_EXPIRED(HttpStatus.BAD_REQUEST, "Đã quá thời gian cho phép thu hồi tin nhắn"),
 
     // 429 Too Many Requests
     TOO_MANY_REQUESTS(HttpStatus.TOO_MANY_REQUESTS, "Bạn đã gửi quá nhiều yêu cầu. Vui lòng thử lại sau."),

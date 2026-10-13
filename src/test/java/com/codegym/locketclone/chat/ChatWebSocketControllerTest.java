@@ -8,6 +8,8 @@ import com.codegym.locketclone.chat.dto.response.MessageResponse;
 import com.codegym.locketclone.chat.dto.websocket.MarkChatReadPayload;
 import com.codegym.locketclone.chat.dto.websocket.ReadReceiptEvent;
 import com.codegym.locketclone.chat.dto.websocket.SendChatMessagePayload;
+import com.codegym.locketclone.chat.dto.websocket.TypingIndicatorEvent;
+import com.codegym.locketclone.chat.dto.websocket.TypingIndicatorPayload;
 import com.codegym.locketclone.chat.service.ChatService;
 import com.codegym.locketclone.common.exception.AppException;
 import com.codegym.locketclone.common.exception.ErrorCode;
@@ -147,5 +149,45 @@ class ChatWebSocketControllerTest {
         assertNotNull(response);
         assertEquals(403, response.getStatus());
         assertEquals(ErrorCode.FORBIDDEN.getMessage(), response.getMessage());
+    }
+
+    @Test
+    @DisplayName("handleTyping - Dispatch TypingIndicatorEvent tới đối phương qua STOMP")
+    void handleTyping_success() {
+        when(principal.getName()).thenReturn(senderId.toString());
+
+        TypingIndicatorPayload payload = TypingIndicatorPayload.builder()
+                .conversationId("conv-100")
+                .isTyping(true)
+                .build();
+
+        when(chatService.getRecipientId("conv-100", senderId)).thenReturn(recipientId);
+
+        webSocketController.handleTyping(payload, principal);
+
+        ArgumentCaptor<TypingIndicatorEvent> eventCaptor = ArgumentCaptor.forClass(TypingIndicatorEvent.class);
+        verify(messagingTemplate).convertAndSendToUser(
+                eq(recipientId.toString()), eq("/queue/typing"), eventCaptor.capture());
+
+        TypingIndicatorEvent event = eventCaptor.getValue();
+        assertEquals("conv-100", event.getConversationId());
+        assertEquals(senderId, event.getUserId());
+        assertTrue(event.isTyping());
+    }
+
+    @Test
+    @DisplayName("TypingIndicatorEvent serialization - Đảm bảo serialize đúng trường isTyping")
+    void typingIndicatorEventSerialization_containsIsTyping() throws Exception {
+        com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+
+        TypingIndicatorEvent event = TypingIndicatorEvent.builder()
+                .conversationId("conv-100")
+                .userId(senderId)
+                .isTyping(true)
+                .build();
+
+        String json = mapper.writeValueAsString(event);
+        assertTrue(json.contains("\"isTyping\":true"));
+        assertFalse(json.contains("\"typing\":true"));
     }
 }
