@@ -10,6 +10,7 @@ import com.codegym.locketclone.common.exception.ErrorCode;
 import com.codegym.locketclone.common.mapper.PhotoMapper;
 import com.codegym.locketclone.expense.Category;
 import com.codegym.locketclone.expense.CategoryRepository;
+import com.codegym.locketclone.expense.ExpenseService;
 import com.codegym.locketclone.expense.TransactionType;
 import com.codegym.locketclone.friendship.FriendshipRepository;
 import com.codegym.locketclone.photo.dto.PhotoReactionResponse;
@@ -45,6 +46,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -84,6 +86,13 @@ public class PhotoServiceImpl implements PhotoService {
     }
 
     @Autowired(required = false)
+    private ExpenseService expenseService;
+
+    public void setExpenseService(ExpenseService expenseService) {
+        this.expenseService = expenseService;
+    }
+
+    @Autowired(required = false)
     private CacheManager cacheManager;
 
     public void setCacheManager(CacheManager cacheManager) {
@@ -103,6 +112,33 @@ public class PhotoServiceImpl implements PhotoService {
             Cache cache = cacheManager.getCache(cacheName);
             if (cache != null) {
                 cache.evict(key);
+            }
+        }
+    }
+
+    private void triggerExpenseEvictionIfPresent(UUID userId, Photo photo) {
+        if (expenseService != null && photo != null && photo.getAmount() != null) {
+            LocalDateTime dt = photo.getOccurredAt() != null ? photo.getOccurredAt() : photo.getCreatedAt();
+            if (dt != null) {
+                try {
+                    String monthKey = dt.format(DateTimeFormatter.ofPattern("yyyyMM"));
+                    expenseService.evictExpenseCaches(userId, monthKey, dt.getYear());
+                } catch (Exception ex) {
+                    log.warn("Lỗi khi evict expense cache cho photo ID {}: {}", photo.getId(), ex.getMessage());
+                }
+            }
+        }
+    }
+
+    private void triggerCalorieEvictionIfPresent(UUID userId, Photo photo) {
+        if (calorieService != null && photo != null && photo.getCalories() != null && photo.getCalories() > 0) {
+            LocalDateTime dt = photo.getOccurredAt() != null ? photo.getOccurredAt() : photo.getCreatedAt();
+            if (dt != null) {
+                try {
+                    calorieService.evictCalorieCaches(userId, dt.toLocalDate());
+                } catch (Exception ex) {
+                    log.warn("Lỗi khi evict calorie cache cho photo ID {}: {}", photo.getId(), ex.getMessage());
+                }
             }
         }
     }
@@ -202,6 +238,7 @@ public class PhotoServiceImpl implements PhotoService {
 
             Photo savedPhoto = savePhotoAndRecipientsInTx(photo, recipients, mealType);
             evictCache(CacheConfig.MY_PHOTOS_CACHE, senderId);
+            triggerExpenseEvictionIfPresent(senderId, savedPhoto);
 
             log.info("Lưu Photo vào Database thành công, ID: {}, recipients: {}", savedPhoto.getId(), recipients.size());
             return photoMapper.toResponse(savedPhoto);
@@ -270,6 +307,7 @@ public class PhotoServiceImpl implements PhotoService {
         }
 
         Photo saved = photoRepository.save(photo);
+        triggerExpenseEvictionIfPresent(userId, saved);
         return photoMapper.toResponse(saved);
     }
 
@@ -410,6 +448,7 @@ public class PhotoServiceImpl implements PhotoService {
         }
 
         Photo saved = photoRepository.save(photo);
+        triggerExpenseEvictionIfPresent(userId, saved);
         return photoMapper.toResponse(saved);
     }
 
@@ -435,6 +474,9 @@ public class PhotoServiceImpl implements PhotoService {
         if (photo.getPublicId() != null) {
             storageService.deleteFile(photo.getPublicId());
         }
+
+        triggerExpenseEvictionIfPresent(userId, photo);
+        triggerCalorieEvictionIfPresent(userId, photo);
 
         evictCache(CacheConfig.MY_PHOTOS_CACHE, userId);
         evictCache(CacheConfig.FEED_CACHE, userId);
