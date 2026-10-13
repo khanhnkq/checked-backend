@@ -360,25 +360,25 @@ Hệ thống phân rã toàn bộ cấu hình kết nối thành 10 biến độ
 
 | STT | Tên Biến Môi Trường | Giá trị Mẫu | Mục Đích Sử Dụng |
 | :---: | :--- | :--- | :--- |
-| 1 | `REDIS_HOST` | `adapting-moth-229902.upstash.io` | Địa chỉ Host Redis Upstash |
+| 1 | `REDIS_HOST` | `<your-redis-host>.upstash.io` | Địa chỉ Host Redis Upstash |
 | 2 | `REDIS_PORT` | `6379` | Cổng kết nối Redis |
-| 3 | `REDIS_PASSWORD` | `gQAAAAAAA...` | Mật khẩu xác thực Redis |
+| 3 | `REDIS_PASSWORD` | `<your-redis-password>` | Mật khẩu xác thực Redis |
 | 4 | `REDIS_SSL` | `true` | Bật mã hóa bảo mật TLS qua mạng Internet |
-| 5 | `RABBITMQ_HOST` | `leopard.lmq.cloudamqp.com` | Địa chỉ Host RabbitMQ CloudAMQP |
+| 5 | `RABBITMQ_HOST` | `<your-rmq-host>.rmq.cloudamqp.com` | Địa chỉ Host RabbitMQ CloudAMQP |
 | 6 | `RABBITMQ_PORT` | `5671` | Cổng kết nối AMQPS mã hóa TLS |
-| 7 | `RABBITMQ_USERNAME` | `kufeoult` | Tên tài khoản RabbitMQ / CloudAMQP |
-| 8 | `RABBITMQ_PASSWORD` | `mv1YvpuQ...` | Mật khẩu RabbitMQ / CloudAMQP |
-| 9 | `RABBITMQ_VIRTUAL_HOST`| `kufeoult` | Virtual Host cô lập tài nguyên |
+| 7 | `RABBITMQ_USERNAME` | `<your-rmq-username>` | Tên tài khoản RabbitMQ / CloudAMQP |
+| 8 | `RABBITMQ_PASSWORD` | `<your-rmq-password>` | Mật khẩu RabbitMQ / CloudAMQP |
+| 9 | `RABBITMQ_VIRTUAL_HOST`| `<your-rmq-vhost>` | Virtual Host cô lập tài nguyên |
 | 10 | `RABBITMQ_SSL` | `true` | Bật mã hóa bảo mật AMQPS |
 
 ### Lệnh Cấu Hình Trên Heroku (CLI):
 ```bash
 heroku config:set \
-  REDIS_HOST="adapting-moth-229902.upstash.io" \
+  REDIS_HOST="<your-redis-host>.upstash.io" \
   REDIS_PORT="6379" \
   REDIS_PASSWORD="[YOUR_UPSTASH_PASSWORD]" \
   REDIS_SSL="true" \
-  RABBITMQ_HOST="leopard.lmq.cloudamqp.com" \
+  RABBITMQ_HOST="<your-rmq-host>.rmq.cloudamqp.com" \
   RABBITMQ_PORT="5671" \
   RABBITMQ_USERNAME="[YOUR_CLOUDAMQP_USER]" \
   RABBITMQ_PASSWORD="[YOUR_CLOUDAMQP_PASSWORD]" \

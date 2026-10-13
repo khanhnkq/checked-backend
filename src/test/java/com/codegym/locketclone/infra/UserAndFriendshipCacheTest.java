@@ -35,20 +35,6 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest(classes = LocketCloneApplication.class)
-@TestPropertySource(properties = {
-        "spring.data.redis.host=adapting-moth-229902.upstash.io",
-        "spring.data.redis.port=6379",
-        "spring.data.redis.password=gQAAAAAAA4IOAAIgcDE3ODJkNjY1ZjRmM2U0Zjk5OTY2YTVjODg5NTAwY2Q1Zg",
-        "spring.data.redis.ssl.enabled=true",
-        "spring.data.redis.timeout=5000ms",
-
-        "spring.rabbitmq.host=leopard.lmq.cloudamqp.com",
-        "spring.rabbitmq.port=5671",
-        "spring.rabbitmq.username=kufeoult",
-        "spring.rabbitmq.password=mv1YvpuQOsWylToYRguVJyPtCYxdItsj",
-        "spring.rabbitmq.virtual-host=kufeoult",
-        "spring.rabbitmq.ssl.enabled=true"
-})
 class UserAndFriendshipCacheTest {
 
     @Autowired
@@ -134,8 +120,13 @@ class UserAndFriendshipCacheTest {
         assertNotNull(principal1);
         assertEquals(user.getUsername(), principal1.getUsername());
 
-        // Kiểm tra Redis cache đã chứa dữ liệu
-        Cache.ValueWrapper wrapper = usersCache.get(userId);
+        // Kiểm tra Redis cache đã chứa dữ liệu (hỗ trợ độ trễ mạng cloud Upstash TLS)
+        Cache.ValueWrapper wrapper = null;
+        for (int i = 0; i < 10; i++) {
+            wrapper = usersCache.get(userId);
+            if (wrapper != null && wrapper.get() != null) break;
+            try { Thread.sleep(100); } catch (InterruptedException ignored) {}
+        }
         assertNotNull(wrapper, "Redis cache phải chứa key sau lần gọi 1");
         assertInstanceOf(UserPrincipal.class, wrapper.get());
 
@@ -155,7 +146,13 @@ class UserAndFriendshipCacheTest {
 
         // Nạp vào cache
         userDetailsService.loadUserById(userId);
-        assertNotNull(usersCache.get(userId), "Cache phải có trước khi update profile");
+        Cache.ValueWrapper preWrapper = null;
+        for (int i = 0; i < 10; i++) {
+            preWrapper = usersCache.get(userId);
+            if (preWrapper != null && preWrapper.get() != null) break;
+            try { Thread.sleep(100); } catch (InterruptedException ignored) {}
+        }
+        assertNotNull(preWrapper, "Cache phải có trước khi update profile");
 
         // Cập nhật profile qua UserService -> Kích hoạt @CacheEvict
         UpdateProfileRequest updateRequest = new UpdateProfileRequest(
@@ -167,8 +164,8 @@ class UserAndFriendshipCacheTest {
         );
         userService.updateCurrentUserProfile(userId, updateRequest);
 
-        // Kiểm tra Redis cache đã bị xóa
-        assertNull(usersCache.get(userId), "Cache 'users' phải bị xóa sạch sau khi update profile");
+        // Kiểm tra Redis cache đã bị xóa (chờ Redis xử lý evict qua mạng TLS)
+        assertCacheEvicted(usersCache, userId, "Cache 'users' phải bị xóa sạch sau khi update profile");
     }
 
     @Test
@@ -193,9 +190,8 @@ class UserAndFriendshipCacheTest {
         assertEquals(1, friends1.size());
         assertEquals(userB.getUsername(), friends1.get(0).username());
 
-        // Kiểm tra cache Redis có chứa List
-        Cache.ValueWrapper wrapper = friendsCache.get(userA.getId());
-        assertNotNull(wrapper, "Cache 'friends' phải có giá trị");
+        // Kiểm tra cache Redis có chứa List (hỗ trợ độ trễ mạng cloud Upstash TLS)
+        Cache.ValueWrapper wrapper = assertCachePresent(friendsCache, userA.getId(), "Cache 'friends' phải có giá trị");
         assertInstanceOf(List.class, wrapper.get());
 
         // Lần 2: Hit cache
@@ -224,8 +220,9 @@ class UserAndFriendshipCacheTest {
                 .build();
         friendsCache.put(owner.getId(), List.of(dummyProfile));
         friendsCache.put(invitee.getId(), List.of(dummyProfile));
-        assertNotNull(friendsCache.get(owner.getId()));
-        assertNotNull(friendsCache.get(invitee.getId()));
+
+        assertCachePresent(friendsCache, owner.getId(), "Cache owner phải có trước khi accept");
+        assertCachePresent(friendsCache, invitee.getId(), "Cache invitee phải có trước khi accept");
 
         // Tạo invite link
         String token = "test-token-" + UUID.randomUUID();
@@ -244,7 +241,29 @@ class UserAndFriendshipCacheTest {
         createdFriendshipIds.add(response.friendshipId());
 
         // Kiểm tra cache friends của CẢ 2 PHÍA đã bị xóa sạch (Eviction 2 chiều)
-        assertNull(friendsCache.get(owner.getId()), "Cache friends của owner phải bị evict");
-        assertNull(friendsCache.get(invitee.getId()), "Cache friends của invitee phải bị evict");
+        assertCacheEvicted(friendsCache, owner.getId(), "Cache friends của owner phải bị evict");
+        assertCacheEvicted(friendsCache, invitee.getId(), "Cache friends của invitee phải bị evict");
+    }
+
+    private void assertCacheEvicted(Cache cache, Object key, String message) {
+        Cache.ValueWrapper wrapper = cache.get(key);
+        for (int i = 0; i < 15 && wrapper != null; i++) {
+            try { Thread.sleep(100); } catch (InterruptedException ignored) {}
+            wrapper = cache.get(key);
+        }
+        assertNull(wrapper, message);
+    }
+
+    private Cache.ValueWrapper assertCachePresent(Cache cache, Object key, String message) {
+        Cache.ValueWrapper wrapper = null;
+        for (int i = 0; i < 15; i++) {
+            wrapper = cache.get(key);
+            if (wrapper != null && wrapper.get() != null) {
+                break;
+            }
+            try { Thread.sleep(100); } catch (InterruptedException ignored) {}
+        }
+        assertNotNull(wrapper, message);
+        return wrapper;
     }
 }

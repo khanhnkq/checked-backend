@@ -9,6 +9,8 @@ import com.codegym.locketclone.chat.dto.response.MarkReadResponse;
 import com.codegym.locketclone.chat.dto.response.MessageCursorPageResponse;
 import com.codegym.locketclone.chat.dto.response.MessageResponse;
 import com.codegym.locketclone.chat.dto.response.UnreadTotalResponse;
+import com.codegym.locketclone.common.config.CacheConfig;
+import org.springframework.cache.annotation.Cacheable;
 
 import java.time.Instant;
 import java.util.List;
@@ -18,6 +20,7 @@ public interface ChatService {
 
     ConversationResponse getOrCreateConversation(UUID currentUserId, CreateConversationRequest request);
 
+    @Cacheable(value = CacheConfig.CHAT_CONVERSATIONS_CACHE, key = "#currentUserId")
     List<ConversationResponse> getMyConversations(UUID currentUserId);
 
     MessageCursorPageResponse getMessages(UUID currentUserId, String conversationId, Instant before, Integer limit);
@@ -30,7 +33,10 @@ public interface ChatService {
 
     MessageResponse replyToPhoto(UUID currentUserId, UUID photoId, PhotoReplyRequest request);
 
+    @Cacheable(value = CacheConfig.CHAT_UNREAD_CACHE, key = "#currentUserId")
     UnreadTotalResponse getTotalUnreadCount(UUID currentUserId);
 
     void deleteMessage(UUID currentUserId, String conversationId, String messageId, DeleteMode mode);
+
+    void evictChatCaches(UUID userId, boolean evictUnread, boolean evictConversations);
 }

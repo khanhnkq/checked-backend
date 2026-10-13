@@ -82,6 +82,22 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+	def envFile = rootProject.file('.env')
+	if (envFile.exists()) {
+		envFile.readLines().each { line ->
+			def trimmed = line.trim()
+			if (trimmed && !trimmed.startsWith('#') && trimmed.contains('=')) {
+				def parts = trimmed.split('=', 2)
+				def key = parts[0].trim()
+				def val = parts[1].trim()
+				if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+					val = val.substring(1, val.length() - 1)
+				}
+				environment key, val
+				systemProperty key, val
+			}
+		}
+	}
 }
 
 tasks.register('stage') {

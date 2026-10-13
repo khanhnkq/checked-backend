@@ -8,29 +8,12 @@ import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.test.context.TestPropertySource;
 
 import java.time.Duration;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest(classes = LocketCloneApplication.class)
-@TestPropertySource(properties = {
-        // Cấu hình test trỏ tới Upstash Redis Cloud
-        "spring.data.redis.host=adapting-moth-229902.upstash.io",
-        "spring.data.redis.port=6379",
-        "spring.data.redis.password=gQAAAAAAA4IOAAIgcDE3ODJkNjY1ZjRmM2U0Zjk5OTY2YTVjODg5NTAwY2Q1Zg",
-        "spring.data.redis.ssl.enabled=true",
-        "spring.data.redis.timeout=5000ms",
-
-        // Cấu hình test trỏ tới CloudAMQP RabbitMQ Cloud
-        "spring.rabbitmq.host=leopard.lmq.cloudamqp.com",
-        "spring.rabbitmq.port=5671",
-        "spring.rabbitmq.username=kufeoult",
-        "spring.rabbitmq.password=mv1YvpuQOsWylToYRguVJyPtCYxdItsj",
-        "spring.rabbitmq.virtual-host=kufeoult",
-        "spring.rabbitmq.ssl.enabled=true"
-})
 class CloudConnectivityTest {
 
     @Autowired

@@ -35,7 +35,23 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### Environment & Secrets ###
 .env
+.env.*
+*.env
+*.pem
+*.key
+*.p12
+*.jks
+*.secret
+secrets/
+credentials.json
+service-account*.json
+**/firebase-service-account*.json
+**/src/main/resources/firebase-service-account.json
+
+### OS files ###
 .DS_Store
 **/.DS_Store
-**/src/main/resources/firebase-service-account.json
+

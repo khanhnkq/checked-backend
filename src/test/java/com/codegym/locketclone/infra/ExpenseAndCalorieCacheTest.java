@@ -38,8 +38,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
-import org.springframework.test.context.TestPropertySource;
-
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -51,20 +49,6 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest(classes = LocketCloneApplication.class)
-@TestPropertySource(properties = {
-        "spring.data.redis.host=adapting-moth-229902.upstash.io",
-        "spring.data.redis.port=6379",
-        "spring.data.redis.password=gQAAAAAAA4IOAAIgcDE3ODJkNjY1ZjRmM2U0Zjk5OTY2YTVjODg5NTAwY2Q1Zg",
-        "spring.data.redis.ssl.enabled=true",
-        "spring.data.redis.timeout=5000ms",
-
-        "spring.rabbitmq.host=leopard.lmq.cloudamqp.com",
-        "spring.rabbitmq.port=5671",
-        "spring.rabbitmq.username=kufeoult",
-        "spring.rabbitmq.password=mv1YvpuQOsWylToYRguVJyPtCYxdItsj",
-        "spring.rabbitmq.virtual-host=kufeoult",
-        "spring.rabbitmq.ssl.enabled=true"
-})
 class ExpenseAndCalorieCacheTest {
 
     @Autowired

@@ -9,6 +9,7 @@ import com.codegym.locketclone.chat.dto.response.*;
 import com.codegym.locketclone.chat.repository.ConversationRepository;
 import com.codegym.locketclone.chat.repository.MessageRepository;
 import com.codegym.locketclone.chat.service.ChatService;
+import com.codegym.locketclone.common.config.CacheConfig;
 import com.codegym.locketclone.common.exception.AppException;
 import com.codegym.locketclone.common.exception.ErrorCode;
 import com.codegym.locketclone.friendship.FriendshipRepository;
@@ -19,7 +20,10 @@ import com.codegym.locketclone.user.User;
 import com.codegym.locketclone.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -51,6 +55,13 @@ public class ChatServiceImpl implements ChatService {
     private final PhotoRepository photoRepository;
     private final MongoTemplate mongoTemplate;
     private final SimpMessagingTemplate messagingTemplate;
+
+    @Autowired(required = false)
+    private CacheManager cacheManager;
+
+    public void setCacheManager(CacheManager cacheManager) {
+        this.cacheManager = cacheManager;
+    }
 
     @Value("${app.chat.default-page-size:30}")
     private int defaultPageSize = 30;
@@ -97,7 +108,10 @@ public class ChatServiceImpl implements ChatService {
                                 .createdAt(now)
                                 .updatedAt(now)
                                 .build();
-                        return conversationRepository.save(newConv);
+                        Conversation saved = conversationRepository.save(newConv);
+                        evictChatCaches(currentUserId, false, true);
+                        evictChatCaches(friendId, false, true);
+                        return saved;
                     });
         } catch (DuplicateKeyException e) {
             log.info("Phát hiện tạo cuộc trò chuyện đồng thời cho pairKey: {}, đọc lại bản ghi vừa tạo", pairKey);
@@ -117,7 +131,7 @@ public class ChatServiceImpl implements ChatService {
                 .findByParticipantIdsContainingOrderByUpdatedAtDesc(currentUserId);
 
         if (conversations.isEmpty()) {
-            return Collections.emptyList();
+            return new ArrayList<>();
         }
 
         // Đảm bảo chỉ giữ lại 1 cuộc hội thoại mới nhất cho mỗi bạn bè
@@ -136,7 +150,7 @@ public class ChatServiceImpl implements ChatService {
         Map<UUID, User> userMap = userRepository.findAllById(friendIds).stream()
                 .collect(Collectors.toMap(User::getId, Function.identity()));
 
-        return latestByFriend.entrySet().stream()
+        return new ArrayList<>(latestByFriend.entrySet().stream()
                 .map(entry -> {
                     UUID friendId = entry.getKey();
                     Conversation conv = entry.getValue();
@@ -145,7 +159,7 @@ public class ChatServiceImpl implements ChatService {
 
                     return toConversationResponse(conv, friend, unreadCount);
                 })
-                .toList();
+                .toList());
     }
 
     @Override
@@ -270,6 +284,8 @@ public class ChatServiceImpl implements ChatService {
         conversationRepository.save(conversation);
 
         UUID otherUserId = getOtherParticipantId(conversation, currentUserId);
+        evictChatCaches(currentUserId, false, true);
+        evictChatCaches(otherUserId, true, true);
         return toMessageResponse(savedMessage, currentUserId, otherUserId);
     }
 
@@ -292,6 +308,8 @@ public class ChatServiceImpl implements ChatService {
                 .and("readBy").ne(currentUserId));
         Update update = new Update().addToSet("readBy", currentUserId);
         mongoTemplate.updateMulti(query, update, Message.class);
+
+        evictChatCaches(currentUserId, true, true);
 
         return MarkReadResponse.builder()
                 .conversationId(conversationId)
@@ -393,6 +411,7 @@ public class ChatServiceImpl implements ChatService {
             }
             message.getDeletedFor().add(currentUserId);
             messageRepository.save(message);
+            evictChatCaches(currentUserId, false, true);
             log.info("User {} đã xóa tin nhắn {} ở phía mình", currentUserId, messageId);
             return;
         }
@@ -441,6 +460,11 @@ public class ChatServiceImpl implements ChatService {
                 messagingTemplate.convertAndSendToUser(currentUserId.toString(), "/queue/message-revoked", event);
             } catch (Exception ex) {
                 log.warn("Lỗi gửi sự kiện thu hồi tin nhắn WebSocket: {}", ex.getMessage());
+            }
+
+            evictChatCaches(currentUserId, false, true);
+            if (recipientId != null) {
+                evictChatCaches(recipientId, true, true);
             }
 
             log.info("User {} đã thu hồi tin nhắn {} trong hội thoại {}", currentUserId, messageId, conversationId);
@@ -535,5 +559,28 @@ public class ChatServiceImpl implements ChatService {
                 .isRead(isRead)
                 .sentAt(m.getSentAt())
                 .build();
+    }
+
+    @Override
+    public void evictChatCaches(UUID userId, boolean evictUnread, boolean evictConversations) {
+        if (cacheManager == null || userId == null) {
+            return;
+        }
+        try {
+            if (evictUnread) {
+                Cache unreadCache = cacheManager.getCache(CacheConfig.CHAT_UNREAD_CACHE);
+                if (unreadCache != null) {
+                    unreadCache.evict(userId);
+                }
+            }
+            if (evictConversations) {
+                Cache conversationsCache = cacheManager.getCache(CacheConfig.CHAT_CONVERSATIONS_CACHE);
+                if (conversationsCache != null) {
+                    conversationsCache.evict(userId);
+                }
+            }
+        } catch (Exception ex) {
+            log.warn("Lỗi khi evict chat cache cho user {}: {}", userId, ex.getMessage());
+        }
     }
 }

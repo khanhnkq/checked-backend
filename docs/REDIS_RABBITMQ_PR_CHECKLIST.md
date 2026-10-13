@@ -162,18 +162,23 @@
 
 ---
 
-### PR #5: Phân Vùng 5 - Cache Badge Tin Nhắn Chưa Đọc (Chat Unread)
+### PR #5: Phân Vùng 5 - Cache Badge Tin Nhắn Chưa Đọc (Chat Unread & Conversations)
 - **Nhánh Git:** `feat/cache-partition-chat-badges`
 - **Mức độ:** 🟢 **P2 (Medium)**
-- **Commit đề xuất:** `feat(cache): cache realtime chat unread badges and conversation previews`
+- **Commit đề xuất:** `feat(cache): implement partition 5 chat unread and conversations caching with zero hardcoded credentials`
 - **Danh sách công việc:**
-  - [ ] Cập nhật [ChatServiceImpl.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/main/java/com/codegym/locketclone/chat/service/impl/ChatServiceImpl.java):
-    - [ ] `@Cacheable(value = "chat_unread", key = "#currentUserId")` cho `getTotalUnreadCount`.
-    - [ ] `@Cacheable(value = "chat_conversations", key = "#currentUserId")` cho `getMyConversations`.
-    - [ ] Bổ sung `@CacheEvict(value = {"chat_unread", "chat_conversations"}, key = "#recipientId")` khi có tin nhắn mới gửi đến.
-    - [ ] Bổ sung `@CacheEvict(value = {"chat_unread", "chat_conversations"}, key = "#currentUserId")` khi đọc tin nhắn (`markConversationAsRead`).
-  - [ ] Viết unit test xác nhận tốc độ truy vấn Badge iOS không còn quét toàn bộ MongoDB.
-  - [ ] Chạy `./gradlew test` và tạo PR.
+  - [x] Cập nhật [ChatService.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/main/java/com/codegym/locketclone/chat/service/ChatService.java) & [ChatServiceImpl.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/main/java/com/codegym/locketclone/chat/service/impl/ChatServiceImpl.java):
+    - [x] `@Cacheable(value = CacheConfig.CHAT_UNREAD_CACHE, key = "#currentUserId")` cho `getTotalUnreadCount`.
+    - [x] `@Cacheable(value = CacheConfig.CHAT_CONVERSATIONS_CACHE, key = "#currentUserId")` cho `getMyConversations`.
+    - [x] Bọc `new ArrayList<>(...)` cho `ConversationResponse` để Jackson deserializer trong Redis vận hành an toàn.
+    - [x] Xây dựng helper `evictChatCaches(UUID userId, boolean evictUnread, boolean evictConversations)` thực hiện targeted cache invalidation.
+    - [x] Tự động evict khi gửi tin nhắn mới (`sendMessage`), đọc tin nhắn (`markAsRead`), tạo cuộc trò chuyện mới (`getOrCreateConversation`), và thu hồi/xóa tin nhắn (`deleteMessage`).
+  - [x] Viết integration test [ChatCacheTest.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/test/java/com/codegym/locketclone/infra/ChatCacheTest.java):
+    - [x] Xác thực cache hit & eviction cho `chat_unread` (Badge tin nhắn chưa đọc).
+    - [x] Xác thực cache hit & eviction cho `chat_conversations` (Danh sách cuộc trò chuyện và previews).
+  - [x] Dọn sạch 100% hardcode credentials trong toàn bộ các test class và cấu hình YAML, nạp động từ `.env` qua Gradle test runner, siết chặt `.gitignore`.
+  - [x] Chạy `./gradlew test` (toàn bộ hơn 220 tests PASS 100%).
+  - [x] Merge vào `main`, push GitHub & deploy live thành công lên Heroku (Release `v35`).
 
 ---
 

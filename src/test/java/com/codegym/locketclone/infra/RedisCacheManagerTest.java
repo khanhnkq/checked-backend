@@ -12,30 +12,12 @@ import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.test.context.TestPropertySource;
-
 import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest(classes = LocketCloneApplication.class)
-@TestPropertySource(properties = {
-        // Cấu hình test trỏ tới Upstash Redis Cloud
-        "spring.data.redis.host=adapting-moth-229902.upstash.io",
-        "spring.data.redis.port=6379",
-        "spring.data.redis.password=gQAAAAAAA4IOAAIgcDE3ODJkNjY1ZjRmM2U0Zjk5OTY2YTVjODg5NTAwY2Q1Zg",
-        "spring.data.redis.ssl.enabled=true",
-        "spring.data.redis.timeout=5000ms",
-
-        // Cấu hình test trỏ tới CloudAMQP RabbitMQ Cloud
-        "spring.rabbitmq.host=leopard.lmq.cloudamqp.com",
-        "spring.rabbitmq.port=5671",
-        "spring.rabbitmq.username=kufeoult",
-        "spring.rabbitmq.password=mv1YvpuQOsWylToYRguVJyPtCYxdItsj",
-        "spring.rabbitmq.virtual-host=kufeoult",
-        "spring.rabbitmq.ssl.enabled=true"
-})
 class RedisCacheManagerTest {
 
     @Autowired
@@ -70,8 +52,13 @@ class RedisCacheManagerTest {
         // 1. Ghi đối tượng UserPrincipal vào cache Redis
         usersCache.put(userId, principal);
 
-        // 2. Đọc lại từ cache Redis
-        Cache.ValueWrapper wrapper = usersCache.get(userId);
+        // 2. Đọc lại từ cache Redis (chờ socket TLS flush nếu đang chạy full suite)
+        Cache.ValueWrapper wrapper = null;
+        for (int i = 0; i < 10; i++) {
+            wrapper = usersCache.get(userId);
+            if (wrapper != null && wrapper.get() != null) break;
+            try { Thread.sleep(100); } catch (InterruptedException ignored) {}
+        }
         assertNotNull(wrapper, "Dữ liệu cache đọc về không được null");
         assertNotNull(wrapper.get(), "Nội dung đối tượng trong cache không được null");
         assertInstanceOf(UserPrincipal.class, wrapper.get(), "Đối tượng đọc về phải được deserialize thành UserPrincipal");
@@ -111,7 +98,12 @@ class RedisCacheManagerTest {
 
         friendsCache.put(userId, List.of(friend));
 
-        Cache.ValueWrapper wrapper = friendsCache.get(userId);
+        Cache.ValueWrapper wrapper = null;
+        for (int i = 0; i < 10; i++) {
+            wrapper = friendsCache.get(userId);
+            if (wrapper != null && wrapper.get() != null) break;
+            try { Thread.sleep(100); } catch (InterruptedException ignored) {}
+        }
         assertNotNull(wrapper, "Wrapper không được null");
         Object val = wrapper.get();
         assertInstanceOf(List.class, val);

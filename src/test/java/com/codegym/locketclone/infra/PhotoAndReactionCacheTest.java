@@ -28,7 +28,6 @@ import org.springframework.cache.CacheManager;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Slice;
-import org.springframework.test.context.TestPropertySource;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -39,20 +38,6 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest(classes = LocketCloneApplication.class)
-@TestPropertySource(properties = {
-        "spring.data.redis.host=adapting-moth-229902.upstash.io",
-        "spring.data.redis.port=6379",
-        "spring.data.redis.password=gQAAAAAAA4IOAAIgcDE3ODJkNjY1ZjRmM2U0Zjk5OTY2YTVjODg5NTAwY2Q1Zg",
-        "spring.data.redis.ssl.enabled=true",
-        "spring.data.redis.timeout=5000ms",
-
-        "spring.rabbitmq.host=leopard.lmq.cloudamqp.com",
-        "spring.rabbitmq.port=5671",
-        "spring.rabbitmq.username=kufeoult",
-        "spring.rabbitmq.password=mv1YvpuQOsWylToYRguVJyPtCYxdItsj",
-        "spring.rabbitmq.virtual-host=kufeoult",
-        "spring.rabbitmq.ssl.enabled=true"
-})
 class PhotoAndReactionCacheTest {
 
     @Autowired
@@ -194,21 +179,34 @@ class PhotoAndReactionCacheTest {
 
         // Nạp cache
         photoService.getReactionSummary(viewer.getId(), photo.getId());
-        assertNotNull(reactionsCache.get(photo.getId()));
+        Cache.ValueWrapper reactionWrapper = null;
+        for (int i = 0; i < 10; i++) {
+            reactionWrapper = reactionsCache.get(photo.getId());
+            if (reactionWrapper != null && reactionWrapper.get() != null) break;
+            try { Thread.sleep(100); } catch (InterruptedException ignored) {}
+        }
+        assertNotNull(reactionWrapper, "Cache reactions_summary phải có dữ liệu");
 
         // 1. Thả reaction -> Kích hoạt @CacheEvict
         photoService.upsertReaction(viewer.getId(), photo.getId(), new UpsertPhotoReactionRequest("LIKE"));
-        assertNull(reactionsCache.get(photo.getId()), "Cache phải bị evict sau khi upsertReaction");
+        assertCacheEvicted(reactionsCache, photo.getId(), "Cache phải bị evict sau khi upsertReaction");
 
         // Nạp lại cache và kiểm tra count = 1
         PhotoReactionSummaryResponse summaryAfterLike = photoService.getReactionSummary(viewer.getId(), photo.getId());
         assertEquals(1L, summaryAfterLike.totalCount());
         assertEquals("LIKE", summaryAfterLike.myReaction());
-        assertNotNull(reactionsCache.get(photo.getId()), "Cache phải được nạp lại");
+
+        Cache.ValueWrapper reloadedWrapper = null;
+        for (int i = 0; i < 15; i++) {
+            reloadedWrapper = reactionsCache.get(photo.getId());
+            if (reloadedWrapper != null && reloadedWrapper.get() != null) break;
+            try { Thread.sleep(100); } catch (InterruptedException ignored) {}
+        }
+        assertNotNull(reloadedWrapper, "Cache phải được nạp lại");
 
         // 2. Xóa reaction -> Kích hoạt @CacheEvict
         photoService.removeReaction(viewer.getId(), photo.getId());
-        assertNull(reactionsCache.get(photo.getId()), "Cache phải bị evict sau khi removeReaction");
+        assertCacheEvicted(reactionsCache, photo.getId(), "Cache phải bị evict sau khi removeReaction");
     }
 
     @Test
@@ -228,8 +226,13 @@ class PhotoAndReactionCacheTest {
         assertNotNull(detail1);
         assertEquals(photo.getId(), detail1.id());
 
-        // Kiểm tra Redis cache có chứa
-        Cache.ValueWrapper wrapper = detailCache.get(cacheKey);
+        // Kiểm tra Redis cache có chứa (hỗ trợ độ trễ mạng cloud Upstash TLS)
+        Cache.ValueWrapper wrapper = null;
+        for (int i = 0; i < 10; i++) {
+            wrapper = detailCache.get(cacheKey);
+            if (wrapper != null && wrapper.get() != null) break;
+            try { Thread.sleep(100); } catch (InterruptedException ignored) {}
+        }
         assertNotNull(wrapper, "Cache photo_detail phải có dữ liệu");
         assertInstanceOf(PhotoResponse.class, wrapper.get());
 
@@ -297,9 +300,9 @@ class PhotoAndReactionCacheTest {
 
     private void assertCacheEvicted(Cache cache, Object key, String message) {
         Cache.ValueWrapper wrapper = cache.get(key);
-        if (wrapper != null) {
+        for (int i = 0; i < 15 && wrapper != null; i++) {
             try {
-                Thread.sleep(250);
+                Thread.sleep(100);
             } catch (InterruptedException ignored) {}
             wrapper = cache.get(key);
         }
