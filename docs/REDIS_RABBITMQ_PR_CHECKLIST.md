@@ -14,7 +14,7 @@
 - [x] **Phase 1: Dependencies, Cấu hình Môi trường & Kết nối Cloud TLS** *(Hoàn thành: Commit `59a0c19`, Release v29 UP)*
 - [ ] **Phase 2: Triển Khai Full-Stack Redis Caching Suite (5 Phân Vùng)**
   - [x] **PR #1:** Core RedisCacheManager đa TTL, Jackson Serializer & Graceful Degradation *(Hoàn thành: Commits `bfb03cd`, `427c68f`, Heroku Release v31 UP)*
-  - [ ] **PR #2:** Phân vùng 1: Cache User Identity & Danh sách Bạn bè
+  - [x] **PR #2:** Phân vùng 1: Cache User Identity & Danh sách Bạn bè *(Hoàn thành: Commit `5ebeb79`, Heroku Release v32 UP)*
   - [ ] **PR #3:** Phân vùng 2: Cache Reactions Summary, Feed & Kho ảnh MyPhotos
   - [ ] **PR #4:** Phân vùng 3 & 4: Cache Dashboard Chi Tiêu & Nhật Ký Calo
   - [ ] **PR #5:** Phân vùng 5: Cache Badge Tin Nhắn Chưa Đọc (Chat Unread)
@@ -68,21 +68,28 @@
 
 ### PR #2: Phân Vùng 1 - Cache User Identity & Danh Sách Bạn Bè
 - **Nhánh Git:** `feat/cache-partition-user-and-friendship`
-- **Mức độ:** 🟡 **P1 (High)**
-- **Commit đề xuất:** `feat(cache): integrate redis caching for user identity and friendship queries`
+- **Mức độ:** 🟢 **ĐÃ HOÀN THÀNH & LIVE TRÊN HEROKU** (Release `v32`)
+- **Commit:** `feat(cache): integrate redis caching for user identity and friendship queries` (`5ebeb79`)
+- **Kế hoạch chi tiết:** [PR2_CACHE_USER_AND_FRIENDSHIP.md](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/docs/PR2_CACHE_USER_AND_FRIENDSHIP.md)
 - **Danh sách công việc:**
-  - [ ] Cập nhật [UserDetailsServiceImpl.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/main/java/com/codegym/locketclone/security/service/UserDetailsServiceImpl.java):
-    - [ ] Xác thực `@Cacheable(value = "users", key = "#id")` hoạt động trơn tru với Redis serialization.
-  - [ ] Cập nhật [UserServiceImpl.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/main/java/com/codegym/locketclone/user/UserServiceImpl.java):
-    - [ ] Bổ sung `@CacheEvict(value = "users", key = "#userId")` khi cập nhật profile / avatar / mật khẩu.
-  - [ ] Cập nhật [FriendshipServiceImpl.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/main/java/com/codegym/locketclone/friendship/FriendshipServiceImpl.java):
-    - [ ] Thêm `@Cacheable(value = "friends", key = "#userId")` vào phương thức `getAllFriends(UUID userId)`.
-  - [ ] Cập nhật [FriendInviteLinkServiceImpl.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/main/java/com/codegym/locketclone/friendship/invite/FriendInviteLinkServiceImpl.java):
-    - [ ] Thêm evict cache `friends::{userId}` và `friends::{friendId}` khi chấp nhận lời mời kết bạn.
-  - [ ] Viết unit/integration test xác nhận:
-    - [ ] Request thứ 2 qua JWT Filter không query Neon DB.
-    - [ ] Kết bạn mới xóa cache cũ và load lại danh sách chính xác.
-  - [ ] Chạy `./gradlew test` và tạo PR.
+  - [x] Cập nhật [CacheConfig.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/main/java/com/codegym/locketclone/common/config/CacheConfig.java):
+    - [x] Nâng cấp `redisObjectMapper` sang `DefaultTyping.EVERYTHING` và `JsonTypeInfo.As.WRAPPER_ARRAY` để hỗ trợ deserialization an toàn cả `UserPrincipal` lẫn root collection Java Records `List<FriendProfileResponse>`.
+  - [x] Cập nhật [UserDetailsServiceImpl.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/main/java/com/codegym/locketclone/security/service/UserDetailsServiceImpl.java):
+    - [x] Chuẩn hóa `@Cacheable(value = CacheConfig.USERS_CACHE, key = "#id")` hoạt động trơn tru với Redis serialization.
+  - [x] Cập nhật [UserServiceImpl.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/main/java/com/codegym/locketclone/user/UserServiceImpl.java):
+    - [x] Bổ sung `@CacheEvict(value = CacheConfig.USERS_CACHE, key = "#userId")` khi cập nhật profile / avatar / personal info.
+  - [x] Cập nhật [FriendshipService.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/main/java/com/codegym/locketclone/friendship/FriendshipService.java) & [FriendshipServiceImpl.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/main/java/com/codegym/locketclone/friendship/FriendshipServiceImpl.java):
+    - [x] Thêm `@Cacheable(value = CacheConfig.FRIENDS_CACHE, key = "#userId")` vào method `getAllFriends(UUID userId)` (TTL: 20 phút).
+  - [x] Cập nhật [FriendInviteLinkServiceImpl.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/main/java/com/codegym/locketclone/friendship/invite/FriendInviteLinkServiceImpl.java):
+    - [x] Thêm evict 2 chiều xóa cache `friends::{ownerUserId}` và `friends::{currentUserId}` khi chấp nhận lời mời kết bạn `acceptByToken`.
+  - [x] Viết integration test [UserAndFriendshipCacheTest.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/test/java/com/codegym/locketclone/infra/UserAndFriendshipCacheTest.java):
+    - [x] Xác thực `loadUserById` nạp cache và hit cache lần 2.
+    - [x] Xác thực `updateCurrentUserProfile` evict cache `users::{userId}`.
+    - [x] Xác thực `getAllFriends` nạp cache và hit cache `friends::{userId}`.
+    - [x] Xác thực `acceptByToken` evict cache bạn bè 2 chiều cho cả 2 user.
+  - [x] Chạy `./gradlew test` (toàn bộ 207 tests PASS 100%).
+  - [x] Merge vào `main`, push GitHub & deploy thành công lên Heroku (Release `v32`).
+  - [x] Test live Heroku endpoint `GET /api/v1/friendships` phản hồi chuẩn xác.
 
 ---
 
