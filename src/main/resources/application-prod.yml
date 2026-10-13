@@ -30,6 +30,11 @@ spring:
     enabled: true
     baseline-on-migrate: true
     baseline-version: 0
+  data:
+    mongodb:
+      uri: ${SPRING_DATA_MONGODB_URI:${MONGODB_URI:mongodb://localhost:27017/checked_chat}}
+      auto-index-creation: true
+
 
 logging:
   level:
