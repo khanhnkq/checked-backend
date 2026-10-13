@@ -16,7 +16,7 @@
   - [x] **PR #1:** Core RedisCacheManager đa TTL, Jackson Serializer & Graceful Degradation *(Hoàn thành: Commits `bfb03cd`, `427c68f`, Heroku Release v31 UP)*
   - [x] **PR #2:** Phân vùng 1: Cache User Identity & Danh sách Bạn bè *(Hoàn thành: Commit `5ebeb79`, Heroku Release v32 UP)*
   - [x] **PR #3:** Phân vùng 2: Cache Reactions Summary, Feed & Kho ảnh MyPhotos *(Hoàn thành: Commit `e52ba7f`, Heroku Release v33 UP)*
-  - [ ] **PR #4:** Phân vùng 3 & 4: Cache Dashboard Chi Tiêu & Nhật Ký Calo
+  - [x] **PR #4:** Phân vùng 3 & 4: Cache Dashboard Chi Tiêu & Nhật Ký Calo *(Hoàn thành: Commit `b4fc214`, Merge `fa9b3da`, Heroku Release v34 UP)*
   - [ ] **PR #5:** Phân vùng 5: Cache Badge Tin Nhắn Chưa Đọc (Chat Unread)
 - [ ] **Phase 3: RabbitMQ Event Producer & Consumer Pipeline**
   - [ ] **PR #6:** Worker Gửi Email OTP Bất Đồng Bộ & Xử Lý Thất Bại (DLQ)
@@ -127,22 +127,38 @@
 
 ### PR #4: Phân Vùng 3 & 4 - Cache Dashboard Chi Tiêu & Nhật Ký Calo
 - **Nhánh Git:** `feat/cache-partition-expense-and-calorie`
-- **Mức độ:** 🟡 **P1 (High - Giải phóng Neon DB khỏi các lệnh aggregate)**
-- **Commit đề xuất:** `feat(cache): cache monthly expense dashboards and daily calorie logs`
+- **Mức độ:** 🟢 **ĐÃ HOÀN THÀNH & LIVE TRÊN HEROKU** (Release `v34`)
+- **Commit:** `feat(cache): implement partition 3 and 4 caching for expense and calorie dashboards (PR #4)` (`b4fc214`), Merge `fa9b3da`
+- **Kế hoạch chi tiết:** [PR4_CACHE_EXPENSE_AND_CALORIE.md](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/docs/PR4_CACHE_EXPENSE_AND_CALORIE.md)
 - **Danh sách công việc:**
-  - [ ] Cập nhật [ExpenseServiceImpl.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/main/java/com/codegym/locketclone/expense/ExpenseServiceImpl.java):
-    - [ ] `@Cacheable(value = "expense_summary", key = "#userId + ':' + #monthKey")` cho `getExpenseSummary`.
-    - [ ] `@Cacheable(value = "expense_cashflow", key = "#userId + ':' + #year")` cho `getYearlyCashflowSummary`.
-    - [ ] `@Cacheable(value = "expense_categories", key = "#userId + ':' + #monthKey + ':' + #limit")` cho `getTopSpendingCategories`.
-    - [ ] `@Cacheable(value = "expense_budgets", key = "#userId + ':' + #monthKey")` cho `getBudget`.
-    - [ ] Bổ sung `@Caching(evict = ...)` khi thêm, sửa, xóa khoản chi tiêu hoặc cập nhật ngân sách.
-  - [ ] Cập nhật [CalorieServiceImpl.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/main/java/com/codegym/locketclone/calorie/CalorieServiceImpl.java):
-    - [ ] `@Cacheable(value = "calorie_daily", key = "#userId + ':' + (#date != null ? #date.toString() : T(java.time.LocalDate).now().toString())")` cho `getDailySummary`.
-    - [ ] `@Cacheable(value = "calorie_summary", key = "#userId + ':' + #monthKey")` cho `getMonthlySummary`.
-    - [ ] `@Cacheable(value = "calorie_goal", key = "#userId")` cho `getGoal`.
-    - [ ] Bổ sung `@CacheEvict` khi ghi log bữa ăn thủ công, log từ ảnh, xóa log, hoặc sửa mục tiêu calo.
-  - [ ] Viết test tự động xác nhận cache hit và eviction cho Expense và Calorie.
-  - [ ] Chạy `./gradlew test` và tạo PR.
+  - [x] Cập nhật [ExpenseService.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/main/java/com/codegym/locketclone/expense/ExpenseService.java) & [ExpenseServiceImpl.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/main/java/com/codegym/locketclone/expense/ExpenseServiceImpl.java):
+    - [x] `@Cacheable(value = CacheConfig.EXPENSE_CATEGORIES_CACHE, key = "'list:' + #userId")` cho `getCategories`.
+    - [x] `@Cacheable(value = CacheConfig.EXPENSE_BUDGETS_CACHE, key = "#userId + ':' + (#monthKey != null ? #monthKey : '')")` cho `getBudget`.
+    - [x] `@Cacheable(value = CacheConfig.EXPENSE_SUMMARY_CACHE, key = "#userId + ':' + (#monthKey != null ? #monthKey : '')")` cho `getExpenseSummary`.
+    - [x] `@Cacheable(value = CacheConfig.EXPENSE_CASHFLOW_CACHE, key = "'m:' + #userId + ':' + (#monthKey != null ? #monthKey : '')")` cho `getCashflowSummary`.
+    - [x] `@Cacheable(value = CacheConfig.EXPENSE_CASHFLOW_CACHE, key = "'y:' + #userId + ':' + #year")` cho `getYearlyCashflowSummary`.
+    - [x] Bọc `new ArrayList<>(...)` cho tất cả danh sách lồng nhau trong DTO để tương thích hoàn toàn với Jackson Redis deserializer.
+    - [x] Bổ sung helper `evictExpenseCaches(UUID userId, String monthKey, Integer year)` để xóa cache targeted.
+    - [x] Bổ sung `@CacheEvict` / `@Caching` khi `createCategory`, `updateCategory`, `upsertBudget`.
+  - [x] Cập nhật [CalorieService.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/main/java/com/codegym/locketclone/calorie/CalorieService.java) & [CalorieServiceImpl.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/main/java/com/codegym/locketclone/calorie/CalorieServiceImpl.java):
+    - [x] `@Cacheable(value = CacheConfig.CALORIE_GOAL_CACHE, key = "#userId")` cho `getGoal`.
+    - [x] `@Cacheable(value = CacheConfig.CALORIE_DAILY_CACHE, key = "#userId + ':' + (#date != null ? #date.toString() : T(java.time.LocalDate).now().toString())")` cho `getDailySummary`.
+    - [x] `@Cacheable(value = CacheConfig.CALORIE_SUMMARY_CACHE, key = "#userId + ':' + (#monthKey != null ? #monthKey : '')")` cho `getMonthlySummary`.
+    - [x] Bọc `new ArrayList<>(...)` cho `meals` trong `DailyCalorieSummaryDTO`.
+    - [x] Bổ sung helper `evictCalorieCaches(UUID userId, LocalDate date)`.
+    - [x] Tự động evict khi `updateGoal`, `createManualLog`, `deleteLog`, `createLogFromPhoto`.
+  - [x] Cập nhật [PhotoServiceImpl.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/main/java/com/codegym/locketclone/photo/PhotoServiceImpl.java) (Cross-Service Eviction):
+    - [x] Tự động evict Expense caches khi `uploadPhoto` có giao dịch chi tiêu/thu nhập.
+    - [x] Tự động evict Expense caches khi `updatePhotoExpense` và `updatePhotoTransaction`.
+    - [x] Tự động evict cả Expense caches và Calorie caches khi `deleteTransaction`.
+  - [x] Viết integration test [ExpenseAndCalorieCacheTest.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/test/java/com/codegym/locketclone/infra/ExpenseAndCalorieCacheTest.java):
+    - [x] Xác thực cache hit & eviction cho Categories danh mục chi tiêu.
+    - [x] Xác thực cache hit, multi-level deserialization & eviction cho Budget, Expense Summary, Monthly/Yearly Cashflow.
+    - [x] Xác thực cache hit & eviction cho Calorie Goal.
+    - [x] Xác thực cache hit & eviction cho Calorie Daily Summary & Monthly Summary.
+    - [x] Xác thực cross-service eviction khi `PhotoService.deleteTransaction`.
+  - [x] Chạy `./gradlew test` (toàn bộ test suite PASS 100%).
+  - [x] Merge vào `main`, push GitHub & deploy live thành công lên Heroku (Release `v34`).
 
 ---
 
