@@ -162,21 +162,18 @@ flowchart LR
 
 ## 6. Lộ Trình Triển Khai Chi Tiết (4 Phases)
 
-### Phase 1: Bổ Sung Dependencies & Cấu Hình Môi Trường
+### Phase 1: Bổ Sung Dependencies & Cấu Hình Môi Trường (ĐÃ HOÀN THÀNH ✅)
 - **Tệp tác động**:
   - `build.gradle`
   - `src/main/resources/application.yml`
-  - `src/main/resources/application-prod.yml`
+  - `src/main/java/com/codegym/locketclone/common/config/RedisConfig.java`
+  - `src/main/java/com/codegym/locketclone/common/config/RabbitMQConfig.java`
+  - `src/test/java/com/codegym/locketclone/infra/CloudConnectivityTest.java`
 - **Nội dung thực hiện**:
-  1. Khai báo dependencies:
-     ```groovy
-     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
-     implementation 'org.springframework.boot:spring-boot-starter-amqp'
-     implementation 'com.bucket4j:bucket4j-redis:8.10.1'
-     ```
-  2. Bổ sung cấu hình biến môi trường an toàn:
-     - `SPRING_DATA_REDIS_URL` (URL kết nối Upstash: `rediss://default:***@us1-xxx.upstash.io:6379`)
-     - `SPRING_RABBITMQ_ADDRESSES` (URL kết nối CloudAMQP: `amqps://***.rmq.cloudamqp.com/***`)
+  1. Khai báo dependencies: `spring-boot-starter-data-redis`, `commons-pool2`, `spring-boot-starter-amqp`.
+  2. Bổ sung cấu hình 10 biến môi trường độc lập cho Redis và RabbitMQ.
+  3. Cấu hình `RedisConfig` (RedisTemplate với JSON Jackson serializer) và `RabbitMQConfig` (Direct Exchange, Dead Letter Exchange, Queues, Jackson2JsonMessageConverter).
+  4. Đã chạy thực tế `CloudConnectivityTest` xác thực kết nối TLS tới Upstash Redis và AMQPS tới CloudAMQP thành công 100%. Toàn bộ test suite `./gradlew test` chạy thành công.
 
 ---
 
