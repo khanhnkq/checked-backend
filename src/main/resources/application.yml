@@ -57,9 +57,11 @@ spring:
       idle-timeout: 300000
       max-lifetime: 600000
       connection-timeout: 30000
+  mongodb:
+    uri: ${SPRING_MONGODB_URI:${SPRING_DATA_MONGODB_URI:${MONGODB_URI:mongodb://localhost:27017/checked_chat}}}
   data:
     mongodb:
-      uri: ${SPRING_DATA_MONGODB_URI:${MONGODB_URI:mongodb://localhost:27017/checked_chat}}
+      uri: ${SPRING_MONGODB_URI:${SPRING_DATA_MONGODB_URI:${MONGODB_URI:mongodb://localhost:27017/checked_chat}}}
       auto-index-creation: ${MONGODB_AUTO_INDEX_CREATION:true}
   docker:
     compose:

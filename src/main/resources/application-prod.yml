@@ -30,6 +30,8 @@ spring:
     enabled: true
     baseline-on-migrate: true
     baseline-version: 0
+  mongodb:
+    uri: ${SPRING_MONGODB_URI:${SPRING_DATA_MONGODB_URI:${MONGODB_URI:mongodb://localhost:27017/checked_chat}}}
   data:
     mongodb:
       uri: ${SPRING_DATA_MONGODB_URI:${MONGODB_URI:mongodb://localhost:27017/checked_chat}}
