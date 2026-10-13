@@ -7,12 +7,14 @@ import com.codegym.locketclone.expense.ExpenseService;
 import com.codegym.locketclone.photo.Photo;
 import com.codegym.locketclone.photo.PhotoRepository;
 import com.codegym.locketclone.photo.PhotoStatus;
+import com.codegym.locketclone.photo.dto.FeedFanoutEvent;
 import com.codegym.locketclone.photo.dto.PhotoUploadEvent;
 import com.codegym.locketclone.storage.StorageService;
 import com.codegym.locketclone.storage.UploadedFile;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
@@ -30,6 +32,9 @@ public class PhotoProcessingConsumer {
 
     private final PhotoRepository photoRepository;
     private final StorageService storageService;
+
+    @Autowired(required = false)
+    private RabbitTemplate rabbitTemplate;
 
     @Autowired(required = false)
     private CalorieService calorieService;
@@ -97,7 +102,31 @@ public class PhotoProcessingConsumer {
         // Invalidate các phân vùng cache liên quan
         evictRelatedCaches(senderId, savedPhoto);
 
+        // Kích hoạt Feed Fan-out làm ấm cache feed bạn bè
+        triggerFeedFanoutIfPresent(savedPhoto, event);
+
         log.info("[PHOTO-WORKER] Hoàn tất toàn bộ quy trình xử lý nền cho Photo ID: {}", savedPhoto.getId());
+    }
+
+    private void triggerFeedFanoutIfPresent(Photo photo, PhotoUploadEvent event) {
+        if (rabbitTemplate != null) {
+            try {
+                FeedFanoutEvent fanoutEvent = new FeedFanoutEvent(
+                        photo.getId(),
+                        photo.getSender().getId(),
+                        event.recipientScope(),
+                        event.recipientIds()
+                );
+                rabbitTemplate.convertAndSend(
+                        RabbitMQConfig.CHECKED_DIRECT_EXCHANGE,
+                        RabbitMQConfig.FEED_FANOUT_ROUTING_KEY,
+                        fanoutEvent
+                );
+                log.info("[PHOTO-WORKER] Đã xuất bản FeedFanoutEvent vào RabbitMQ cho Photo ID: {}", photo.getId());
+            } catch (Exception ex) {
+                log.warn("[PHOTO-WORKER] Lỗi khi xuất bản FeedFanoutEvent cho Photo ID {}: {}", photo.getId(), ex.getMessage());
+            }
+        }
     }
 
     private void markPhotoAsFailed(Photo photo) {

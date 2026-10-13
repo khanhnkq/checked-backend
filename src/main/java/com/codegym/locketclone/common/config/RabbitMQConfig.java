@@ -20,12 +20,14 @@ public class RabbitMQConfig {
     public static final String PHOTO_UPLOAD_QUEUE = "photo.upload.queue";
     public static final String MAIL_NOTIFICATION_QUEUE = "mail.notification.queue";
     public static final String CHAT_FANOUT_QUEUE = "chat.fanout.queue";
+    public static final String FEED_FANOUT_QUEUE = "feed.fanout.queue";
     public static final String DEAD_LETTER_QUEUE = "checked.dead-letter.queue";
 
     // Routing keys
     public static final String PHOTO_UPLOAD_ROUTING_KEY = "photo.upload";
     public static final String MAIL_NOTIFICATION_ROUTING_KEY = "mail.send";
     public static final String CHAT_FANOUT_ROUTING_KEY = "chat.event";
+    public static final String FEED_FANOUT_ROUTING_KEY = "feed.fanout";
 
     @Bean
     public DirectExchange checkedDirectExchange() {
@@ -81,6 +83,18 @@ public class RabbitMQConfig {
     @Bean
     public Binding chatFanoutBinding(Queue chatFanoutQueue, DirectExchange checkedDirectExchange) {
         return BindingBuilder.bind(chatFanoutQueue).to(checkedDirectExchange).with(CHAT_FANOUT_ROUTING_KEY);
+    }
+
+    @Bean
+    public Queue feedFanoutQueue() {
+        return QueueBuilder.durable(FEED_FANOUT_QUEUE)
+                .withArgument("x-dead-letter-exchange", CHECKED_DLX_EXCHANGE)
+                .build();
+    }
+
+    @Bean
+    public Binding feedFanoutBinding(Queue feedFanoutQueue, DirectExchange checkedDirectExchange) {
+        return BindingBuilder.bind(feedFanoutQueue).to(checkedDirectExchange).with(FEED_FANOUT_ROUTING_KEY);
     }
 
     @Bean

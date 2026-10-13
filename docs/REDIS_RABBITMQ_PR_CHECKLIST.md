@@ -240,20 +240,22 @@
 
 ### PR #8: Feed Fan-out Cache Warmer & Quản Trị DLQ Replay Admin API
 - **Nhánh Git:** `feat/amqp-feed-fanout-and-dlq-management`
-- **Mức độ:** 🟢 **P2 (Medium)**
-- **Commit đề xuất:** `feat(amqp): implement feed fan-out cache warming and dlq replay admin api`
+- **Mức độ:** 🟢 **ĐÃ HOÀN THÀNH (236/236 Tests PASS 100%)**
+- **Commit đề xuất:** `feat(amqp): implement feed fan-out cache warming and dlq replay admin api (PR #8)`
+- **Kế hoạch chi tiết:** [PR8_FEED_FANOUT_AND_DLQ_REPLAY.md](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/docs/PR8_FEED_FANOUT_AND_DLQ_REPLAY.md)
 - **Danh sách công việc:**
-  - [ ] Bổ sung Queue `feed.fanout.queue` và binding vào [RabbitMQConfig.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/main/java/com/codegym/locketclone/common/config/RabbitMQConfig.java).
-  - [ ] Tạo mới `FeedFanoutConsumer.java`:
-    - [ ] Nhận sự kiện `feed.fanout`.
-    - [ ] Quét danh sách bạn bè của người đăng.
-    - [ ] Làm ấm (warm-up) hoặc evict cache feed của toàn bộ bạn bè để khi mở app là thấy ngay ảnh mới.
-  - [ ] Xây dựng dịch vụ quản trị Dead Letter Queue:
-    - [ ] Tạo `DlqAdminService.java` và `DlqAdminController.java`:
-      - `GET /api/v1/admin/dlq/stats`: Thống kê số lượng message đang kẹt trong DLQ.
-      - `POST /api/v1/admin/dlq/replay`: Lấy message từ DLQ và gửi ngược lại exchange gốc để chạy lại.
-  - [ ] Viết integration test cho luồng DLQ replay.
-  - [ ] Chạy `./gradlew test` và tạo PR.
+  - [x] Bổ sung Queue `feed.fanout.queue` và binding vào [RabbitMQConfig.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/main/java/com/codegym/locketclone/common/config/RabbitMQConfig.java).
+  - [x] Tạo mới [FeedFanoutConsumer.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/main/java/com/codegym/locketclone/photo/consumer/FeedFanoutConsumer.java):
+    - [x] Nhận sự kiện `feed.fanout` (`FeedFanoutEvent`).
+    - [x] Quét danh sách bạn bè của người đăng (`friendshipRepository.findAcceptedFriendIds`).
+    - [x] Evict và gọi `photoService.getFeedPhotos` làm ấm trước (Pre-warm) cache feed trang 0 cho toàn bộ bạn bè để khi mở app là thấy ngay ảnh mới.
+    - [x] Evict cache `MY_PHOTOS_CACHE` của sender.
+  - [x] Xây dựng dịch vụ quản trị Dead Letter Queue:
+    - [x] Tạo [DlqAdminService.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/main/java/com/codegym/locketclone/admin/DlqAdminService.java) và [DlqAdminController.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/main/java/com/codegym/locketclone/admin/DlqAdminController.java):
+      - [x] `GET /api/v1/admin/dlq/stats`: Thống kê số lượng message đang đọng, consumer và trạng thái DLQ.
+      - [x] `POST /api/v1/admin/dlq/replay`: Lấy message từ DLQ, giải mã header `x-death` hoặc `__TypeId__` và tái gửi ngược lại exchange đích để xử lý lại.
+  - [x] Viết integration test [DlqAndFanoutIntegrationTest.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/test/java/com/codegym/locketclone/admin/DlqAndFanoutIntegrationTest.java) (toàn bộ pass).
+  - [x] Chạy `./gradlew test` (toàn bộ 236 tests PASS 100%).
 
 ---
 
