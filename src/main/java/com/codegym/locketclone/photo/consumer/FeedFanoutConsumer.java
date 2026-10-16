@@ -14,6 +14,7 @@ import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -25,6 +26,7 @@ import java.util.UUID;
  * khi một ảnh mới được chuyển sang trạng thái READY.
  */
 @Component
+@Lazy(false)
 @Slf4j
 @RequiredArgsConstructor
 public class FeedFanoutConsumer {

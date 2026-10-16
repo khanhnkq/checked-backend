@@ -18,6 +18,7 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +27,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.UUID;
 
 @Component
+@Lazy(false)
 @Slf4j
 @RequiredArgsConstructor
 public class PhotoProcessingConsumer {

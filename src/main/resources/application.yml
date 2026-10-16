@@ -50,7 +50,7 @@ spring:
   application:
     name: locket-clone-api
   main:
-    lazy-initialization: ${SPRING_LAZY_INIT:true}
+    lazy-initialization: ${SPRING_LAZY_INIT:false}
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/locket_clone}
     username: ${DB_USER:postgres}
