@@ -72,7 +72,16 @@ Thay thế toàn bộ lưu trữ hình ảnh (Cloudinary/Garage S3) bằng **App
 3. ✅ Đẩy code lên Heroku (`git push heroku main` -> Release v41).
 4. ✅ Dyno khởi động thành công (`web.1: up`, Tomcat lắng nghe port, Swagger UI HTTP 200 OK).
 
-### Phase 5: Xác Thực & Đánh Giá Tải (Verification)
-1. Upload thử nghiệm ảnh từ app mobile/API và kiểm tra file xuất hiện trong bucket `checked-storage`.
-2. Truy cập trực tiếp URL preview WebP trên trình duyệt kiểm tra tốc độ CDN.
-3. Giám sát log Heroku (`heroku logs --tail -a heroku-7usd`) và kiểm tra mức sử dụng RAM/CPU của Dyno.
+### Phase 5: Di Chuyển Dữ Liệu & Xác Thực CDN ✅ (HOÀN THÀNH)
+1. ✅ **Backup an toàn:** Tạo file backup toàn bộ URL Cloudinary ban đầu tại [`scripts/cloudinary_backup.json`](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/scripts/cloudinary_backup.json).
+2. ✅ **Di chuyển toàn bộ ảnh sang Appwrite:**
+   - 16/16 Photos đã được tải từ Cloudinary và upload lên Appwrite bucket `checked-storage`.
+   - 1/1 Avatar user (`khanhnkqdev`) đã được chuyển đổi thành công.
+   - Toàn bộ 17 file hiện đang hoạt động trực tiếp trong Appwrite bucket (`Total files: 17`).
+3. ✅ **Cập nhật Database Supabase PostgreSQL:**
+   - Trường `image_url`, `thumbnail_url`, `public_id` của 16 photos đã trỏ sang link CDN Appwrite WebP (1080x1080 và 320x320).
+   - Trường `avatar_url` của user đã trỏ sang link CDN Appwrite WebP 500x500.
+   - Số lượng ảnh Cloudinary còn lại trong DB: **0 ảnh**.
+4. ✅ **Xác thực CDN Delivery:**
+   - Kiểm tra HTTP/2 qua cURL: HTTP 200, Content-Type `image/webp`, dung lượng tối ưu chỉ ~26KB.
+   - Dyno Heroku đã hoàn toàn giải phóng khỏi gánh nặng xử lý ảnh của Cloudinary.
