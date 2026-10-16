@@ -66,18 +66,11 @@ Thay thế toàn bộ lưu trữ hình ảnh (Cloudinary/Garage S3) bằng **App
    - `uploadPhoto_whenAppwriteFails_shouldThrowIOException`: kiểm tra bắt lỗi 500 ném `IOException`.
 2. ✅ Chạy kiểm thử tự động toàn bộ tầng storage (`com.codegym.locketclone.storage.*`) và domain regression (`PhotoServiceImplTest`, `UserServiceImplTest`) đạt 100% PASS (0 lỗi hồi quy).
 
-### Phase 4: Thiết Lập Biến Môi Trường Trên Heroku & Chuyển Đổi
-1. Dùng Heroku CLI cập nhật cấu hình cho app `heroku-7usd`:
-   ```bash
-   heroku config:set \
-     STORAGE_TYPE=appwrite \
-     APPWRITE_ENDPOINT="https://fra.cloud.appwrite.io/v1" \
-     APPWRITE_PROJECT_ID="backend-storage-hub" \
-     APPWRITE_BUCKET_ID="checked-storage" \
-     APPWRITE_API_KEY="standard_3b92caaf70ba722c9c757d0b62498ae543e92f668606563bc85af093b8a36df284e6fb703eee35a721a41551aa544be5c6cadbd3a241e4a748549e6ce2b628f66d0c7ac34f3ecd503ec8ea8bdd5031b20cf68bb2d4685ab845571be53dc12dc1be30b2b8fa75c16f7c7e1273e44403b7b00096276265a3671237f268b94a1e19" \
-     -a heroku-7usd
-   ```
-2. Deploy bản build mới lên Heroku (`git push heroku main` hoặc GitHub pipeline).
+### Phase 4: Thiết Lập Biến Môi Trường Trên Heroku & Chuyển Đổi ✅ (HOÀN THÀNH)
+1. ✅ Tạo git commit sạch sẽ (`4339457`: `feat(storage): integrate appwrite cloud pro storage hub`).
+2. ✅ Thiết lập đồng thời các biến môi trường trên Heroku qua Heroku CLI (`STORAGE_TYPE=appwrite`, `APPWRITE_ENDPOINT`, `APPWRITE_PROJECT_ID`, `APPWRITE_BUCKET_ID`, `APPWRITE_API_KEY`) trên app `heroku-7usd` (Release v40).
+3. ✅ Đẩy code lên Heroku (`git push heroku main` -> Release v41).
+4. ✅ Dyno khởi động thành công (`web.1: up`, Tomcat lắng nghe port, Swagger UI HTTP 200 OK).
 
 ### Phase 5: Xác Thực & Đánh Giá Tải (Verification)
 1. Upload thử nghiệm ảnh từ app mobile/API và kiểm tra file xuất hiện trong bucket `checked-storage`.
