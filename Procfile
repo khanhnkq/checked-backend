@@ -1,1 +1,1 @@
-web: java -XX:+UseContainerSupport -XX:+UseSerialGC -Xmx200m -Xms96m -XX:MaxMetaspaceSize=130m -XX:ReservedCodeCacheSize=32m -Xss512k -Dserver.port=$PORT -jar build/libs/locket-clone-0.0.1-SNAPSHOT.jar
+web: java -XX:+UseContainerSupport -XX:+UseSerialGC -Xmx150m -Xms80m -XX:MaxMetaspaceSize=180m -XX:ReservedCodeCacheSize=32m -Xss512k -Dserver.port=$PORT -jar build/libs/locket-clone-0.0.1-SNAPSHOT.jar

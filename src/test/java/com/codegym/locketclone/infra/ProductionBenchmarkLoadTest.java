@@ -485,8 +485,8 @@ class ProductionBenchmarkLoadTest {
         log.info("[BENCHMARK-5] Cấu hình JVM Flags trong Procfile:\n{}", procfileContent);
 
         // Kiểm tra các cờ quan trọng đảm bảo RAM Dyno < 512MB
-        assertTrue(procfileContent.contains("-Xmx200m"), "Procfile phải cấu hình Max Heap -Xmx200m");
-        assertTrue(procfileContent.contains("-XX:MaxMetaspaceSize=130m"), "Procfile phải cấu hình Max Metaspace 130m");
+        assertTrue(procfileContent.contains("-Xmx150m"), "Procfile phải cấu hình Max Heap -Xmx150m");
+        assertTrue(procfileContent.contains("-XX:MaxMetaspaceSize=180m"), "Procfile phải cấu hình Max Metaspace 180m");
         assertTrue(procfileContent.contains("-XX:+UseContainerSupport"), "Procfile phải kích hoạt Container Support");
         assertTrue(procfileContent.contains("-XX:+UseSerialGC"), "Procfile phải sử dụng SerialGC để tiết kiệm bộ nhớ");
     }
