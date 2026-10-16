@@ -35,6 +35,11 @@ storage:
     secret-access-key: ${GARAGE_SECRET_ACCESS_KEY:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
     bucket-name: ${GARAGE_BUCKET:locket-photos}
     region: ${GARAGE_REGION:garage}
+  appwrite:
+    endpoint: ${APPWRITE_ENDPOINT:https://fra.cloud.appwrite.io/v1}
+    project-id: ${APPWRITE_PROJECT_ID:backend-storage-hub}
+    bucket-id: ${APPWRITE_BUCKET_ID:checked-storage}
+    api-key: ${APPWRITE_API_KEY:}
 
 cloudinary:
   cloud-name: ${CLOUDINARY_CLOUD_NAME:}
