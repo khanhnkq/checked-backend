@@ -70,6 +70,11 @@ public class PhotoProcessingConsumer {
             return;
         }
 
+        if (photo.getStatus() == PhotoStatus.READY) {
+            log.info("[PHOTO-WORKER] Photo ID: {} đã ở trạng thái READY. Bỏ qua.", photoId);
+            return;
+        }
+
         if (photo.getStatus() == PhotoStatus.DELETED) {
             log.info("[PHOTO-WORKER] Photo ID: {} đã bị người dùng xóa. Tiến hành xóa file tạm và dừng.", photoId);
             storageService.deleteFile(tempKey);
