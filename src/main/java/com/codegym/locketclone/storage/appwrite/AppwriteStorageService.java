@@ -171,7 +171,6 @@ public class AppwriteStorageService implements StorageService {
                     return filename;
                 }
             }, MediaType.parseMediaType(contentType));
-            builder.part("permissions[]", "read(\"any\")");
 
             AppwriteFileResponse response = appwriteRestClient.post()
                     .uri("/storage/buckets/{bucketId}/files", properties.getBucketId())
