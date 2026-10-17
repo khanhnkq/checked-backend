@@ -4,11 +4,15 @@ import com.codegym.locketclone.common.config.CacheConfig;
 import com.codegym.locketclone.common.exception.AppException;
 import com.codegym.locketclone.common.exception.ErrorCode;
 import com.codegym.locketclone.common.mapper.UserMapper;
+import com.codegym.locketclone.friendship.Friendship;
+import com.codegym.locketclone.friendship.FriendshipRepository;
+import com.codegym.locketclone.friendship.FriendshipStatus;
 import com.codegym.locketclone.storage.StorageService;
 import com.codegym.locketclone.storage.UploadedFile;
 import com.codegym.locketclone.user.dto.PublicUserProfileResponse;
 import com.codegym.locketclone.user.dto.UpdatePersonalInfoRequest;
 import com.codegym.locketclone.user.dto.UpdateProfileRequest;
+import com.codegym.locketclone.user.dto.UserProfileWithRelationResponse;
 import com.codegym.locketclone.user.dto.UserResponse;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +22,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -30,12 +35,66 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final UserMapper userMapper;
     private final StorageService storageService;
+    private final FriendshipRepository friendshipRepository;
 
     @Override
     public PublicUserProfileResponse getUserById(UUID id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
         return userMapper.toPublicResponse(user);
+    }
+
+    @Override
+    public UserProfileWithRelationResponse getUserProfileByUsername(String username, UUID currentUserId) {
+        if (username == null || username.trim().isEmpty()) {
+            throw new AppException(ErrorCode.USER_NOT_FOUND);
+        }
+
+        String normalizedUsername = username.trim();
+        User targetUser = userRepository.findByUsernameIgnoreCase(normalizedUsername)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        if (currentUserId == null) {
+            return buildProfileWithRelationResponse(targetUser, "UNAUTHENTICATED", null);
+        }
+
+        if (currentUserId.equals(targetUser.getId())) {
+            return buildProfileWithRelationResponse(targetUser, "SELF", null);
+        }
+
+        Optional<Friendship> relationOpt = friendshipRepository.findRelationBetweenUsers(currentUserId, targetUser.getId());
+        if (relationOpt.isEmpty()) {
+            return buildProfileWithRelationResponse(targetUser, "NONE", null);
+        }
+
+        Friendship friendship = relationOpt.get();
+        if (friendship.getStatus() == FriendshipStatus.ACCEPTED) {
+            return buildProfileWithRelationResponse(targetUser, "ACCEPTED", friendship.getId());
+        }
+        if (friendship.getStatus() == FriendshipStatus.BLOCKED) {
+            return buildProfileWithRelationResponse(targetUser, "BLOCKED", friendship.getId());
+        }
+
+        // friendship.getStatus() == FriendshipStatus.PENDING
+        if (friendship.getUser().getId().equals(currentUserId)) {
+            return buildProfileWithRelationResponse(targetUser, "PENDING_SENT", friendship.getId());
+        } else {
+            return buildProfileWithRelationResponse(targetUser, "PENDING_RECEIVED", friendship.getId());
+        }
+    }
+
+    private UserProfileWithRelationResponse buildProfileWithRelationResponse(User user, String relationStatus, UUID friendshipId) {
+        return UserProfileWithRelationResponse.builder()
+                .id(user.getId())
+                .username(user.getUsername())
+                .firstName(user.getFirstName())
+                .lastName(user.getLastName())
+                .displayName(user.getDisplayName())
+                .avatarUrl(user.getAvatarUrl())
+                .isGoldMember(user.getIsGoldMember())
+                .relationshipStatus(relationStatus)
+                .friendshipId(friendshipId)
+                .build();
     }
 
 

@@ -80,6 +80,16 @@ public class UserController {
         return new ResponseEntity<>(userResponse, HttpStatus.OK);
     }
 
+    @Operation(summary = "Xem hồ sơ người dùng qua username", description = "Truy xuất thông tin công khai và xác định trạng thái nút kết bạn từ Link Profile.")
+    @GetMapping("/profile/{username}")
+    public ResponseEntity<com.codegym.locketclone.user.dto.UserProfileWithRelationResponse> getUserProfileByUsername(
+            @PathVariable String username,
+            @AuthenticationPrincipal UserPrincipal userPrincipal
+    ) {
+        UUID currentUserId = userPrincipal != null ? userPrincipal.getId() : null;
+        return ResponseEntity.ok(userService.getUserProfileByUsername(username, currentUserId));
+    }
+
 
     private UserPrincipal requireAuthenticatedUser(UserPrincipal userPrincipal) {
         if (userPrincipal == null) {

@@ -218,5 +218,35 @@ class UserControllerTest {
 
         verify(userService).getUserById(targetUserId);
     }
+
+    @Test
+    void getUserProfileByUsername_returnsProfileWithRelationStatus() throws Exception {
+        UUID targetUserId = UUID.randomUUID();
+        com.codegym.locketclone.user.dto.UserProfileWithRelationResponse profileResponse =
+                com.codegym.locketclone.user.dto.UserProfileWithRelationResponse.builder()
+                        .id(targetUserId)
+                        .username("khanhnkq")
+                        .firstName("Khanh")
+                        .lastName("Nguyen")
+                        .displayName("Khanh Nguyen")
+                        .avatarUrl("https://example.com/khanh.jpg")
+                        .isGoldMember(true)
+                        .relationshipStatus("NONE")
+                        .friendshipId(null)
+                        .build();
+
+        when(userService.getUserProfileByUsername(eq("khanhnkq"), any())).thenReturn(profileResponse);
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/users/profile/khanhnkq"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(targetUserId.toString()))
+                .andExpect(jsonPath("$.username").value("khanhnkq"))
+                .andExpect(jsonPath("$.displayName").value("Khanh Nguyen"))
+                .andExpect(jsonPath("$.relationshipStatus").value("NONE"))
+                .andExpect(jsonPath("$.friendshipId").doesNotExist())
+                .andExpect(jsonPath("$.isGoldMember").value(true));
+
+        verify(userService).getUserProfileByUsername(eq("khanhnkq"), any());
+    }
 }
 

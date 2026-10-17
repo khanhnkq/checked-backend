@@ -45,9 +45,43 @@ public interface FriendshipRepository extends JpaRepository<Friendship, UUID> {
 
     @Query("""
             SELECT f FROM Friendship f
+            JOIN FETCH f.user
+            JOIN FETCH f.friend
+            WHERE (f.user.id = :userA AND f.friend.id = :userB)
+               OR (f.user.id = :userB AND f.friend.id = :userA)
+            """)
+    Optional<Friendship> findRelationBetweenUsers(@Param("userA") UUID userA, @Param("userB") UUID userB);
+
+    @Query("""
+            SELECT f FROM Friendship f
             WHERE ((f.user.id = :userA AND f.friend.id = :userB)
                OR (f.user.id = :userB AND f.friend.id = :userA))
               AND f.status = com.codegym.locketclone.friendship.FriendshipStatus.ACCEPTED
             """)
     Optional<Friendship> findAcceptedBetweenUsers(@Param("userA") UUID userA, @Param("userB") UUID userB);
+
+    @Query("""
+            SELECT f FROM Friendship f
+            JOIN FETCH f.user
+            WHERE f.friend.id = :userId
+              AND f.status = com.codegym.locketclone.friendship.FriendshipStatus.PENDING
+            ORDER BY f.createdAt DESC
+            """)
+    List<Friendship> findPendingReceivedRequests(@Param("userId") UUID userId);
+
+    @Query("""
+            SELECT COUNT(f) FROM Friendship f
+            WHERE f.friend.id = :userId
+              AND f.status = com.codegym.locketclone.friendship.FriendshipStatus.PENDING
+            """)
+    long countPendingReceivedRequests(@Param("userId") UUID userId);
+
+    @Query("""
+            SELECT f FROM Friendship f
+            JOIN FETCH f.friend
+            WHERE f.user.id = :userId
+              AND f.status = com.codegym.locketclone.friendship.FriendshipStatus.PENDING
+            ORDER BY f.createdAt DESC
+            """)
+    List<Friendship> findPendingSentRequests(@Param("userId") UUID userId);
 }

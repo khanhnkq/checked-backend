@@ -36,6 +36,9 @@ class UserServiceImplTest {
     @Mock
     private StorageService storageService;
 
+    @Mock
+    private com.codegym.locketclone.friendship.FriendshipRepository friendshipRepository;
+
     @InjectMocks
     private UserServiceImpl userService;
 

@@ -32,6 +32,7 @@ public enum ErrorCode {
     CANNOT_CHAT_WITH_SELF(HttpStatus.BAD_REQUEST, "Bạn không thể tạo cuộc trò chuyện với chính mình"),
     INVALID_REACTION_TYPE(HttpStatus.BAD_REQUEST, "Loại reaction không hợp lệ"),
     CANNOT_REACT_OWN_PHOTO(HttpStatus.BAD_REQUEST, "Bạn không thể reaction ảnh của chính mình"),
+    FRIEND_REQUEST_ALREADY_SENT(HttpStatus.BAD_REQUEST, "Bạn đã gửi lời mời kết bạn trước đó và đang chờ phản hồi"),
 
     // 401 Unauthorized
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "Bạn chưa đăng nhập hoặc token không hợp lệ"),
@@ -41,6 +42,8 @@ public enum ErrorCode {
     FORBIDDEN(HttpStatus.FORBIDDEN, "Bạn không có quyền truy cập tài nguyên này"),
     USER_NOT_VERIFIED(HttpStatus.FORBIDDEN, "Tài khoản chưa được xác thực email"),
     CANNOT_CHAT_WITH_NON_FRIEND(HttpStatus.FORBIDDEN, "Chỉ có thể nhắn tin với người dùng đã là bạn bè"),
+    USER_BLOCKED(HttpStatus.FORBIDDEN, "Bạn không thể tương tác với người dùng này do trạng thái chặn"),
+    NOT_REQUEST_RECIPIENT(HttpStatus.FORBIDDEN, "Bạn không có quyền thao tác trên lời mời kết bạn này"),
 
     // 404 Not Found
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy người dùng"),
@@ -51,6 +54,7 @@ public enum ErrorCode {
     FRIEND_INVITE_LINK_REVOKED(HttpStatus.GONE, "Link mời kết bạn đã bị thu hồi"),
     FRIEND_INVITE_LINK_MAX_USES_REACHED(HttpStatus.CONFLICT, "Link mời kết bạn đã đạt số lượt sử dụng tối đa"),
     FRIEND_ALREADY_EXISTS(HttpStatus.CONFLICT, "Hai người dùng đã là bạn bè"),
+    FRIEND_REQUEST_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy lời mời kết bạn"),
     CALORIE_LOG_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy bản ghi calo"),
     INVALID_CALORIE_AMOUNT(HttpStatus.BAD_REQUEST, "Số lượng calo phải lớn hơn 0"),
     CONVERSATION_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy cuộc trò chuyện"),
