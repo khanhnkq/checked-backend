@@ -19,7 +19,9 @@ public class RateLimiterService {
         VERIFY,
         LOGIN,
         FRIEND_REQUEST,
-        PROFILE_VIEW
+        PROFILE_VIEW,
+        QR_GENERATION,
+        SOCIAL_SHARE
     }
 
     private final RateLimitProperties properties;
@@ -52,8 +54,14 @@ public class RateLimiterService {
                 return AuthEndpointType.FRIEND_REQUEST;
             }
         } else if ("GET".equalsIgnoreCase(httpMethod)) {
-            if (requestUri.contains("/api/v1/users/profile/") && !requestUri.endsWith("/qr")) {
+            if (requestUri.contains("/api/v1/users/profile/") && requestUri.endsWith("/qr")) {
+                return AuthEndpointType.QR_GENERATION;
+            }
+            if (requestUri.contains("/api/v1/users/profile/")) {
                 return AuthEndpointType.PROFILE_VIEW;
+            }
+            if (requestUri.startsWith("/u/")) {
+                return AuthEndpointType.SOCIAL_SHARE;
             }
         }
         return null;
@@ -72,6 +80,8 @@ public class RateLimiterService {
             case LOGIN -> properties.getLoginCapacity();
             case FRIEND_REQUEST -> properties.getFriendRequestCapacity();
             case PROFILE_VIEW -> properties.getProfileViewCapacity();
+            case QR_GENERATION -> properties.getQrCapacity();
+            case SOCIAL_SHARE -> properties.getShareCapacity();
         };
 
         Duration refillDuration = switch (type) {

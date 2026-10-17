@@ -148,6 +148,9 @@ class UserServiceProfileLinkTest {
         assertNotNull(response);
         assertEquals("BLOCKED", response.relationshipStatus());
         assertEquals(friendshipId, response.friendshipId());
+        assertNull(response.mutualFriendsCount());
+        assertTrue(response.mutualFriendsPreview().isEmpty());
+        verify(friendshipRepository, never()).findMutualFriends(any(), any());
     }
 
     @Test

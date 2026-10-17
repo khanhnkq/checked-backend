@@ -25,6 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -372,6 +373,9 @@ public class FriendshipServiceImpl implements FriendshipService {
         long currentFriendCount = friendshipRepository.countFriends(currentUserId);
         int limit = getMaxFriendsLimit(currentUser);
 
+        List<Friendship> acceptedList = new ArrayList<>();
+        List<UUID> acceptedRequesterIds = new ArrayList<>();
+
         for (Friendship request : pendingRequests) {
             if (currentFriendCount >= limit) {
                 break;
@@ -382,11 +386,17 @@ public class FriendshipServiceImpl implements FriendshipService {
                 continue;
             }
             request.setStatus(FriendshipStatus.ACCEPTED);
-            friendshipRepository.save(request);
+            acceptedList.add(request);
+            acceptedRequesterIds.add(requester.getId());
             currentFriendCount++;
+        }
 
-            evictFriendshipAndFeedCache(currentUserId, requester.getId());
-            sendRealtimeEvent(requester.getId(), "FRIEND_REQUEST_ACCEPTED", userMapper.toFriendProfileResponse(currentUser));
+        if (!acceptedList.isEmpty()) {
+            friendshipRepository.saveAll(acceptedList);
+            for (UUID requesterId : acceptedRequesterIds) {
+                evictFriendshipAndFeedCache(currentUserId, requesterId);
+                sendRealtimeEvent(requesterId, "FRIEND_REQUEST_ACCEPTED", userMapper.toFriendProfileResponse(currentUser));
+            }
         }
     }
 

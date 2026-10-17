@@ -34,9 +34,13 @@ class RateLimiterServiceTest {
         assertEquals(RateLimiterService.AuthEndpointType.PROFILE_VIEW,
                 service.resolveEndpointType("GET", "/api/v1/users/profile/khanhnkq"));
 
-        // Non-POST or other paths return null
+        assertEquals(RateLimiterService.AuthEndpointType.QR_GENERATION,
+                service.resolveEndpointType("GET", "/api/v1/users/profile/khanhnkq/qr"));
+        assertEquals(RateLimiterService.AuthEndpointType.SOCIAL_SHARE,
+                service.resolveEndpointType("GET", "/u/khanhnkq"));
+
+        // Other non-mapped paths return null
         assertNull(service.resolveEndpointType("GET", "/api/v1/auth/login"));
-        assertNull(service.resolveEndpointType("GET", "/api/v1/users/profile/khanhnkq/qr"));
         assertNull(service.resolveEndpointType("POST", "/api/v1/users"));
         assertNull(service.resolveEndpointType("POST", null));
     }

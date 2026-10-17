@@ -51,9 +51,13 @@ public class ShareController {
         User user = userOpt.get();
         String escapedDisplayName = HtmlUtils.htmlEscape(user.getDisplayName() != null ? user.getDisplayName() : user.getUsername());
         String escapedUsername = HtmlUtils.htmlEscape(user.getUsername());
-        String avatarUrl = user.getAvatarUrl() != null && !user.getAvatarUrl().isBlank()
-                ? HtmlUtils.htmlEscape(user.getAvatarUrl())
-                : "https://storage.checked.app/defaults/default-avatar.png";
+        String rawAvatar = user.getAvatarUrl();
+        String avatarUrl;
+        if (rawAvatar != null && (rawAvatar.startsWith("https://") || rawAvatar.startsWith("http://"))) {
+            avatarUrl = HtmlUtils.htmlEscape(rawAvatar);
+        } else {
+            avatarUrl = "https://storage.checked.app/defaults/default-avatar.png";
+        }
         String profileUrl = "https://checked.app/u/" + escapedUsername;
         String deepLinkUrl = "checked://u/" + escapedUsername;
         String storeUrl = "https://checked.app/download";

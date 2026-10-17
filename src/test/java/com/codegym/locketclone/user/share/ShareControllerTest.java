@@ -91,4 +91,24 @@ class ShareControllerTest {
         assertNotNull(response.getBody());
         assertTrue(response.getBody().contains("https://storage.checked.app/defaults/default-avatar.png"));
     }
+
+    @Test
+    void getSocialSharePage_whenUserHasMaliciousAvatarScheme_usesDefaultAvatar() {
+        User maliciousUser = User.builder()
+                .id(UUID.randomUUID())
+                .username("badactor")
+                .firstName("Bad")
+                .lastName("Actor")
+                .avatarUrl("javascript:alert(1)")
+                .build();
+
+        when(userRepository.findByUsernameIgnoreCase("badactor")).thenReturn(Optional.of(maliciousUser));
+
+        ResponseEntity<String> response = shareController.getSocialSharePage("badactor");
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody().contains("https://storage.checked.app/defaults/default-avatar.png"));
+        assertFalse(response.getBody().contains("javascript:alert(1)"));
+    }
 }

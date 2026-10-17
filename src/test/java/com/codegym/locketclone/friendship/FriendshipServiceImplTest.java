@@ -672,7 +672,7 @@ class FriendshipServiceImplTest {
         friendshipService.acceptAllPendingRequests(currentUserId);
 
         assertEquals("ACCEPTED", req1.getStatus().name());
-        verify(friendshipRepository).save(req1);
+        verify(friendshipRepository).saveAll(List.of(req1));
     }
 
     @Test

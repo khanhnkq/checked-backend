@@ -66,17 +66,23 @@ public class UserServiceImpl implements UserService {
             return buildProfileWithRelationResponse(targetUser, "SELF", null, null, List.of());
         }
 
-        long count = friendshipRepository.countMutualFriends(currentUserId, targetUser.getId());
-        mutualFriendsCount = (int) count;
+        Optional<Friendship> relationOpt = friendshipRepository.findRelationBetweenUsers(currentUserId, targetUser.getId());
+        if (relationOpt.isPresent() && relationOpt.get().getStatus() == FriendshipStatus.BLOCKED) {
+            return buildProfileWithRelationResponse(targetUser, "BLOCKED", relationOpt.get().getId(), null, List.of());
+        }
+
         List<User> mutualUsers = friendshipRepository.findMutualFriends(currentUserId, targetUser.getId());
         if (mutualUsers != null && userMapper != null) {
+            mutualFriendsCount = mutualUsers.size();
             mutualFriendsPreview = mutualUsers.stream()
                     .limit(3)
                     .map(userMapper::toFriendProfileResponse)
                     .toList();
+        } else {
+            mutualFriendsCount = 0;
+            mutualFriendsPreview = List.of();
         }
 
-        Optional<Friendship> relationOpt = friendshipRepository.findRelationBetweenUsers(currentUserId, targetUser.getId());
         if (relationOpt.isEmpty()) {
             return buildProfileWithRelationResponse(targetUser, "NONE", null, mutualFriendsCount, mutualFriendsPreview);
         }
@@ -84,9 +90,6 @@ public class UserServiceImpl implements UserService {
         Friendship friendship = relationOpt.get();
         if (friendship.getStatus() == FriendshipStatus.ACCEPTED) {
             return buildProfileWithRelationResponse(targetUser, "ACCEPTED", friendship.getId(), mutualFriendsCount, mutualFriendsPreview);
-        }
-        if (friendship.getStatus() == FriendshipStatus.BLOCKED) {
-            return buildProfileWithRelationResponse(targetUser, "BLOCKED", friendship.getId(), mutualFriendsCount, mutualFriendsPreview);
         }
 
         // friendship.getStatus() == FriendshipStatus.PENDING
