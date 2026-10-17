@@ -135,6 +135,54 @@ public class FriendshipController {
         return ResponseEntity.ok(friendshipService.getBlockedUsers(currentUser.getId()));
     }
 
+    @Operation(summary = "Lấy danh sách lời mời kết bạn đã gửi", description = "Trả về danh sách các lời mời kết bạn mà người dùng hiện tại đã gửi đi đang chờ đối phương phản hồi.")
+    @GetMapping("/requests/sent")
+    public ResponseEntity<List<SentFriendRequestResponse>> getPendingSentRequests(
+            @AuthenticationPrincipal UserPrincipal userPrincipal
+    ) {
+        UserPrincipal currentUser = requireAuthenticatedUser(userPrincipal);
+        return ResponseEntity.ok(friendshipService.getPendingSentRequests(currentUser.getId()));
+    }
+
+    @Operation(summary = "Lấy số lượng lời mời đã gửi", description = "Trả về số lượng lời mời kết bạn mà người dùng hiện tại đã gửi đang chờ duyệt.")
+    @GetMapping("/requests/sent/count")
+    public ResponseEntity<SentFriendRequestCountResponse> getPendingSentCount(
+            @AuthenticationPrincipal UserPrincipal userPrincipal
+    ) {
+        UserPrincipal currentUser = requireAuthenticatedUser(userPrincipal);
+        return ResponseEntity.ok(friendshipService.getPendingSentCount(currentUser.getId()));
+    }
+
+    @Operation(summary = "Lấy danh sách bạn chung", description = "Trả về danh sách tất cả bạn bè chung giữa tài khoản hiện tại và targetUserId.")
+    @GetMapping("/{targetUserId}/mutual")
+    public ResponseEntity<List<FriendProfileResponse>> getMutualFriends(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @PathVariable UUID targetUserId
+    ) {
+        UserPrincipal currentUser = requireAuthenticatedUser(userPrincipal);
+        return ResponseEntity.ok(friendshipService.getMutualFriends(currentUser.getId(), targetUserId));
+    }
+
+    @Operation(summary = "Chấp nhận tất cả lời mời kết bạn", description = "Chấp nhận đồng loạt tất cả các lời mời kết bạn đang chờ gửi đến người dùng hiện tại.")
+    @PutMapping("/requests/accept-all")
+    public ResponseEntity<Void> acceptAllPendingRequests(
+            @AuthenticationPrincipal UserPrincipal userPrincipal
+    ) {
+        UserPrincipal currentUser = requireAuthenticatedUser(userPrincipal);
+        friendshipService.acceptAllPendingRequests(currentUser.getId());
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "Từ chối tất cả lời mời kết bạn", description = "Từ chối đồng loạt tất cả các lời mời kết bạn đang chờ gửi đến người dùng hiện tại.")
+    @PutMapping("/requests/decline-all")
+    public ResponseEntity<Void> declineAllPendingRequests(
+            @AuthenticationPrincipal UserPrincipal userPrincipal
+    ) {
+        UserPrincipal currentUser = requireAuthenticatedUser(userPrincipal);
+        friendshipService.declineAllPendingRequests(currentUser.getId());
+        return ResponseEntity.noContent().build();
+    }
+
     private UserPrincipal requireAuthenticatedUser(UserPrincipal userPrincipal) {
         if (userPrincipal == null) {
             throw new AppException(ErrorCode.UNAUTHORIZED);

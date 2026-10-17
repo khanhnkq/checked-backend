@@ -36,4 +36,14 @@ public interface FriendshipService {
     void unblockUser(UUID currentUserId, UUID targetUserId);
 
     List<FriendProfileResponse> getBlockedUsers(UUID currentUserId);
+
+    List<com.codegym.locketclone.friendship.dto.SentFriendRequestResponse> getPendingSentRequests(UUID currentUserId);
+
+    com.codegym.locketclone.friendship.dto.SentFriendRequestCountResponse getPendingSentCount(UUID currentUserId);
+
+    List<FriendProfileResponse> getMutualFriends(UUID currentUserId, UUID targetUserId);
+
+    void acceptAllPendingRequests(UUID currentUserId);
+
+    void declineAllPendingRequests(UUID currentUserId);
 }

@@ -10,6 +10,8 @@ import com.codegym.locketclone.friendship.dto.FriendRequestCountResponse;
 import com.codegym.locketclone.friendship.dto.FriendRequestResponse;
 import com.codegym.locketclone.friendship.dto.SendFriendRequest;
 import com.codegym.locketclone.friendship.dto.SendFriendRequestResponse;
+import com.codegym.locketclone.friendship.dto.SentFriendRequestCountResponse;
+import com.codegym.locketclone.friendship.dto.SentFriendRequestResponse;
 import com.codegym.locketclone.user.User;
 import com.codegym.locketclone.user.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -65,6 +67,9 @@ public class FriendshipServiceImpl implements FriendshipService {
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
         User targetUser = userRepository.findById(targetUserId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        validateFriendLimit(currentUser, false);
+        validateFriendLimit(targetUser, true);
 
         Optional<Friendship> relationOpt = friendshipRepository.findRelationBetweenUsers(currentUserId, targetUserId);
         if (relationOpt.isPresent()) {
@@ -182,16 +187,18 @@ public class FriendshipServiceImpl implements FriendshipService {
                     .build();
         }
 
+        User currentUser = userRepository.findById(currentUserId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        validateFriendLimit(currentUser, false);
+        validateFriendLimit(friendship.getUser(), true);
+
         friendship.setStatus(FriendshipStatus.ACCEPTED);
         Friendship saved = friendshipRepository.save(friendship);
 
         UUID requesterId = saved.getUser().getId();
         evictFriendshipAndFeedCache(currentUserId, requesterId);
 
-        User currentUser = userRepository.findById(currentUserId).orElse(null);
-        if (currentUser != null) {
-            sendRealtimeEvent(requesterId, "FRIEND_REQUEST_ACCEPTED", userMapper.toFriendProfileResponse(currentUser));
-        }
+        sendRealtimeEvent(requesterId, "FRIEND_REQUEST_ACCEPTED", userMapper.toFriendProfileResponse(currentUser));
 
         return AcceptFriendRequestResponse.builder()
                 .friendshipId(saved.getId())
@@ -318,6 +325,90 @@ public class FriendshipServiceImpl implements FriendshipService {
                 .map(Friendship::getFriend)
                 .map(userMapper::toFriendProfileResponse)
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<SentFriendRequestResponse> getPendingSentRequests(UUID currentUserId) {
+        return friendshipRepository.findPendingSentRequests(currentUserId)
+                .stream()
+                .map(f -> SentFriendRequestResponse.builder()
+                        .friendshipId(f.getId())
+                        .targetUser(userMapper.toFriendProfileResponse(f.getFriend()))
+                        .createdAt(f.getCreatedAt())
+                        .build())
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public SentFriendRequestCountResponse getPendingSentCount(UUID currentUserId) {
+        long count = friendshipRepository.countPendingSentRequests(currentUserId);
+        return new SentFriendRequestCountResponse(count);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<FriendProfileResponse> getMutualFriends(UUID currentUserId, UUID targetUserId) {
+        if (currentUserId.equals(targetUserId)) {
+            return List.of();
+        }
+        return friendshipRepository.findMutualFriends(currentUserId, targetUserId)
+                .stream()
+                .map(userMapper::toFriendProfileResponse)
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public void acceptAllPendingRequests(UUID currentUserId) {
+        User currentUser = userRepository.findById(currentUserId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        List<Friendship> pendingRequests = friendshipRepository.findPendingReceivedRequests(currentUserId);
+        if (pendingRequests.isEmpty()) {
+            return;
+        }
+
+        long currentFriendCount = friendshipRepository.countFriends(currentUserId);
+        int limit = getMaxFriendsLimit(currentUser);
+
+        for (Friendship request : pendingRequests) {
+            if (currentFriendCount >= limit) {
+                break;
+            }
+            User requester = request.getUser();
+            long requesterCount = friendshipRepository.countFriends(requester.getId());
+            if (requesterCount >= getMaxFriendsLimit(requester)) {
+                continue;
+            }
+            request.setStatus(FriendshipStatus.ACCEPTED);
+            friendshipRepository.save(request);
+            currentFriendCount++;
+
+            evictFriendshipAndFeedCache(currentUserId, requester.getId());
+            sendRealtimeEvent(requester.getId(), "FRIEND_REQUEST_ACCEPTED", userMapper.toFriendProfileResponse(currentUser));
+        }
+    }
+
+    @Override
+    @Transactional
+    public void declineAllPendingRequests(UUID currentUserId) {
+        List<Friendship> pendingRequests = friendshipRepository.findPendingReceivedRequests(currentUserId);
+        if (!pendingRequests.isEmpty()) {
+            friendshipRepository.deleteAll(pendingRequests);
+        }
+    }
+
+    private int getMaxFriendsLimit(User user) {
+        return Boolean.TRUE.equals(user.getIsGoldMember()) ? 100 : 20;
+    }
+
+    private void validateFriendLimit(User user, boolean isTargetUser) {
+        long count = friendshipRepository.countFriends(user.getId());
+        int limit = getMaxFriendsLimit(user);
+        if (count >= limit) {
+            throw new AppException(isTargetUser ? ErrorCode.TARGET_USER_MAX_FRIENDS_REACHED : ErrorCode.MAX_FRIENDS_REACHED);
+        }
     }
 
     private void evictFriendshipAndFeedCache(UUID userA, UUID userB) {

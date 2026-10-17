@@ -163,6 +163,9 @@ public class FriendInviteLinkServiceImpl implements FriendInviteLinkService {
             );
         }
 
+        validateFriendLimit(currentUser, false);
+        validateFriendLimit(link.getOwner(), true);
+
         // 2. Chấp nhận hoặc tạo mới quan hệ bạn bè, bắt xung đột đồng thời (race condition)
         boolean alreadyFriends = false;
         Friendship friendship;
@@ -325,6 +328,18 @@ public class FriendInviteLinkServiceImpl implements FriendInviteLinkService {
             return "EXPIRED";
         }
         return "ACTIVE";
+    }
+
+    private int getMaxFriendsLimit(User user) {
+        return Boolean.TRUE.equals(user.getIsGoldMember()) ? 100 : 20;
+    }
+
+    private void validateFriendLimit(User user, boolean isTargetUser) {
+        long count = friendshipRepository.countFriends(user.getId());
+        int limit = getMaxFriendsLimit(user);
+        if (count >= limit) {
+            throw new AppException(isTargetUser ? ErrorCode.TARGET_USER_MAX_FRIENDS_REACHED : ErrorCode.MAX_FRIENDS_REACHED);
+        }
     }
 }
 

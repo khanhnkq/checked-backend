@@ -33,6 +33,8 @@ public enum ErrorCode {
     INVALID_REACTION_TYPE(HttpStatus.BAD_REQUEST, "Loại reaction không hợp lệ"),
     CANNOT_REACT_OWN_PHOTO(HttpStatus.BAD_REQUEST, "Bạn không thể reaction ảnh của chính mình"),
     FRIEND_REQUEST_ALREADY_SENT(HttpStatus.BAD_REQUEST, "Bạn đã gửi lời mời kết bạn trước đó và đang chờ phản hồi"),
+    MAX_FRIENDS_REACHED(HttpStatus.BAD_REQUEST, "Bạn đã đạt số lượng bạn bè tối đa cho phép của gói tài khoản"),
+    TARGET_USER_MAX_FRIENDS_REACHED(HttpStatus.BAD_REQUEST, "Người dùng này đã đạt giới hạn bạn bè tối đa"),
 
     // 401 Unauthorized
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "Bạn chưa đăng nhập hoặc token không hợp lệ"),

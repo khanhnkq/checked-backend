@@ -22,6 +22,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -54,36 +55,55 @@ public class UserServiceImpl implements UserService {
         User targetUser = userRepository.findByUsernameIgnoreCase(normalizedUsername)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
+        Integer mutualFriendsCount = null;
+        List<com.codegym.locketclone.friendship.dto.FriendProfileResponse> mutualFriendsPreview = List.of();
+
         if (currentUserId == null) {
-            return buildProfileWithRelationResponse(targetUser, "UNAUTHENTICATED", null);
+            return buildProfileWithRelationResponse(targetUser, "UNAUTHENTICATED", null, null, List.of());
         }
 
         if (currentUserId.equals(targetUser.getId())) {
-            return buildProfileWithRelationResponse(targetUser, "SELF", null);
+            return buildProfileWithRelationResponse(targetUser, "SELF", null, null, List.of());
+        }
+
+        long count = friendshipRepository.countMutualFriends(currentUserId, targetUser.getId());
+        mutualFriendsCount = (int) count;
+        List<User> mutualUsers = friendshipRepository.findMutualFriends(currentUserId, targetUser.getId());
+        if (mutualUsers != null && userMapper != null) {
+            mutualFriendsPreview = mutualUsers.stream()
+                    .limit(3)
+                    .map(userMapper::toFriendProfileResponse)
+                    .toList();
         }
 
         Optional<Friendship> relationOpt = friendshipRepository.findRelationBetweenUsers(currentUserId, targetUser.getId());
         if (relationOpt.isEmpty()) {
-            return buildProfileWithRelationResponse(targetUser, "NONE", null);
+            return buildProfileWithRelationResponse(targetUser, "NONE", null, mutualFriendsCount, mutualFriendsPreview);
         }
 
         Friendship friendship = relationOpt.get();
         if (friendship.getStatus() == FriendshipStatus.ACCEPTED) {
-            return buildProfileWithRelationResponse(targetUser, "ACCEPTED", friendship.getId());
+            return buildProfileWithRelationResponse(targetUser, "ACCEPTED", friendship.getId(), mutualFriendsCount, mutualFriendsPreview);
         }
         if (friendship.getStatus() == FriendshipStatus.BLOCKED) {
-            return buildProfileWithRelationResponse(targetUser, "BLOCKED", friendship.getId());
+            return buildProfileWithRelationResponse(targetUser, "BLOCKED", friendship.getId(), mutualFriendsCount, mutualFriendsPreview);
         }
 
         // friendship.getStatus() == FriendshipStatus.PENDING
         if (friendship.getUser().getId().equals(currentUserId)) {
-            return buildProfileWithRelationResponse(targetUser, "PENDING_SENT", friendship.getId());
+            return buildProfileWithRelationResponse(targetUser, "PENDING_SENT", friendship.getId(), mutualFriendsCount, mutualFriendsPreview);
         } else {
-            return buildProfileWithRelationResponse(targetUser, "PENDING_RECEIVED", friendship.getId());
+            return buildProfileWithRelationResponse(targetUser, "PENDING_RECEIVED", friendship.getId(), mutualFriendsCount, mutualFriendsPreview);
         }
     }
 
-    private UserProfileWithRelationResponse buildProfileWithRelationResponse(User user, String relationStatus, UUID friendshipId) {
+    private UserProfileWithRelationResponse buildProfileWithRelationResponse(
+            User user,
+            String relationStatus,
+            UUID friendshipId,
+            Integer mutualFriendsCount,
+            List<com.codegym.locketclone.friendship.dto.FriendProfileResponse> mutualFriendsPreview
+    ) {
         return UserProfileWithRelationResponse.builder()
                 .id(user.getId())
                 .username(user.getUsername())
@@ -94,6 +114,8 @@ public class UserServiceImpl implements UserService {
                 .isGoldMember(user.getIsGoldMember())
                 .relationshipStatus(relationStatus)
                 .friendshipId(friendshipId)
+                .mutualFriendsCount(mutualFriendsCount)
+                .mutualFriendsPreview(mutualFriendsPreview)
                 .build();
     }
 

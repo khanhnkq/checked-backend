@@ -226,4 +226,72 @@ class FriendshipControllerTest {
         assertEquals("blocked_user", response.getBody().get(0).username());
         verify(friendshipService).getBlockedUsers(currentUserId);
     }
+
+    @Test
+    void getPendingSentRequests_returnsOk() {
+        SentFriendRequestResponse sent = SentFriendRequestResponse.builder()
+                .friendshipId(UUID.randomUUID())
+                .targetUser(FriendProfileResponse.builder().username("target").build())
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        when(friendshipService.getPendingSentRequests(currentUserId)).thenReturn(List.of(sent));
+
+        var response = friendshipController.getPendingSentRequests(userPrincipal);
+
+        assertEquals(200, response.getStatusCode().value());
+        assertNotNull(response.getBody());
+        assertEquals(1, response.getBody().size());
+        assertEquals("target", response.getBody().get(0).targetUser().username());
+        verify(friendshipService).getPendingSentRequests(currentUserId);
+    }
+
+    @Test
+    void getPendingSentCount_returnsOk() {
+        SentFriendRequestCountResponse countResponse = new SentFriendRequestCountResponse(3);
+
+        when(friendshipService.getPendingSentCount(currentUserId)).thenReturn(countResponse);
+
+        var response = friendshipController.getPendingSentCount(userPrincipal);
+
+        assertEquals(200, response.getStatusCode().value());
+        assertNotNull(response.getBody());
+        assertEquals(3, response.getBody().sentCount());
+        verify(friendshipService).getPendingSentCount(currentUserId);
+    }
+
+    @Test
+    void getMutualFriends_returnsOk() {
+        UUID targetUserId = UUID.randomUUID();
+        FriendProfileResponse mutual = FriendProfileResponse.builder()
+                .id(UUID.randomUUID())
+                .username("mutual_friend")
+                .build();
+
+        when(friendshipService.getMutualFriends(currentUserId, targetUserId)).thenReturn(List.of(mutual));
+
+        var response = friendshipController.getMutualFriends(userPrincipal, targetUserId);
+
+        assertEquals(200, response.getStatusCode().value());
+        assertNotNull(response.getBody());
+        assertEquals(1, response.getBody().size());
+        assertEquals("mutual_friend", response.getBody().get(0).username());
+        verify(friendshipService).getMutualFriends(currentUserId, targetUserId);
+    }
+
+    @Test
+    void acceptAllPendingRequests_returnsNoContent() {
+        var response = friendshipController.acceptAllPendingRequests(userPrincipal);
+
+        assertEquals(204, response.getStatusCode().value());
+        verify(friendshipService).acceptAllPendingRequests(currentUserId);
+    }
+
+    @Test
+    void declineAllPendingRequests_returnsNoContent() {
+        var response = friendshipController.declineAllPendingRequests(userPrincipal);
+
+        assertEquals(204, response.getStatusCode().value());
+        verify(friendshipService).declineAllPendingRequests(currentUserId);
+    }
 }

@@ -507,4 +507,187 @@ class FriendshipServiceImplTest {
         assertEquals(targetProfile, result.get(0));
         verify(friendshipRepository).findBlockedUsers(currentUserId);
     }
+
+    @Test
+    void getPendingSentRequests_returnsMappedList() {
+        Friendship sent = Friendship.builder()
+                .id(UUID.randomUUID())
+                .user(currentUser)
+                .friend(targetUser)
+                .status(FriendshipStatus.PENDING)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        when(friendshipRepository.findPendingSentRequests(currentUserId)).thenReturn(List.of(sent));
+        when(userMapper.toFriendProfileResponse(targetUser)).thenReturn(targetProfile);
+
+        List<SentFriendRequestResponse> result = friendshipService.getPendingSentRequests(currentUserId);
+
+        assertEquals(1, result.size());
+        assertEquals(sent.getId(), result.get(0).friendshipId());
+        assertEquals(targetProfile, result.get(0).targetUser());
+        verify(friendshipRepository).findPendingSentRequests(currentUserId);
+    }
+
+    @Test
+    void getPendingSentCount_returnsCountResponse() {
+        when(friendshipRepository.countPendingSentRequests(currentUserId)).thenReturn(5L);
+
+        SentFriendRequestCountResponse result = friendshipService.getPendingSentCount(currentUserId);
+
+        assertNotNull(result);
+        assertEquals(5, result.sentCount());
+        verify(friendshipRepository).countPendingSentRequests(currentUserId);
+    }
+
+    @Test
+    void getMutualFriends_returnsMappedProfiles() {
+        when(friendshipRepository.findMutualFriends(currentUserId, targetUserId))
+                .thenReturn(List.of(targetUser));
+        when(userMapper.toFriendProfileResponse(targetUser)).thenReturn(targetProfile);
+
+        List<FriendProfileResponse> result = friendshipService.getMutualFriends(currentUserId, targetUserId);
+
+        assertEquals(1, result.size());
+        assertEquals(targetProfile, result.get(0));
+        verify(friendshipRepository).findMutualFriends(currentUserId, targetUserId);
+    }
+
+    @Test
+    void sendFriendRequest_whenSenderExceedsQuota_throwsMaxFriendsReached() {
+        User standardUser = User.builder()
+                .id(currentUserId)
+                .isGoldMember(false)
+                .build();
+
+        when(userRepository.findById(currentUserId)).thenReturn(Optional.of(standardUser));
+        when(userRepository.findById(targetUserId)).thenReturn(Optional.of(targetUser));
+        when(friendshipRepository.countFriends(currentUserId)).thenReturn(20L);
+
+        SendFriendRequest request = new SendFriendRequest(targetUserId);
+        AppException ex = assertThrows(AppException.class,
+                () -> friendshipService.sendFriendRequest(currentUserId, request));
+
+        assertEquals(ErrorCode.MAX_FRIENDS_REACHED, ex.getErrorCode());
+        verify(friendshipRepository, never()).save(any());
+    }
+
+    @Test
+    void sendFriendRequest_whenTargetExceedsQuota_throwsTargetMaxFriendsReached() {
+        User standardSender = User.builder()
+                .id(currentUserId)
+                .isGoldMember(false)
+                .build();
+        User standardTarget = User.builder()
+                .id(targetUserId)
+                .isGoldMember(false)
+                .build();
+
+        when(userRepository.findById(currentUserId)).thenReturn(Optional.of(standardSender));
+        when(userRepository.findById(targetUserId)).thenReturn(Optional.of(standardTarget));
+        when(friendshipRepository.countFriends(currentUserId)).thenReturn(5L);
+        when(friendshipRepository.countFriends(targetUserId)).thenReturn(20L);
+
+        SendFriendRequest request = new SendFriendRequest(targetUserId);
+        AppException ex = assertThrows(AppException.class,
+                () -> friendshipService.sendFriendRequest(currentUserId, request));
+
+        assertEquals(ErrorCode.TARGET_USER_MAX_FRIENDS_REACHED, ex.getErrorCode());
+        verify(friendshipRepository, never()).save(any());
+    }
+
+    @Test
+    void acceptFriendRequest_whenRecipientExceedsQuota_throwsMaxFriendsReached() {
+        UUID friendshipId = UUID.randomUUID();
+        Friendship pending = Friendship.builder()
+                .id(friendshipId)
+                .user(targetUser)
+                .friend(currentUser)
+                .status(FriendshipStatus.PENDING)
+                .build();
+
+        User standardRecipient = User.builder()
+                .id(currentUserId)
+                .isGoldMember(false)
+                .build();
+
+        when(friendshipRepository.findById(friendshipId)).thenReturn(Optional.of(pending));
+        when(userRepository.findById(currentUserId)).thenReturn(Optional.of(standardRecipient));
+        when(friendshipRepository.countFriends(currentUserId)).thenReturn(20L);
+
+        AppException ex = assertThrows(AppException.class,
+                () -> friendshipService.acceptFriendRequest(currentUserId, friendshipId));
+
+        assertEquals(ErrorCode.MAX_FRIENDS_REACHED, ex.getErrorCode());
+        verify(friendshipRepository, never()).save(any());
+    }
+
+    @Test
+    void acceptFriendRequest_whenSenderExceedsQuota_throwsTargetMaxFriendsReached() {
+        UUID friendshipId = UUID.randomUUID();
+        User standardSender = User.builder()
+                .id(targetUserId)
+                .isGoldMember(false)
+                .build();
+        Friendship pending = Friendship.builder()
+                .id(friendshipId)
+                .user(standardSender)
+                .friend(currentUser)
+                .status(FriendshipStatus.PENDING)
+                .build();
+
+        User standardRecipient = User.builder()
+                .id(currentUserId)
+                .isGoldMember(false)
+                .build();
+
+        when(friendshipRepository.findById(friendshipId)).thenReturn(Optional.of(pending));
+        when(userRepository.findById(currentUserId)).thenReturn(Optional.of(standardRecipient));
+        when(friendshipRepository.countFriends(currentUserId)).thenReturn(5L);
+        when(friendshipRepository.countFriends(targetUserId)).thenReturn(20L);
+
+        AppException ex = assertThrows(AppException.class,
+                () -> friendshipService.acceptFriendRequest(currentUserId, friendshipId));
+
+        assertEquals(ErrorCode.TARGET_USER_MAX_FRIENDS_REACHED, ex.getErrorCode());
+        verify(friendshipRepository, never()).save(any());
+    }
+
+    @Test
+    void acceptAllPendingRequests_acceptsPendingRequestsUpToLimit() {
+        Friendship req1 = Friendship.builder()
+                .id(UUID.randomUUID())
+                .user(targetUser)
+                .friend(currentUser)
+                .status(FriendshipStatus.PENDING)
+                .build();
+
+        when(friendshipRepository.findPendingReceivedRequests(currentUserId)).thenReturn(List.of(req1));
+        when(userRepository.findById(currentUserId)).thenReturn(Optional.of(currentUser));
+        when(friendshipRepository.countFriends(currentUserId)).thenReturn(2L);
+        when(friendshipRepository.countFriends(targetUserId)).thenReturn(1L);
+        when(userMapper.toFriendProfileResponse(any())).thenReturn(targetProfile);
+        when(cacheManager.getCache(any())).thenReturn(friendsCache);
+
+        friendshipService.acceptAllPendingRequests(currentUserId);
+
+        assertEquals("ACCEPTED", req1.getStatus().name());
+        verify(friendshipRepository).save(req1);
+    }
+
+    @Test
+    void declineAllPendingRequests_deletesAllPendingRequests() {
+        Friendship req1 = Friendship.builder()
+                .id(UUID.randomUUID())
+                .user(targetUser)
+                .friend(currentUser)
+                .status(FriendshipStatus.PENDING)
+                .build();
+
+        when(friendshipRepository.findPendingReceivedRequests(currentUserId)).thenReturn(List.of(req1));
+
+        friendshipService.declineAllPendingRequests(currentUserId);
+
+        verify(friendshipRepository).deleteAll(List.of(req1));
+    }
 }

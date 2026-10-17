@@ -298,42 +298,38 @@ Hệ thống sử dụng `SimpMessagingTemplate` để đẩy thông báo tức 
 
 ## 5. Kế Hoạch Triển Khai Kỹ Thuật (Task Breakdown)
 
-### Phase 1: Data Access Layer & DTOs
-- [ ] **Task 1.1**: Định nghĩa các DTOs:
-  - `UserProfileWithRelationResponse.java`
-  - `SendFriendRequest.java`
-  - `FriendRequestResponse.java`
-  - `FriendRequestCountResponse.java`
-- [ ] **Task 1.2**: Bổ sung các Custom Query JPQL trong [FriendshipRepository.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/main/java/com/codegym/locketclone/friendship/FriendshipRepository.java):
-  - `findPendingReceived(UUID userId)`
-  - `countPendingReceived(UUID userId)`
-  - `findBetweenUsersOptional(UUID userA, UUID userB)`
-- [ ] **Task 1.3**: Bổ sung ErrorCode mới trong [ErrorCode.java](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/src/main/java/com/codegym/locketclone/common/exception/ErrorCode.java):
-  - `FRIEND_REQUEST_ALREADY_SENT(HttpStatus.BAD_REQUEST, "Bạn đã gửi lời mời kết bạn trước đó")`
-  - `FRIEND_REQUEST_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy lời mời kết bạn")`
-  - `NOT_REQUEST_RECIPIENT(HttpStatus.FORBIDDEN, "Bạn không có quyền thao tác trên lời mời này")`
+### Phase 1: Data Access Layer, DTOs & Public Profile API (✅ Hoàn thành & Merged)
+- [x] **Task 1.1**: Định nghĩa các DTOs: `UserProfileWithRelationResponse.java`, `SendFriendRequest.java`, `FriendRequestResponse.java`, `FriendRequestCountResponse.java`.
+- [x] **Task 1.2**: Bổ sung các Custom Query JPQL trong `FriendshipRepository.java` (`findRelationBetweenUsers`, `findPendingReceivedRequests`, `countPendingReceivedRequests`).
+- [x] **Task 1.3**: Bổ sung ErrorCode mới trong `ErrorCode.java` (`FRIEND_REQUEST_ALREADY_SENT`, `USER_BLOCKED`, `NOT_REQUEST_RECIPIENT`, `FRIEND_REQUEST_NOT_FOUND`).
+- [x] **Task 1.4**: Endpoint `GET /api/v1/users/profile/{username}` (Public/Authenticated) trong `UserController.java` và `UserServiceImpl.java`.
 
-### Phase 2: User Profile By Username API
-- [ ] **Task 2.1**: Thêm phương thức `getUserProfileByUsername(String username, UUID currentUserId)` vào `UserService` & `UserServiceImpl`.
-- [ ] **Task 2.2**: Thêm endpoint `GET /api/v1/users/profile/{username}` vào `UserController`.
-- [ ] **Task 2.3**: Cấu hình `SecurityConfig` cho phép permitAll endpoint profile username (vẫn đọc Token nếu có).
+### Phase 2: Friendship Request Management API & Realtime Sync (✅ Hoàn thành & Merged)
+- [x] **Task 2.1**: Quản lý vòng đời lời mời kết bạn trong `FriendshipService` & `FriendshipServiceImpl`:
+  - `sendFriendRequest` (có xử lý Mutual Auto-Accept và bắt xung đột race condition `uk_friendships_bidirectional`).
+  - `getPendingReceivedRequests` & `getPendingReceivedCount`.
+  - `acceptFriendRequest`, `declineFriendRequest`, `cancelFriendRequest`, `unfriend`.
+- [x] **Task 2.2**: Endpoints tương ứng trong `FriendshipController.java`.
+- [x] **Task 2.3**: Xóa đồng thời 2 phân vùng cache `FRIENDS_CACHE` và `FEED_CACHE` cho cả 2 người dùng.
+- [x] **Task 2.4**: Đồng bộ thông báo realtime WebSocket STOMP qua `SimpMessagingTemplate` (`/queue/friend-requests`).
 
-### Phase 3: Friendship Request Management API
-- [ ] **Task 3.1**: Cập nhật `FriendshipService` & `FriendshipServiceImpl`:
-  - `sendFriendRequest(UUID currentUserId, UUID targetUserId)` (có xử lý Mutual Auto-Accept).
-  - `getPendingReceivedRequests(UUID currentUserId)` & `getPendingReceivedCount(UUID currentUserId)`.
-  - `acceptFriendRequest(UUID currentUserId, UUID friendshipId)`.
-  - `declineFriendRequest(UUID currentUserId, UUID friendshipId)`.
-  - `cancelFriendRequest(UUID currentUserId, UUID friendshipId)`.
-  - `unfriend(UUID currentUserId, UUID friendId)`.
-- [ ] **Task 3.2**: Thêm các endpoints tương ứng vào `FriendshipController`.
-- [ ] **Task 3.3**: Tích hợp hàm `evictFriendshipAndFeedCache` xóa triệt để `FRIENDS_CACHE` và `FEED_CACHE`.
-- [ ] **Task 3.4**: Bổ sung thông báo WebSocket STOMP qua `SimpMessagingTemplate`.
+### Phase 3: Block/Unblock, QR Code Generator & Security Hardening (✅ Hoàn thành & Merged)
+- [x] **Task 3.1**: Tích hợp thư viện ZXing QR Code (`com.google.zxing:core:3.5.3`, `com.google.zxing:javase:3.5.3`).
+- [x] **Task 3.2**: Chức năng Chặn & Bỏ chặn (`POST /{userId}/block`, `DELETE /{userId}/block`, `GET /blocked`).
+- [x] **Task 3.3**: Dịch vụ & Endpoint sinh mã QR cá nhân 512x512 PNG (`GET /api/v1/users/profile/{username}/qr`).
+- [x] **Task 3.4**: Gia cố bảo mật FriendInviteLink (chặn bypass block, pessimistic write lock chống lost update `usedCount`, evict feed cache, endpoint preview `GET /api/v1/friend-invite-links/preview`).
+- [x] **Task 3.5**: Rate limiting Bucket4j cho Friend Requests (15 req/10m) và Profile View (60 req/1m).
 
-### Phase 4: Unit Testing & Verification
-- [ ] **Task 4.1**: Viết unit test trong `UserServiceTest` cho luồng lấy profile theo username ở tất cả các trạng thái quan hệ (`NONE`, `PENDING_SENT`, `PENDING_RECEIVED`, `ACCEPTED`, `SELF`).
-- [ ] **Task 4.2**: Viết unit test trong `FriendshipServiceImplTest` cho luồng gửi request, mutual auto-accept, duyệt lời mời, từ chối và hủy kết bạn.
-- [ ] **Task 4.3**: Chạy `./gradlew test` đảm bảo toàn bộ test suite pass 100%.
+### Phase 4: Mutual Friends, Sent Requests, Quota & Social Share Page (✅ Hoàn thành & Merged)
+> Chi tiết tài liệu: [`docs/PHASE_4_MUTUAL_FRIENDS_OUTGOING_REQUESTS_AND_QUOTA_PLAN.md`](file:///Users/nguyenkimquockhanh/Desktop/checked-backend/docs/PHASE_4_MUTUAL_FRIENDS_OUTGOING_REQUESTS_AND_QUOTA_PLAN.md)
+- [x] **Task 4.1**: Quản lý Lời Mời Đã Gửi (`GET /api/v1/friendships/requests/sent` & `GET /requests/sent/count`).
+- [x] **Task 4.2**: Tính toán Bạn Chung (Mutual Friends Engine):
+  - Bổ sung `mutualFriendsCount` và `mutualFriendsPreview` vào `GET /api/v1/users/profile/{username}`.
+  - Endpoint `GET /api/v1/friendships/{targetUserId}/mutual`.
+- [x] **Task 4.3**: Kiểm soát Hạn Ngạch Bạn Bè (Standard 20 bạn, Gold 100 bạn, bắt lỗi `MAX_FRIENDS_REACHED` và `TARGET_USER_MAX_FRIENDS_REACHED`).
+- [x] **Task 4.4**: Thao tác Hàng Loạt (`PUT /requests/accept-all`, `PUT /requests/decline-all`).
+- [x] **Task 4.5**: Trang OpenGraph Social Share Page (`GET /u/{username}`) phục vụ hiển thị card khi chia sẻ link lên Zalo, Messenger, iMessage và hỗ trợ Deep Link.
+- [x] **Task 4.6**: Unit Testing & Toàn diện hóa kiểm thử 100% (326/326 tests passed).
 
 ---
 
