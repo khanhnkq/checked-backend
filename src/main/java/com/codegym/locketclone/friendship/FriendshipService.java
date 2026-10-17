@@ -30,4 +30,10 @@ public interface FriendshipService {
     void cancelFriendRequest(UUID currentUserId, UUID friendshipId);
 
     void unfriend(UUID currentUserId, UUID friendId);
+
+    void blockUser(UUID currentUserId, UUID targetUserId);
+
+    void unblockUser(UUID currentUserId, UUID targetUserId);
+
+    List<FriendProfileResponse> getBlockedUsers(UUID currentUserId);
 }

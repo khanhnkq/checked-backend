@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -185,5 +186,44 @@ class FriendshipControllerTest {
 
         assertEquals(204, response.getStatusCode().value());
         verify(friendshipService).unfriend(currentUserId, friendId);
+    }
+
+    @Test
+    void blockUser_returnsNoContent() {
+        UUID targetUserId = UUID.randomUUID();
+
+        var response = friendshipController.blockUser(userPrincipal, targetUserId);
+
+        assertEquals(204, response.getStatusCode().value());
+        verify(friendshipService).blockUser(currentUserId, targetUserId);
+    }
+
+    @Test
+    void unblockUser_returnsNoContent() {
+        UUID targetUserId = UUID.randomUUID();
+
+        var response = friendshipController.unblockUser(userPrincipal, targetUserId);
+
+        assertEquals(204, response.getStatusCode().value());
+        verify(friendshipService).unblockUser(currentUserId, targetUserId);
+    }
+
+    @Test
+    void getBlockedUsers_returnsOk() {
+        FriendProfileResponse blockedProfile = FriendProfileResponse.builder()
+                .id(UUID.randomUUID())
+                .username("blocked_user")
+                .displayName("Blocked User")
+                .build();
+
+        when(friendshipService.getBlockedUsers(currentUserId)).thenReturn(List.of(blockedProfile));
+
+        var response = friendshipController.getBlockedUsers(userPrincipal);
+
+        assertEquals(200, response.getStatusCode().value());
+        assertNotNull(response.getBody());
+        assertEquals(1, response.getBody().size());
+        assertEquals("blocked_user", response.getBody().get(0).username());
+        verify(friendshipService).getBlockedUsers(currentUserId);
     }
 }

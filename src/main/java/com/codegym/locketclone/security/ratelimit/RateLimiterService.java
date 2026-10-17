@@ -17,14 +17,16 @@ public class RateLimiterService {
     public enum AuthEndpointType {
         REGISTER,
         VERIFY,
-        LOGIN
+        LOGIN,
+        FRIEND_REQUEST,
+        PROFILE_VIEW
     }
 
     private final RateLimitProperties properties;
 
     private final Cache<String, Bucket> bucketCache = Caffeine.newBuilder()
             .maximumSize(50_000)
-            .expireAfterAccess(Duration.ofMinutes(10))
+            .expireAfterAccess(Duration.ofMinutes(15))
             .build();
 
     public boolean isEnabled() {
@@ -32,18 +34,27 @@ public class RateLimiterService {
     }
 
     public AuthEndpointType resolveEndpointType(String httpMethod, String requestUri) {
-        if (!"POST".equalsIgnoreCase(httpMethod) || requestUri == null) {
+        if (httpMethod == null || requestUri == null) {
             return null;
         }
 
-        if (requestUri.endsWith("/api/v1/auth/register")) {
-            return AuthEndpointType.REGISTER;
-        }
-        if (requestUri.endsWith("/api/v1/auth/verify")) {
-            return AuthEndpointType.VERIFY;
-        }
-        if (requestUri.endsWith("/api/v1/auth/login")) {
-            return AuthEndpointType.LOGIN;
+        if ("POST".equalsIgnoreCase(httpMethod)) {
+            if (requestUri.endsWith("/api/v1/auth/register")) {
+                return AuthEndpointType.REGISTER;
+            }
+            if (requestUri.endsWith("/api/v1/auth/verify")) {
+                return AuthEndpointType.VERIFY;
+            }
+            if (requestUri.endsWith("/api/v1/auth/login")) {
+                return AuthEndpointType.LOGIN;
+            }
+            if (requestUri.endsWith("/api/v1/friendships/requests")) {
+                return AuthEndpointType.FRIEND_REQUEST;
+            }
+        } else if ("GET".equalsIgnoreCase(httpMethod)) {
+            if (requestUri.contains("/api/v1/users/profile/") && !requestUri.endsWith("/qr")) {
+                return AuthEndpointType.PROFILE_VIEW;
+            }
         }
         return null;
     }
@@ -59,11 +70,18 @@ public class RateLimiterService {
             case REGISTER -> properties.getRegisterCapacity();
             case VERIFY -> properties.getVerifyCapacity();
             case LOGIN -> properties.getLoginCapacity();
+            case FRIEND_REQUEST -> properties.getFriendRequestCapacity();
+            case PROFILE_VIEW -> properties.getProfileViewCapacity();
+        };
+
+        Duration refillDuration = switch (type) {
+            case FRIEND_REQUEST -> Duration.ofMinutes(10);
+            default -> Duration.ofMinutes(1);
         };
 
         Bandwidth limit = Bandwidth.builder()
                 .capacity(capacity)
-                .refillGreedy(capacity, Duration.ofMinutes(1))
+                .refillGreedy(capacity, refillDuration)
                 .build();
 
         return Bucket.builder()

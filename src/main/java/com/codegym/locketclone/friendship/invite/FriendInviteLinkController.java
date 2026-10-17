@@ -63,6 +63,14 @@ public class FriendInviteLinkController {
         return ResponseEntity.ok(response);
     }
 
+    @Operation(summary = "Xem trước thông tin link mời kết bạn", description = "Xem trước thông tin người mời từ Invite Token trước khi bấm chấp nhận kết bạn.")
+    @GetMapping("/preview")
+    public ResponseEntity<com.codegym.locketclone.friendship.invite.dto.FriendInviteLinkPreviewResponse> previewByToken(
+            @RequestParam("token") String token
+    ) {
+        return ResponseEntity.ok(friendInviteLinkService.previewByToken(token));
+    }
+
     private UserPrincipal requireAuthenticatedUser(UserPrincipal userPrincipal) {
         if (userPrincipal == null) {
             throw new AppException(ErrorCode.UNAUTHORIZED);

@@ -14,4 +14,6 @@ public class RateLimitProperties {
     private int registerCapacity = 3;
     private int verifyCapacity = 5;
     private int loginCapacity = 10;
+    private int friendRequestCapacity = 15;
+    private int profileViewCapacity = 60;
 }

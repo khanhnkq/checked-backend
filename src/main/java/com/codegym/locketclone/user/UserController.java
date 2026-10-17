@@ -26,6 +26,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class UserController {
     private final UserService userService;
+    private final com.codegym.locketclone.user.qr.QrCodeService qrCodeService;
 
     @Operation(summary = "Lấy thông tin tài khoản hiện tại", description = "Trả về thông tin chi tiết của người dùng đang đăng nhập.")
     @GetMapping("/me")
@@ -88,6 +89,16 @@ public class UserController {
     ) {
         UUID currentUserId = userPrincipal != null ? userPrincipal.getId() : null;
         return ResponseEntity.ok(userService.getUserProfileByUsername(username, currentUserId));
+    }
+
+    @Operation(summary = "Lấy mã QR trang cá nhân", description = "Tải ảnh mã QR (PNG) trỏ tới link profile https://checked.app/u/{username} để kết bạn trực tiếp.")
+    @GetMapping(value = "/profile/{username}/qr", produces = MediaType.IMAGE_PNG_VALUE)
+    public ResponseEntity<byte[]> getProfileQrCode(@PathVariable String username) {
+        byte[] qrBytes = qrCodeService.generateProfileQrCode(username);
+        return ResponseEntity.ok()
+                .contentType(MediaType.IMAGE_PNG)
+                .header(org.springframework.http.HttpHeaders.CACHE_CONTROL, "public, max-age=86400")
+                .body(qrBytes);
     }
 
 

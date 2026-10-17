@@ -29,9 +29,14 @@ class RateLimiterServiceTest {
                 service.resolveEndpointType("POST", "/api/v1/auth/verify"));
         assertEquals(RateLimiterService.AuthEndpointType.LOGIN,
                 service.resolveEndpointType("POST", "/api/v1/auth/login"));
+        assertEquals(RateLimiterService.AuthEndpointType.FRIEND_REQUEST,
+                service.resolveEndpointType("POST", "/api/v1/friendships/requests"));
+        assertEquals(RateLimiterService.AuthEndpointType.PROFILE_VIEW,
+                service.resolveEndpointType("GET", "/api/v1/users/profile/khanhnkq"));
 
         // Non-POST or other paths return null
         assertNull(service.resolveEndpointType("GET", "/api/v1/auth/login"));
+        assertNull(service.resolveEndpointType("GET", "/api/v1/users/profile/khanhnkq/qr"));
         assertNull(service.resolveEndpointType("POST", "/api/v1/users"));
         assertNull(service.resolveEndpointType("POST", null));
     }

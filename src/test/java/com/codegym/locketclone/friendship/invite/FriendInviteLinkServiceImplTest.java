@@ -365,6 +365,111 @@ class FriendInviteLinkServiceImplTest {
 
         assertEquals(ErrorCode.INVALID_FRIEND_INVITE_TTL, exception.getErrorCode());
     }
+
+    @Test
+    void previewByToken_validActiveToken_returnsPreviewWithActiveStatus() {
+        UUID ownerId = UUID.randomUUID();
+        User owner = User.builder().id(ownerId).email("khanh@example.com").username("khanh").password("x").build();
+        FriendInviteLink link = FriendInviteLink.builder()
+                .id(UUID.randomUUID())
+                .owner(owner)
+                .token("valid-token")
+                .maxUses(50)
+                .usedCount(5)
+                .expiresAt(LocalDateTime.now().plusDays(2))
+                .build();
+
+        when(friendInviteLinkRepository.findByToken("valid-token")).thenReturn(Optional.of(link));
+        when(userMapper.toFriendProfileResponse(owner))
+                .thenReturn(new FriendProfileResponse(ownerId, "khanh", "Khanh", "Nguyen", "Khanh Nguyen", null, false));
+
+        var preview = service.previewByToken("valid-token");
+
+        assertNotNull(preview);
+        assertEquals("ACTIVE", preview.status());
+        assertEquals("khanh", preview.inviter().username());
+        assertEquals(link.getExpiresAt(), preview.expiresAt());
+    }
+
+    @Test
+    void previewByToken_expiredToken_returnsPreviewWithExpiredStatus() {
+        UUID ownerId = UUID.randomUUID();
+        User owner = User.builder().id(ownerId).email("khanh@example.com").username("khanh").password("x").build();
+        FriendInviteLink link = FriendInviteLink.builder()
+                .id(UUID.randomUUID())
+                .owner(owner)
+                .token("expired-token")
+                .maxUses(50)
+                .usedCount(5)
+                .expiresAt(LocalDateTime.now().minusMinutes(5))
+                .build();
+
+        when(friendInviteLinkRepository.findByToken("expired-token")).thenReturn(Optional.of(link));
+        when(userMapper.toFriendProfileResponse(owner))
+                .thenReturn(new FriendProfileResponse(ownerId, "khanh", "Khanh", "Nguyen", "Khanh Nguyen", null, false));
+
+        var preview = service.previewByToken("expired-token");
+
+        assertNotNull(preview);
+        assertEquals("EXPIRED", preview.status());
+    }
+
+    @Test
+    void previewByToken_maxUsesReached_returnsPreviewWithMaxUsesReachedStatus() {
+        UUID ownerId = UUID.randomUUID();
+        User owner = User.builder().id(ownerId).email("khanh@example.com").username("khanh").password("x").build();
+        FriendInviteLink link = FriendInviteLink.builder()
+                .id(UUID.randomUUID())
+                .owner(owner)
+                .token("full-token")
+                .maxUses(5)
+                .usedCount(5)
+                .expiresAt(LocalDateTime.now().plusDays(1))
+                .build();
+
+        when(friendInviteLinkRepository.findByToken("full-token")).thenReturn(Optional.of(link));
+        when(userMapper.toFriendProfileResponse(owner))
+                .thenReturn(new FriendProfileResponse(ownerId, "khanh", "Khanh", "Nguyen", "Khanh Nguyen", null, false));
+
+        var preview = service.previewByToken("full-token");
+
+        assertNotNull(preview);
+        assertEquals("MAX_USES_REACHED", preview.status());
+    }
+
+    @Test
+    void acceptByToken_whenBlocked_throwsUserBlocked() {
+        UUID ownerId = UUID.randomUUID();
+        UUID currentUserId = UUID.randomUUID();
+        User owner = User.builder().id(ownerId).email("owner@example.com").username("owner").password("x").build();
+        User currentUser = User.builder().id(currentUserId).email("me@example.com").username("me").password("x").build();
+
+        FriendInviteLink link = FriendInviteLink.builder()
+                .id(UUID.randomUUID())
+                .owner(owner)
+                .token("invite-token")
+                .maxUses(50)
+                .usedCount(0)
+                .expiresAt(LocalDateTime.now().plusDays(2))
+                .build();
+
+        Friendship blockedRelation = Friendship.builder()
+                .id(UUID.randomUUID())
+                .user(owner)
+                .friend(currentUser)
+                .status(FriendshipStatus.BLOCKED)
+                .build();
+
+        when(userRepository.findById(currentUserId)).thenReturn(Optional.of(currentUser));
+        when(friendInviteLinkRepository.findByTokenAndRevokedAtIsNull("invite-token")).thenReturn(Optional.of(link));
+        when(friendshipRepository.findRelationBetweenUsers(ownerId, currentUserId)).thenReturn(Optional.of(blockedRelation));
+
+        AppException exception = assertThrows(AppException.class,
+                () -> service.acceptByToken(currentUserId, "invite-token"));
+
+        assertEquals(ErrorCode.USER_BLOCKED, exception.getErrorCode());
+        verify(friendshipRepository, never()).save(any());
+    }
 }
 
 

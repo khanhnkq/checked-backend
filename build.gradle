@@ -41,6 +41,10 @@ dependencies {
 	implementation 'com.bucket4j:bucket4j-core:8.10.1'
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.5'
 
+	// ZXing QR Code Generator
+	implementation 'com.google.zxing:core:3.5.3'
+	implementation 'com.google.zxing:javase:3.5.3'
+
 	// MapStruct
 	implementation 'org.mapstruct:mapstruct:1.6.3'
 	annotationProcessor 'org.mapstruct:mapstruct-processor:1.6.3'

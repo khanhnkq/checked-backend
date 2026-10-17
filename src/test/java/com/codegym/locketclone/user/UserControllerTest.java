@@ -36,12 +36,15 @@ class UserControllerTest {
     @Mock
     private UserService userService;
 
+    @Mock
+    private com.codegym.locketclone.user.qr.QrCodeService qrCodeService;
+
     private MockMvc mockMvc;
     private UserController userController;
 
     @BeforeEach
     void setUp() {
-        userController = new UserController(userService);
+        userController = new UserController(userService, qrCodeService);
         mockMvc = MockMvcBuilders.standaloneSetup(userController)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver())
@@ -247,6 +250,32 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.isGoldMember").value(true));
 
         verify(userService).getUserProfileByUsername(eq("khanhnkq"), any());
+    }
+
+    @Test
+    void getProfileQrCode_returnsPngImageWithCacheHeader() throws Exception {
+        byte[] fakePng = new byte[]{1, 2, 3, 4};
+        when(qrCodeService.generateProfileQrCode("khanhnkq")).thenReturn(fakePng);
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/users/profile/khanhnkq/qr"))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header().string("Cache-Control", "public, max-age=86400"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content().contentType(org.springframework.http.MediaType.IMAGE_PNG))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content().bytes(fakePng));
+
+        verify(qrCodeService).generateProfileQrCode("khanhnkq");
+    }
+
+    @Test
+    void getProfileQrCode_whenUserNotFound_returns404() throws Exception {
+        when(qrCodeService.generateProfileQrCode("unknown")).thenThrow(new AppException(ErrorCode.USER_NOT_FOUND));
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/v1/users/profile/unknown/qr"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.message").value(ErrorCode.USER_NOT_FOUND.getMessage()));
+
+        verify(qrCodeService).generateProfileQrCode("unknown");
     }
 }
 

@@ -99,6 +99,32 @@ public class FriendInviteLinkServiceImpl implements FriendInviteLinkService {
 
     @Override
     @Transactional
+    public com.codegym.locketclone.friendship.invite.dto.FriendInviteLinkPreviewResponse previewByToken(String token) {
+        if (token == null || token.trim().isEmpty()) {
+            throw new AppException(ErrorCode.INVALID_FRIEND_INVITE_TOKEN);
+        }
+
+        String normalizedToken = token.trim();
+        FriendInviteLink link = friendInviteLinkRepository.findByToken(normalizedToken)
+                .orElseThrow(() -> new AppException(ErrorCode.INVALID_FRIEND_INVITE_TOKEN));
+
+        LocalDateTime now = LocalDateTime.now();
+        String status = deriveStatus(link, now);
+        int usedCount = link.getUsedCount() == null ? 0 : link.getUsedCount();
+        int maxUses = link.getMaxUses() == null ? 0 : link.getMaxUses();
+        if ("ACTIVE".equals(status) && usedCount >= maxUses) {
+            status = "MAX_USES_REACHED";
+        }
+
+        return com.codegym.locketclone.friendship.invite.dto.FriendInviteLinkPreviewResponse.builder()
+                .inviter(userMapper.toFriendProfileResponse(link.getOwner()))
+                .status(status)
+                .expiresAt(link.getExpiresAt())
+                .build();
+    }
+
+    @Override
+    @Transactional
     public AcceptFriendInviteLinkResponse acceptByToken(UUID currentUserId, String token) {
         if (token == null || token.trim().isEmpty()) {
             throw new AppException(ErrorCode.INVALID_FRIEND_INVITE_TOKEN);
@@ -108,7 +134,8 @@ public class FriendInviteLinkServiceImpl implements FriendInviteLinkService {
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
         String normalizedToken = token.trim();
-        FriendInviteLink link = friendInviteLinkRepository.findByToken(normalizedToken)
+        FriendInviteLink link = friendInviteLinkRepository.findByTokenAndRevokedAtIsNull(normalizedToken)
+                .or(() -> friendInviteLinkRepository.findByToken(normalizedToken))
                 .orElseThrow(() -> new AppException(ErrorCode.INVALID_FRIEND_INVITE_TOKEN));
 
         validateAcceptableLink(link);
@@ -116,6 +143,12 @@ public class FriendInviteLinkServiceImpl implements FriendInviteLinkService {
         UUID ownerUserId = link.getOwner().getId();
         if (ownerUserId.equals(currentUserId)) {
             throw new AppException(ErrorCode.CANNOT_ADD_SELF_AS_FRIEND);
+        }
+
+        // Check if either user has blocked the other
+        Optional<Friendship> relationOpt = friendshipRepository.findRelationBetweenUsers(ownerUserId, currentUserId);
+        if (relationOpt.isPresent() && relationOpt.get().getStatus() == FriendshipStatus.BLOCKED) {
+            throw new AppException(ErrorCode.USER_BLOCKED);
         }
 
         // 1. Nếu đã là bạn bè, trả về ngay kết quả mà KHÔNG tăng usedCount của link (chống burn quota)
@@ -142,14 +175,14 @@ public class FriendInviteLinkServiceImpl implements FriendInviteLinkService {
                     .orElseThrow(() -> ex);
         }
 
-        // 3. Chỉ tăng usedCount và evict cache bạn bè khi đây là lần kết bạn mới
+        // 3. Chỉ tăng usedCount và evict cache bạn bè & feed khi đây là lần kết bạn mới
         if (!alreadyFriends) {
             int currentUsedCount = link.getUsedCount() == null ? 0 : link.getUsedCount();
             link.setUsedCount(currentUsedCount + 1);
             friendInviteLinkRepository.save(link);
 
-            evictFriendsCache(ownerUserId);
-            evictFriendsCache(currentUserId);
+            evictFriendsAndFeedCache(ownerUserId);
+            evictFriendsAndFeedCache(currentUserId);
         }
 
         return new AcceptFriendInviteLinkResponse(
@@ -160,11 +193,15 @@ public class FriendInviteLinkServiceImpl implements FriendInviteLinkService {
         );
     }
 
-    private void evictFriendsCache(UUID userId) {
+    private void evictFriendsAndFeedCache(UUID userId) {
         if (userId != null && cacheManager != null) {
-            Cache cache = cacheManager.getCache(CacheConfig.FRIENDS_CACHE);
-            if (cache != null) {
-                cache.evict(userId);
+            Cache friendsCache = cacheManager.getCache(CacheConfig.FRIENDS_CACHE);
+            if (friendsCache != null) {
+                friendsCache.evict(userId);
+            }
+            Cache feedCache = cacheManager.getCache(CacheConfig.FEED_CACHE);
+            if (feedCache != null) {
+                feedCache.evict(userId);
             }
         }
     }
@@ -191,12 +228,18 @@ public class FriendInviteLinkServiceImpl implements FriendInviteLinkService {
     }
 
     private Friendship acceptExistingOrCreate(UUID ownerUserId, UUID currentUserId, User ownerUser, User currentUser) {
-        List<Friendship> betweenUsers = friendshipRepository.findBetweenUsers(ownerUserId, currentUserId);
-        Friendship candidate = betweenUsers.stream()
-                .max(Comparator.comparing(Friendship::getCreatedAt, Comparator.nullsLast(LocalDateTime::compareTo)))
-                .orElse(null);
+        Optional<Friendship> relationOpt = friendshipRepository.findRelationBetweenUsers(ownerUserId, currentUserId);
+        Friendship candidate = relationOpt.orElseGet(() -> {
+            List<Friendship> betweenUsers = friendshipRepository.findBetweenUsers(ownerUserId, currentUserId);
+            return betweenUsers.stream()
+                    .max(Comparator.comparing(Friendship::getCreatedAt, Comparator.nullsLast(LocalDateTime::compareTo)))
+                    .orElse(null);
+        });
 
         if (candidate != null) {
+            if (candidate.getStatus() == FriendshipStatus.BLOCKED) {
+                throw new AppException(ErrorCode.USER_BLOCKED);
+            }
             if (candidate.getStatus() == FriendshipStatus.ACCEPTED) {
                 return candidate;
             }

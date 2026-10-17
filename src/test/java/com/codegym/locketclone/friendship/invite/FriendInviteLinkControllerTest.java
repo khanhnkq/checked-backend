@@ -112,6 +112,24 @@ class FriendInviteLinkControllerTest {
         assertEquals("ACCEPTED", actual.getBody().status());
         verify(friendInviteLinkService).acceptByToken(principal.getId(), "invite-token");
     }
+
+    @Test
+    void previewByToken_returnsOk() {
+        var previewResponse = com.codegym.locketclone.friendship.invite.dto.FriendInviteLinkPreviewResponse.builder()
+                .inviter(new FriendProfileResponse(UUID.randomUUID(), "owner", "Owner", "User", "Owner User", null, false))
+                .status("ACTIVE")
+                .expiresAt(LocalDateTime.now().plusDays(2))
+                .build();
+        when(friendInviteLinkService.previewByToken("valid-token")).thenReturn(previewResponse);
+
+        var actual = controller.previewByToken("valid-token");
+
+        assertEquals(200, actual.getStatusCode().value());
+        assertNotNull(actual.getBody());
+        assertEquals("ACTIVE", actual.getBody().status());
+        assertEquals("owner", actual.getBody().inviter().username());
+        verify(friendInviteLinkService).previewByToken("valid-token");
+    }
 }
 
 

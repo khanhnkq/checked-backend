@@ -84,4 +84,13 @@ public interface FriendshipRepository extends JpaRepository<Friendship, UUID> {
             ORDER BY f.createdAt DESC
             """)
     List<Friendship> findPendingSentRequests(@Param("userId") UUID userId);
+
+    @Query("""
+            SELECT f FROM Friendship f
+            JOIN FETCH f.friend
+            WHERE f.user.id = :userId
+              AND f.status = com.codegym.locketclone.friendship.FriendshipStatus.BLOCKED
+            ORDER BY f.createdAt DESC
+            """)
+    List<Friendship> findBlockedUsers(@Param("userId") UUID userId);
 }

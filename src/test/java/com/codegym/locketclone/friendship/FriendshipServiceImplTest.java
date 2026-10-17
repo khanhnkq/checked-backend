@@ -397,4 +397,114 @@ class FriendshipServiceImplTest {
         verify(feedCache).evict(targetUserId);
         verify(messagingTemplate).convertAndSendToUser(eq(targetUserId.toString()), eq("/queue/friend-requests"), any());
     }
+
+    @Test
+    void blockUser_whenSelf_throwsInvalidRequest() {
+        AppException ex = assertThrows(AppException.class,
+                () -> friendshipService.blockUser(currentUserId, currentUserId));
+        assertEquals(ErrorCode.INVALID_REQUEST, ex.getErrorCode());
+    }
+
+    @Test
+    void blockUser_whenAlreadyFriends_convertsToBlockedAndEvictsCache() {
+        Friendship f = Friendship.builder()
+                .id(UUID.randomUUID())
+                .user(currentUser)
+                .friend(targetUser)
+                .status(FriendshipStatus.ACCEPTED)
+                .build();
+
+        when(userRepository.findById(currentUserId)).thenReturn(Optional.of(currentUser));
+        when(userRepository.findById(targetUserId)).thenReturn(Optional.of(targetUser));
+        when(friendshipRepository.findRelationBetweenUsers(currentUserId, targetUserId)).thenReturn(Optional.of(f));
+        when(userMapper.toFriendProfileResponse(currentUser)).thenReturn(currentProfile);
+        when(cacheManager.getCache(CacheConfig.FRIENDS_CACHE)).thenReturn(friendsCache);
+        when(cacheManager.getCache(CacheConfig.FEED_CACHE)).thenReturn(feedCache);
+
+        friendshipService.blockUser(currentUserId, targetUserId);
+
+        assertEquals(FriendshipStatus.BLOCKED, f.getStatus());
+        assertEquals(currentUser, f.getUser());
+        assertEquals(targetUser, f.getFriend());
+        verify(friendshipRepository).save(f);
+        verify(friendsCache).evict(currentUserId);
+        verify(friendsCache).evict(targetUserId);
+        verify(feedCache).evict(currentUserId);
+        verify(feedCache).evict(targetUserId);
+        verify(messagingTemplate).convertAndSendToUser(eq(targetUserId.toString()), eq("/queue/friend-requests"), any());
+    }
+
+    @Test
+    void blockUser_whenNew_createsBlocked() {
+        when(userRepository.findById(currentUserId)).thenReturn(Optional.of(currentUser));
+        when(userRepository.findById(targetUserId)).thenReturn(Optional.of(targetUser));
+        when(friendshipRepository.findRelationBetweenUsers(currentUserId, targetUserId)).thenReturn(Optional.empty());
+        when(userMapper.toFriendProfileResponse(currentUser)).thenReturn(currentProfile);
+        when(cacheManager.getCache(CacheConfig.FRIENDS_CACHE)).thenReturn(friendsCache);
+        when(cacheManager.getCache(CacheConfig.FEED_CACHE)).thenReturn(feedCache);
+
+        friendshipService.blockUser(currentUserId, targetUserId);
+
+        verify(friendshipRepository).save(argThat(relation ->
+                relation.getUser().equals(currentUser) &&
+                        relation.getFriend().equals(targetUser) &&
+                        relation.getStatus() == FriendshipStatus.BLOCKED
+        ));
+    }
+
+    @Test
+    void unblockUser_whenBlockedByMe_deletesRelation() {
+        Friendship blocked = Friendship.builder()
+                .id(UUID.randomUUID())
+                .user(currentUser)
+                .friend(targetUser)
+                .status(FriendshipStatus.BLOCKED)
+                .build();
+
+        when(friendshipRepository.findRelationBetweenUsers(currentUserId, targetUserId))
+                .thenReturn(Optional.of(blocked));
+
+        friendshipService.unblockUser(currentUserId, targetUserId);
+
+        verify(friendshipRepository).delete(blocked);
+    }
+
+    @Test
+    void unblockUser_whenNotBlockedByMe_throwsForbidden() {
+        // Blocked was initiated by targetUser, not currentUserId
+        Friendship blocked = Friendship.builder()
+                .id(UUID.randomUUID())
+                .user(targetUser)
+                .friend(currentUser)
+                .status(FriendshipStatus.BLOCKED)
+                .build();
+
+        when(friendshipRepository.findRelationBetweenUsers(currentUserId, targetUserId))
+                .thenReturn(Optional.of(blocked));
+
+        AppException ex = assertThrows(AppException.class,
+                () -> friendshipService.unblockUser(currentUserId, targetUserId));
+
+        assertEquals(ErrorCode.FORBIDDEN, ex.getErrorCode());
+        verify(friendshipRepository, never()).delete(any());
+    }
+
+    @Test
+    void getBlockedUsers_returnsBlockedProfiles() {
+        Friendship blocked = Friendship.builder()
+                .id(UUID.randomUUID())
+                .user(currentUser)
+                .friend(targetUser)
+                .status(FriendshipStatus.BLOCKED)
+                .build();
+
+        when(friendshipRepository.findBlockedUsers(currentUserId)).thenReturn(List.of(blocked));
+        when(userMapper.toFriendProfileResponse(targetUser)).thenReturn(targetProfile);
+
+        List<FriendProfileResponse> result = friendshipService.getBlockedUsers(currentUserId);
+
+        assertEquals(1, result.size());
+        assertEquals(targetProfile, result.get(0));
+        verify(friendshipRepository).findBlockedUsers(currentUserId);
+    }
 }

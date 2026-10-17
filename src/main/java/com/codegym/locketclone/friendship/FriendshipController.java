@@ -104,6 +104,37 @@ public class FriendshipController {
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(summary = "Chặn người dùng (Block)", description = "Chặn người dùng theo userId, hủy kết bạn và hủy các lời mời đang chờ.")
+    @PostMapping("/{userId}/block")
+    public ResponseEntity<Void> blockUser(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @PathVariable UUID userId
+    ) {
+        UserPrincipal currentUser = requireAuthenticatedUser(userPrincipal);
+        friendshipService.blockUser(currentUser.getId(), userId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "Bỏ chặn người dùng (Unblock)", description = "Bỏ chặn người dùng theo userId.")
+    @DeleteMapping("/{userId}/block")
+    public ResponseEntity<Void> unblockUser(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @PathVariable UUID userId
+    ) {
+        UserPrincipal currentUser = requireAuthenticatedUser(userPrincipal);
+        friendshipService.unblockUser(currentUser.getId(), userId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "Lấy danh sách người dùng bị chặn", description = "Trả về danh sách tất cả những người dùng đang bị tài khoản hiện tại chặn.")
+    @GetMapping("/blocked")
+    public ResponseEntity<List<FriendProfileResponse>> getBlockedUsers(
+            @AuthenticationPrincipal UserPrincipal userPrincipal
+    ) {
+        UserPrincipal currentUser = requireAuthenticatedUser(userPrincipal);
+        return ResponseEntity.ok(friendshipService.getBlockedUsers(currentUser.getId()));
+    }
+
     private UserPrincipal requireAuthenticatedUser(UserPrincipal userPrincipal) {
         if (userPrincipal == null) {
             throw new AppException(ErrorCode.UNAUTHORIZED);

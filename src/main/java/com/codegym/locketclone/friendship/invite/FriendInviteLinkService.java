@@ -15,6 +15,8 @@ public interface FriendInviteLinkService {
     void revokeCurrent(UUID ownerUserId);
 
     AcceptFriendInviteLinkResponse acceptByToken(UUID currentUserId, String token);
+
+    com.codegym.locketclone.friendship.invite.dto.FriendInviteLinkPreviewResponse previewByToken(String token);
 }
 
 

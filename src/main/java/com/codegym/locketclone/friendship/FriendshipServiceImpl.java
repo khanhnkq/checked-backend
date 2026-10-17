@@ -254,6 +254,72 @@ public class FriendshipServiceImpl implements FriendshipService {
         }
     }
 
+    @Override
+    @Transactional
+    public void blockUser(UUID currentUserId, UUID targetUserId) {
+        if (currentUserId.equals(targetUserId)) {
+            throw new AppException(ErrorCode.INVALID_REQUEST);
+        }
+
+        User currentUser = userRepository.findById(currentUserId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        User targetUser = userRepository.findById(targetUserId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        Optional<Friendship> relationOpt = friendshipRepository.findRelationBetweenUsers(currentUserId, targetUserId);
+        if (relationOpt.isPresent()) {
+            Friendship relation = relationOpt.get();
+            if (relation.getStatus() == FriendshipStatus.BLOCKED && relation.getUser().getId().equals(currentUserId)) {
+                return; // Already blocked by me
+            }
+            relation.setUser(currentUser);
+            relation.setFriend(targetUser);
+            relation.setStatus(FriendshipStatus.BLOCKED);
+            friendshipRepository.save(relation);
+        } else {
+            Friendship newBlock = Friendship.builder()
+                    .user(currentUser)
+                    .friend(targetUser)
+                    .status(FriendshipStatus.BLOCKED)
+                    .build();
+            friendshipRepository.save(newBlock);
+        }
+
+        evictFriendshipAndFeedCache(currentUserId, targetUserId);
+        sendRealtimeEvent(targetUserId, "USER_BLOCKED", userMapper.toFriendProfileResponse(currentUser));
+    }
+
+    @Override
+    @Transactional
+    public void unblockUser(UUID currentUserId, UUID targetUserId) {
+        if (currentUserId.equals(targetUserId)) {
+            throw new AppException(ErrorCode.INVALID_REQUEST);
+        }
+
+        Friendship relation = friendshipRepository.findRelationBetweenUsers(currentUserId, targetUserId)
+                .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST));
+
+        if (relation.getStatus() != FriendshipStatus.BLOCKED) {
+            throw new AppException(ErrorCode.INVALID_REQUEST);
+        }
+
+        if (!relation.getUser().getId().equals(currentUserId)) {
+            throw new AppException(ErrorCode.FORBIDDEN);
+        }
+
+        friendshipRepository.delete(relation);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<FriendProfileResponse> getBlockedUsers(UUID currentUserId) {
+        return friendshipRepository.findBlockedUsers(currentUserId)
+                .stream()
+                .map(Friendship::getFriend)
+                .map(userMapper::toFriendProfileResponse)
+                .toList();
+    }
+
     private void evictFriendshipAndFeedCache(UUID userA, UUID userB) {
         if (cacheManager == null) return;
 
