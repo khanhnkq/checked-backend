@@ -17,11 +17,14 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.util.HtmlUtils;
 
+import org.springframework.transaction.annotation.Transactional;
+
 import java.time.LocalDateTime;
 import java.util.Optional;
 
 @RestController
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 @Tag(name = "Social Share", description = "Public OpenGraph share page and deep-linking for user profiles and invite links")
 public class ShareController {
 
@@ -178,7 +181,7 @@ public class ShareController {
         }
 
         String normalizedToken = token.trim();
-        Optional<FriendInviteLink> linkOpt = friendInviteLinkRepository.findByToken(normalizedToken);
+        Optional<FriendInviteLink> linkOpt = friendInviteLinkRepository.findByTokenWithOwner(normalizedToken);
         if (linkOpt.isEmpty()) {
             String notFoundHtml = buildNotFoundPage("Liên kết mời kết bạn không tồn tại hoặc đã bị xóa.");
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(notFoundHtml);

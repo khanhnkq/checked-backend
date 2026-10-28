@@ -24,6 +24,9 @@ public interface FriendInviteLinkRepository extends JpaRepository<FriendInviteLi
 
     Optional<FriendInviteLink> findByToken(String token);
 
+    @org.springframework.data.jpa.repository.Query("SELECT fil FROM FriendInviteLink fil JOIN FETCH fil.owner WHERE fil.token = :token")
+    Optional<FriendInviteLink> findByTokenWithOwner(@org.springframework.data.repository.query.Param("token") String token);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<FriendInviteLink> findByTokenAndRevokedAtIsNull(String token);
 }
