@@ -11,13 +11,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.util.HtmlUtils;
-
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -37,6 +36,235 @@ public class ShareController {
     @Value("${app.friend-invite.base-url:https://heroku-7usd-5a73e86b5b14.herokuapp.com/invite}")
     private String inviteBaseUrl;
 
+    // MARK: - Design System CSS & Components
+    private static final String COMMON_CSS = """
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', -apple-system, system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #EDE9DF;
+            color: #141613;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 32px 16px;
+            -webkit-font-smoothing: antialiased;
+        }
+        .brand-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 24px;
+            text-decoration: none;
+        }
+        .brand-logo {
+            width: 36px;
+            height: 36px;
+            background: #141613;
+            border-radius: 11px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(20, 22, 19, 0.12);
+        }
+        .brand-logo svg {
+            width: 20px;
+            height: 20px;
+        }
+        .brand-title {
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            color: #141613;
+        }
+        .card {
+            max-width: 400px;
+            width: 100%;
+            background: #FFFFFF;
+            border: 1px solid rgba(223, 218, 205, 0.85);
+            border-radius: 32px;
+            padding: 36px 28px;
+            text-align: center;
+            box-shadow: 0 20px 48px rgba(20, 22, 19, 0.08), 0 4px 12px rgba(20, 22, 19, 0.03);
+        }
+        .badge-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            background: #E6F5A3;
+            color: #26380A;
+            border-radius: 9999px;
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            letter-spacing: -0.01em;
+        }
+        .badge-pill.error {
+            background: #FFE8E5;
+            color: #C0392B;
+        }
+        .avatar-container {
+            position: relative;
+            width: 104px;
+            height: 104px;
+            margin: 0 auto 18px;
+        }
+        .avatar {
+            width: 104px;
+            height: 104px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 4px solid #FFFFFF;
+            box-shadow: 0 8px 24px rgba(20, 22, 19, 0.12);
+            display: block;
+        }
+        .gold-crown {
+            position: absolute;
+            bottom: -2px;
+            right: -2px;
+            background: #FFFFFF;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.14);
+            font-size: 15px;
+        }
+        .name {
+            font-size: 24px;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            color: #141613;
+            margin-bottom: 4px;
+        }
+        .username {
+            color: #63685F;
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 14px;
+        }
+        .desc {
+            color: #63685F;
+            font-size: 14.5px;
+            line-height: 1.55;
+            margin-bottom: 24px;
+        }
+        .btn-primary {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            padding: 16px 20px;
+            background-color: #D4EB70;
+            color: #141613;
+            text-decoration: none;
+            border-radius: 9999px;
+            font-weight: 700;
+            font-size: 16px;
+            letter-spacing: -0.01em;
+            box-shadow: 0 6px 18px rgba(212, 235, 112, 0.5);
+            transition: transform 0.12s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+        }
+        .btn-primary:hover {
+            background-color: #C8E05A;
+            box-shadow: 0 8px 24px rgba(212, 235, 112, 0.65);
+            transform: translateY(-1px);
+        }
+        .btn-primary:active {
+            transform: scale(0.98);
+        }
+        .token-card {
+            background: #F7F5EE;
+            border: 1px solid #DFDACD;
+            border-radius: 18px;
+            padding: 12px 14px;
+            margin-top: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            text-align: left;
+        }
+        .token-content {
+            flex: 1;
+            min-width: 0;
+        }
+        .token-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: #8A8F84;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 2px;
+        }
+        .token-code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 13px;
+            font-weight: 600;
+            color: #141613;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .btn-copy {
+            background: #FFFFFF;
+            border: 1px solid #DFDACD;
+            border-radius: 12px;
+            padding: 7px 13px;
+            font-size: 12px;
+            font-weight: 700;
+            color: #141613;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            white-space: nowrap;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.04);
+            transition: all 0.15s ease;
+        }
+        .btn-copy:hover {
+            background: #EDE9DF;
+        }
+        .footer-text {
+            margin-top: 24px;
+            font-size: 13px;
+            color: #8A8F84;
+            font-weight: 500;
+        }
+        """;
+
+    private static final String BRAND_HEADER_HTML = """
+        <div class="brand-header">
+            <div class="brand-logo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#D4EB70" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+            </div>
+            <span class="brand-title">Checked</span>
+        </div>
+        """;
+
+    private static final String COPY_SCRIPT_HTML = """
+        <script>
+            function copyToken(token, btn) {
+                navigator.clipboard.writeText(token).then(function() {
+                    var orig = btn.innerHTML;
+                    btn.innerHTML = 'Đã chép! ✓';
+                    btn.style.color = '#3A6B1A';
+                    setTimeout(function() {
+                        btn.innerHTML = orig;
+                        btn.style.color = '#141613';
+                    }, 2000);
+                });
+            }
+        </script>
+        """;
+
     // MARK: - 1. Trang Web Hồ Sơ Cá Nhân (GET /u/{username})
     @Operation(summary = "Get OpenGraph social share page with deep link for user profile")
     @GetMapping(value = "/u/{username}", produces = MediaType.TEXT_HTML_VALUE)
@@ -52,6 +280,8 @@ public class ShareController {
         String escapedDisplayName = HtmlUtils.htmlEscape(user.getDisplayName() != null ? user.getDisplayName() : user.getUsername());
         String escapedUsername = HtmlUtils.htmlEscape(user.getUsername());
         String avatarUrl = resolveAvatarUrl(user.getAvatarUrl());
+        boolean isGold = Boolean.TRUE.equals(user.getIsGoldMember());
+        String crownBadgeHtml = isGold ? "<span class=\"gold-crown\">👑</span>" : "";
 
         String cleanProfileBase = profileBaseUrl.endsWith("/") ? profileBaseUrl : profileBaseUrl + "/";
         String profileUrl = cleanProfileBase + escapedUsername;
@@ -68,87 +298,38 @@ public class ShareController {
                 <meta property="og:type" content="profile" />
                 <meta property="og:site_name" content="Checked" />
                 <meta property="og:title" content="Kết bạn với %s trên Checked" />
-                <meta property="og:description" content="Nhấn vào để kết bạn với @%s và cùng chia sẻ ảnh khoảnh khắc trực tiếp lên widget màn hình chính." />
+                <meta property="og:description" content="Nhấn vào để kết bạn với @%s và cùng chia sẻ khoảnh khắc ảnh chụp trực tiếp từ widget màn hình chính." />
                 <meta property="og:image" content="%s" />
                 <meta property="og:url" content="%s" />
                 <!-- Twitter Card -->
                 <meta name="twitter:card" content="summary_large_image" />
                 <meta name="twitter:title" content="Kết bạn với %s trên Checked" />
-                <meta name="twitter:description" content="Nhấn vào để kết bạn với @%s và cùng chia sẻ ảnh khoảnh khắc trực tiếp lên widget màn hình chính." />
+                <meta name="twitter:description" content="Nhấn vào để kết bạn với @%s và cùng chia sẻ khoảnh khắc ảnh chụp trực tiếp từ widget màn hình chính." />
                 <meta name="twitter:image" content="%s" />
                 <style>
-                    * { box-sizing: border-box; margin: 0; padding: 0; }
-                    body {
-                        font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
-                        background-color: #0F0F0F;
-                        color: #FFFFFF;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        min-height: 100vh;
-                        padding: 24px 16px;
-                    }
-                    .card {
-                        max-width: 380px;
-                        width: 100%%;
-                        background: #1A1A1A;
-                        border: 1px solid #282828;
-                        border-radius: 28px;
-                        padding: 36px 24px;
-                        text-align: center;
-                        box-shadow: 0 16px 40px rgba(0,0,0,0.6);
-                    }
-                    .avatar {
-                        width: 96px;
-                        height: 96px;
-                        border-radius: 50%%;
-                        object-fit: cover;
-                        margin: 0 auto 16px auto;
-                        border: 3px solid #C8FF00;
-                        box-shadow: 0 4px 16px rgba(200, 255, 0, 0.25);
-                    }
-                    .name { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
-                    .username { color: #8E8E93; font-size: 15px; font-weight: 500; margin-bottom: 20px; }
-                    .desc { color: #E5E5EA; font-size: 14px; line-height: 1.5; margin-bottom: 28px; }
-                    .btn-primary {
-                        display: block;
-                        width: 100%%;
-                        padding: 15px;
-                        background-color: #C8FF00;
-                        color: #000000;
-                        text-decoration: none;
-                        border-radius: 20px;
-                        font-weight: 700;
-                        font-size: 16px;
-                        margin-bottom: 12px;
-                        transition: transform 0.1s ease;
-                    }
-                    .btn-primary:active { transform: scale(0.98); }
-                    .badge {
-                        display: inline-block;
-                        padding: 4px 12px;
-                        background: rgba(200, 255, 0, 0.12);
-                        color: #C8FF00;
-                        border-radius: 12px;
-                        font-size: 12px;
-                        font-weight: 600;
-                        margin-bottom: 16px;
-                    }
+                    %s
                 </style>
             </head>
             <body>
+                %s
                 <div class="card">
-                    <span class="badge">Hồ sơ cá nhân</span>
-                    <img class="avatar" src="%s" alt="%s" />
+                    <span class="badge-pill">👤 Hồ sơ cá nhân</span>
+                    <div class="avatar-container">
+                        <img class="avatar" src="%s" alt="%s" />
+                        %s
+                    </div>
                     <h1 class="name">%s</h1>
                     <p class="username">@%s</p>
                     <p class="desc">Chia sẻ khoảnh khắc ảnh chụp trực tiếp từ widget màn hình chính với bạn bè thân thiết.</p>
-                    <a class="btn-primary" href="%s">Mở trong ứng dụng Checked</a>
+                    <a class="btn-primary" href="%s">
+                        Mở trong ứng dụng Checked
+                    </a>
                 </div>
+                <p class="footer-text">Checked • Kết nối bạn bè thân thiết</p>
                 <script>
                     setTimeout(function() {
                         window.location.href = "%s";
-                    }, 300);
+                    }, 400);
                 </script>
             </body>
             </html>
@@ -161,7 +342,10 @@ public class ShareController {
                 escapedDisplayName,
                 escapedUsername,
                 avatarUrl,
+                COMMON_CSS,
+                BRAND_HEADER_HTML,
                 avatarUrl, escapedDisplayName,
+                crownBadgeHtml,
                 escapedDisplayName,
                 escapedUsername,
                 deepLinkUrl,
@@ -204,6 +388,8 @@ public class ShareController {
         String escapedDisplayName = HtmlUtils.htmlEscape(owner.getDisplayName() != null ? owner.getDisplayName() : owner.getUsername());
         String escapedUsername = HtmlUtils.htmlEscape(owner.getUsername());
         String avatarUrl = resolveAvatarUrl(owner.getAvatarUrl());
+        boolean isGold = Boolean.TRUE.equals(owner.getIsGoldMember());
+        String crownBadgeHtml = isGold ? "<span class=\"gold-crown\">👑</span>" : "";
 
         String deepLinkUrl = "checked://invite?token=" + HtmlUtils.htmlEscape(normalizedToken);
         String inviteFullUrl = inviteBaseUrl.contains("?")
@@ -230,90 +416,39 @@ public class ShareController {
                 <meta name="twitter:description" content="%s (@%s) đã gửi cho bạn lời mời kết bạn. Nhấn vào để kết bạn ngay trên Checked!" />
                 <meta name="twitter:image" content="%s" />
                 <style>
-                    * { box-sizing: border-box; margin: 0; padding: 0; }
-                    body {
-                        font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
-                        background-color: #0F0F0F;
-                        color: #FFFFFF;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        min-height: 100vh;
-                        padding: 24px 16px;
-                    }
-                    .card {
-                        max-width: 380px;
-                        width: 100%%;
-                        background: #1A1A1A;
-                        border: 1px solid #282828;
-                        border-radius: 28px;
-                        padding: 36px 24px;
-                        text-align: center;
-                        box-shadow: 0 16px 40px rgba(0,0,0,0.6);
-                    }
-                    .avatar {
-                        width: 96px;
-                        height: 96px;
-                        border-radius: 50%%;
-                        object-fit: cover;
-                        margin: 0 auto 16px auto;
-                        border: 3px solid #C8FF00;
-                        box-shadow: 0 4px 16px rgba(200, 255, 0, 0.25);
-                    }
-                    .name { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
-                    .username { color: #8E8E93; font-size: 15px; font-weight: 500; margin-bottom: 20px; }
-                    .desc { color: #E5E5EA; font-size: 14px; line-height: 1.5; margin-bottom: 24px; }
-                    .btn-primary {
-                        display: block;
-                        width: 100%%;
-                        padding: 15px;
-                        background-color: #C8FF00;
-                        color: #000000;
-                        text-decoration: none;
-                        border-radius: 20px;
-                        font-weight: 700;
-                        font-size: 16px;
-                        margin-bottom: 14px;
-                        transition: transform 0.1s ease;
-                    }
-                    .btn-primary:active { transform: scale(0.98); }
-                    .token-box {
-                        background: #242424;
-                        border: 1px solid #333333;
-                        border-radius: 14px;
-                        padding: 10px 14px;
-                        font-family: monospace;
-                        font-size: 13px;
-                        color: #A0A0A0;
-                        word-break: break-all;
-                        margin-bottom: 12px;
-                    }
-                    .badge {
-                        display: inline-block;
-                        padding: 4px 12px;
-                        background: rgba(200, 255, 0, 0.12);
-                        color: #C8FF00;
-                        border-radius: 12px;
-                        font-size: 12px;
-                        font-weight: 600;
-                        margin-bottom: 16px;
-                    }
+                    %s
                 </style>
             </head>
             <body>
+                %s
                 <div class="card">
-                    <span class="badge">Lời mời kết bạn</span>
-                    <img class="avatar" src="%s" alt="%s" />
+                    <span class="badge-pill">✉️ Lời mời kết bạn</span>
+                    <div class="avatar-container">
+                        <img class="avatar" src="%s" alt="%s" />
+                        %s
+                    </div>
                     <h1 class="name">%s</h1>
                     <p class="username">@%s</p>
-                    <p class="desc">Bạn đã nhận được lời mời kết bạn. Hãy mở ứng dụng Checked để kết nối ngay!</p>
-                    <a class="btn-primary" href="%s">Chấp nhận kết bạn trong Checked</a>
-                    <div class="token-box">Mã mời: %s</div>
+                    <p class="desc">Bạn đã nhận được lời mời kết bạn. Hãy mở ứng dụng Checked để cùng chia sẻ khoảnh khắc đời thường!</p>
+                    
+                    <a class="btn-primary" href="%s">
+                        Chấp nhận kết bạn trong Checked
+                    </a>
+                    
+                    <div class="token-card">
+                        <div class="token-content">
+                            <div class="token-label">MÃ MỜI</div>
+                            <div class="token-code" title="%s">%s</div>
+                        </div>
+                        <button class="btn-copy" onclick="copyToken('%s', this)">Sao chép</button>
+                    </div>
                 </div>
+                <p class="footer-text">Checked • Chia sẻ khoảnh khắc cùng bạn thân</p>
+                %s
                 <script>
                     setTimeout(function() {
                         window.location.href = "%s";
-                    }, 300);
+                    }, 400);
                 </script>
             </body>
             </html>
@@ -326,11 +461,17 @@ public class ShareController {
                 escapedDisplayName,
                 escapedDisplayName, escapedUsername,
                 avatarUrl,
+                COMMON_CSS,
+                BRAND_HEADER_HTML,
                 avatarUrl, escapedDisplayName,
+                crownBadgeHtml,
                 escapedDisplayName,
                 escapedUsername,
                 deepLinkUrl,
                 HtmlUtils.htmlEscape(normalizedToken),
+                HtmlUtils.htmlEscape(normalizedToken),
+                HtmlUtils.htmlEscape(normalizedToken),
+                COPY_SCRIPT_HTML,
                 deepLinkUrl
         );
 
@@ -352,34 +493,22 @@ public class ShareController {
             <head>
                 <meta charset="UTF-8">
                 <title>Checked</title>
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
                 <style>
-                    body {
-                        font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
-                        background: #0F0F0F; color: #FFFFFF;
-                        display: flex; align-items: center; justify-content: center;
-                        min-height: 100vh; text-align: center; padding: 24px;
-                    }
-                    .card {
-                        max-width: 380px; width: 100%%; background: #1A1A1A;
-                        border: 1px solid #282828; border-radius: 28px; padding: 40px 24px;
-                    }
-                    h2 { font-size: 20px; font-weight: 700; margin-bottom: 12px; }
-                    p { color: #8E8E93; font-size: 14px; line-height: 1.5; margin-bottom: 24px; }
-                    a {
-                        display: inline-block; padding: 12px 24px; background: #C8FF00;
-                        color: #000; text-decoration: none; border-radius: 20px; font-weight: 700;
-                    }
+                    %s
                 </style>
             </head>
             <body>
+                %s
                 <div class="card">
-                    <h2>Checked</h2>
-                    <p>%s</p>
-                    <a href="checked://home">Mở ứng dụng Checked</a>
+                    <span class="badge-pill error">⚠️ Thông báo</span>
+                    <h2 class="name" style="font-size: 20px; margin-bottom: 12px;">Liên kết không khả dụng</h2>
+                    <p class="desc">%s</p>
+                    <a class="btn-primary" href="checked://home">Mở ứng dụng Checked</a>
                 </div>
+                <p class="footer-text">Checked</p>
             </body>
             </html>
-            """.formatted(escapedMsg);
+            """.formatted(COMMON_CSS, BRAND_HEADER_HTML, escapedMsg);
     }
 }
