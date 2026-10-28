@@ -53,14 +53,14 @@ public class RateLimiterService {
             if (requestUri.endsWith("/api/v1/friendships/requests")) {
                 return AuthEndpointType.FRIEND_REQUEST;
             }
-        } else if ("GET".equalsIgnoreCase(httpMethod)) {
+        } else if ("GET".equalsIgnoreCase(httpMethod) || "HEAD".equalsIgnoreCase(httpMethod)) {
             if (requestUri.contains("/api/v1/users/profile/") && requestUri.endsWith("/qr")) {
                 return AuthEndpointType.QR_GENERATION;
             }
             if (requestUri.contains("/api/v1/users/profile/")) {
                 return AuthEndpointType.PROFILE_VIEW;
             }
-            if (requestUri.startsWith("/u/")) {
+            if (requestUri.startsWith("/u/") || requestUri.startsWith("/invite") || requestUri.startsWith("/friend/accept")) {
                 return AuthEndpointType.SOCIAL_SHARE;
             }
         }

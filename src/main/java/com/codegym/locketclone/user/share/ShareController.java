@@ -30,6 +30,8 @@ public class ShareController {
     private final UserRepository userRepository;
     private final FriendInviteLinkRepository friendInviteLinkRepository;
 
+    public static final String DEFAULT_AVATAR_URL = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop&q=80";
+
     @Value("${app.profile-base-url:https://heroku-7usd-5a73e86b5b14.herokuapp.com/u/}")
     private String profileBaseUrl;
 
@@ -273,7 +275,7 @@ public class ShareController {
         boolean isGold = Boolean.TRUE.equals(user.getIsGoldMember());
         String crownBadgeHtml = isGold ? "<span class=\"gold-crown\"><svg viewBox=\"0 0 24 24\" width=\"14\" height=\"14\" fill=\"#E5A93B\"><path d=\"M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1v-1h14v1z\"/></svg></span>" : "";
 
-        String cleanProfileBase = profileBaseUrl.endsWith("/") ? profileBaseUrl : profileBaseUrl + "/";
+        String cleanProfileBase = getEffectiveProfileBaseUrl();
         String profileUrl = cleanProfileBase + escapedUsername;
         String deepLinkUrl = "checked://u/" + escapedUsername;
 
@@ -382,9 +384,10 @@ public class ShareController {
         String crownBadgeHtml = isGold ? "<span class=\"gold-crown\"><svg viewBox=\"0 0 24 24\" width=\"14\" height=\"14\" fill=\"#E5A93B\"><path d=\"M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1v-1h14v1z\"/></svg></span>" : "";
 
         String deepLinkUrl = "checked://invite?token=" + HtmlUtils.htmlEscape(normalizedToken);
-        String inviteFullUrl = inviteBaseUrl.contains("?")
-                ? inviteBaseUrl + "&token=" + HtmlUtils.htmlEscape(normalizedToken)
-                : inviteBaseUrl + "?token=" + HtmlUtils.htmlEscape(normalizedToken);
+        String baseInvite = getEffectiveInviteBaseUrl();
+        String inviteFullUrl = baseInvite.contains("?")
+                ? baseInvite + "&token=" + HtmlUtils.htmlEscape(normalizedToken)
+                : baseInvite + "?token=" + HtmlUtils.htmlEscape(normalizedToken);
 
         String html = """
             <!DOCTYPE html>
@@ -472,7 +475,20 @@ public class ShareController {
         if (rawAvatar != null && (rawAvatar.startsWith("https://") || rawAvatar.startsWith("http://"))) {
             return HtmlUtils.htmlEscape(rawAvatar);
         }
-        return "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop&q=80";
+        return DEFAULT_AVATAR_URL;
+    }
+
+    private String getEffectiveProfileBaseUrl() {
+        String base = (profileBaseUrl != null && !profileBaseUrl.trim().isEmpty())
+                ? profileBaseUrl.trim()
+                : "https://checked.app/u/";
+        return base.endsWith("/") ? base : base + "/";
+    }
+
+    private String getEffectiveInviteBaseUrl() {
+        return (inviteBaseUrl != null && !inviteBaseUrl.trim().isEmpty())
+                ? inviteBaseUrl.trim()
+                : "https://checked.app/invite";
     }
 
     private String buildNotFoundPage(String message) {

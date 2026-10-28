@@ -55,6 +55,20 @@ service-account*.json
 ### OS files ###
 .DS_Store
 **/.DS_Store
+
+### Logs ###
+*.log
+logs/
+
+### Editor & OS backups ###
+*.swp
+*~
+*.bak
+
+### AI Assistant & Scratch ###
+.agents/
+.gemini/
+
 ### Cloudflare ###
 .cloudflare/
 

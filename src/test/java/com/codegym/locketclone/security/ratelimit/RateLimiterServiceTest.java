@@ -38,6 +38,14 @@ class RateLimiterServiceTest {
                 service.resolveEndpointType("GET", "/api/v1/users/profile/khanhnkq/qr"));
         assertEquals(RateLimiterService.AuthEndpointType.SOCIAL_SHARE,
                 service.resolveEndpointType("GET", "/u/khanhnkq"));
+        assertEquals(RateLimiterService.AuthEndpointType.SOCIAL_SHARE,
+                service.resolveEndpointType("GET", "/invite"));
+        assertEquals(RateLimiterService.AuthEndpointType.SOCIAL_SHARE,
+                service.resolveEndpointType("GET", "/invite/token123"));
+        assertEquals(RateLimiterService.AuthEndpointType.SOCIAL_SHARE,
+                service.resolveEndpointType("GET", "/friend/accept"));
+        assertEquals(RateLimiterService.AuthEndpointType.SOCIAL_SHARE,
+                service.resolveEndpointType("HEAD", "/invite"));
 
         // Other non-mapped paths return null
         assertNull(service.resolveEndpointType("GET", "/api/v1/auth/login"));
