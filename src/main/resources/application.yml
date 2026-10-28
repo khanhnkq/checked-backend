@@ -10,7 +10,8 @@ locket:
 
 app:
   friend-invite:
-    base-url: ${FRIEND_INVITE_BASE_URL:https://192.168.1.143/friend/accept}
+    base-url: ${FRIEND_INVITE_BASE_URL:https://heroku-7usd-5a73e86b5b14.herokuapp.com/invite}
+  profile-base-url: ${APP_PROFILE_BASE_URL:https://heroku-7usd-5a73e86b5b14.herokuapp.com/u/}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173}
   rate-limit:

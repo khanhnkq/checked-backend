@@ -43,7 +43,7 @@ public class FriendInviteLinkServiceImpl implements FriendInviteLinkService {
 
     private final SecureRandom secureRandom = new SecureRandom();
 
-    @Value("${app.friend-invite.base-url:https://locket-clone.app/friend/accept}")
+    @Value("${app.friend-invite.base-url:https://heroku-7usd-5a73e86b5b14.herokuapp.com/invite}")
     private String inviteBaseUrl;
 
     @Override

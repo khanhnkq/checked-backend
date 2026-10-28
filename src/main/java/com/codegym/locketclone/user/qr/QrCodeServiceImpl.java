@@ -27,7 +27,7 @@ public class QrCodeServiceImpl implements QrCodeService {
 
     private final UserRepository userRepository;
 
-    @Value("${app.profile-base-url:https://checked.app/u/}")
+    @Value("${app.profile-base-url:https://heroku-7usd-5a73e86b5b14.herokuapp.com/u/}")
     private String profileBaseUrl;
 
     @Override
