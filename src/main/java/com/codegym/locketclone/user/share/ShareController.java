@@ -36,7 +36,7 @@ public class ShareController {
     @Value("${app.friend-invite.base-url:https://heroku-7usd-5a73e86b5b14.herokuapp.com/invite}")
     private String inviteBaseUrl;
 
-    // MARK: - Design System CSS & Components
+    // MARK: - Flat, Minimalist Design System (No Emoji, No Blur, No Shadow)
     private static final String COMMON_CSS = """
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -66,7 +66,6 @@ public class ShareController {
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 4px 12px rgba(20, 22, 19, 0.12);
         }
         .brand-logo svg {
             width: 20px;
@@ -82,16 +81,14 @@ public class ShareController {
             max-width: 400px;
             width: 100%;
             background: #FFFFFF;
-            border: 1px solid rgba(223, 218, 205, 0.85);
+            border: 1px solid #DFDACD;
             border-radius: 32px;
             padding: 36px 28px;
             text-align: center;
-            box-shadow: 0 20px 48px rgba(20, 22, 19, 0.08), 0 4px 12px rgba(20, 22, 19, 0.03);
         }
         .badge-pill {
             display: inline-flex;
             align-items: center;
-            gap: 6px;
             padding: 6px 14px;
             background: #E6F5A3;
             color: #26380A;
@@ -116,8 +113,7 @@ public class ShareController {
             height: 104px;
             border-radius: 50%;
             object-fit: cover;
-            border: 4px solid #FFFFFF;
-            box-shadow: 0 8px 24px rgba(20, 22, 19, 0.12);
+            border: 3px solid #DFDACD;
             display: block;
         }
         .gold-crown {
@@ -125,14 +121,13 @@ public class ShareController {
             bottom: -2px;
             right: -2px;
             background: #FFFFFF;
+            border: 1px solid #DFDACD;
             border-radius: 50%;
-            width: 28px;
-            height: 28px;
+            width: 26px;
+            height: 26px;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.14);
-            font-size: 15px;
         }
         .name {
             font-size: 24px;
@@ -167,16 +162,13 @@ public class ShareController {
             font-weight: 700;
             font-size: 16px;
             letter-spacing: -0.01em;
-            box-shadow: 0 6px 18px rgba(212, 235, 112, 0.5);
-            transition: transform 0.12s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+            transition: background-color 0.15s ease;
         }
         .btn-primary:hover {
             background-color: #C8E05A;
-            box-shadow: 0 8px 24px rgba(212, 235, 112, 0.65);
-            transform: translateY(-1px);
         }
         .btn-primary:active {
-            transform: scale(0.98);
+            opacity: 0.9;
         }
         .token-card {
             background: #F7F5EE;
@@ -222,10 +214,8 @@ public class ShareController {
             cursor: pointer;
             display: inline-flex;
             align-items: center;
-            gap: 4px;
             white-space: nowrap;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.04);
-            transition: all 0.15s ease;
+            transition: background-color 0.15s ease;
         }
         .btn-copy:hover {
             background: #EDE9DF;
@@ -253,11 +243,11 @@ public class ShareController {
         <script>
             function copyToken(token, btn) {
                 navigator.clipboard.writeText(token).then(function() {
-                    var orig = btn.innerHTML;
-                    btn.innerHTML = 'Đã chép! ✓';
+                    var orig = btn.innerText;
+                    btn.innerText = 'Đã sao chép';
                     btn.style.color = '#3A6B1A';
                     setTimeout(function() {
-                        btn.innerHTML = orig;
+                        btn.innerText = orig;
                         btn.style.color = '#141613';
                     }, 2000);
                 });
@@ -281,7 +271,7 @@ public class ShareController {
         String escapedUsername = HtmlUtils.htmlEscape(user.getUsername());
         String avatarUrl = resolveAvatarUrl(user.getAvatarUrl());
         boolean isGold = Boolean.TRUE.equals(user.getIsGoldMember());
-        String crownBadgeHtml = isGold ? "<span class=\"gold-crown\">👑</span>" : "";
+        String crownBadgeHtml = isGold ? "<span class=\"gold-crown\"><svg viewBox=\"0 0 24 24\" width=\"14\" height=\"14\" fill=\"#E5A93B\"><path d=\"M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1v-1h14v1z\"/></svg></span>" : "";
 
         String cleanProfileBase = profileBaseUrl.endsWith("/") ? profileBaseUrl : profileBaseUrl + "/";
         String profileUrl = cleanProfileBase + escapedUsername;
@@ -313,7 +303,7 @@ public class ShareController {
             <body>
                 %s
                 <div class="card">
-                    <span class="badge-pill">👤 Hồ sơ cá nhân</span>
+                    <span class="badge-pill">Hồ sơ cá nhân</span>
                     <div class="avatar-container">
                         <img class="avatar" src="%s" alt="%s" />
                         %s
@@ -389,7 +379,7 @@ public class ShareController {
         String escapedUsername = HtmlUtils.htmlEscape(owner.getUsername());
         String avatarUrl = resolveAvatarUrl(owner.getAvatarUrl());
         boolean isGold = Boolean.TRUE.equals(owner.getIsGoldMember());
-        String crownBadgeHtml = isGold ? "<span class=\"gold-crown\">👑</span>" : "";
+        String crownBadgeHtml = isGold ? "<span class=\"gold-crown\"><svg viewBox=\"0 0 24 24\" width=\"14\" height=\"14\" fill=\"#E5A93B\"><path d=\"M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1v-1h14v1z\"/></svg></span>" : "";
 
         String deepLinkUrl = "checked://invite?token=" + HtmlUtils.htmlEscape(normalizedToken);
         String inviteFullUrl = inviteBaseUrl.contains("?")
@@ -422,7 +412,7 @@ public class ShareController {
             <body>
                 %s
                 <div class="card">
-                    <span class="badge-pill">✉️ Lời mời kết bạn</span>
+                    <span class="badge-pill">Lời mời kết bạn</span>
                     <div class="avatar-container">
                         <img class="avatar" src="%s" alt="%s" />
                         %s
@@ -501,7 +491,7 @@ public class ShareController {
             <body>
                 %s
                 <div class="card">
-                    <span class="badge-pill error">⚠️ Thông báo</span>
+                    <span class="badge-pill error">Thông báo</span>
                     <h2 class="name" style="font-size: 20px; margin-bottom: 12px;">Liên kết không khả dụng</h2>
                     <p class="desc">%s</p>
                     <a class="btn-primary" href="checked://home">Mở ứng dụng Checked</a>
