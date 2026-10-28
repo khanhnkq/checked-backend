@@ -69,6 +69,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/users/profile/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/friend-invite-links/preview").permitAll()
                         .requestMatchers(HttpMethod.GET, "/u/**", "/invite", "/invite/**", "/friend/accept").permitAll()
+                        .requestMatchers(HttpMethod.HEAD, "/u/**", "/invite", "/invite/**", "/friend/accept").permitAll()
                         .requestMatchers(
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
