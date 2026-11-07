@@ -66,6 +66,8 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/register", "/api/v1/auth/verify", "/api/v1/auth/login").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/health").permitAll()
+                        .requestMatchers(HttpMethod.HEAD, "/api/v1/health").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/users/profile/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/friend-invite-links/preview").permitAll()
                         .requestMatchers(HttpMethod.GET, "/u/**", "/invite", "/invite/**", "/friend/accept").permitAll()

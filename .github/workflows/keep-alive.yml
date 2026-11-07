@@ -1,0 +1,28 @@
+name: Keep Heroku Backend Alive
+
+on:
+  schedule:
+    # Chạy mỗi 12 phút (0, 12, 24, 36, 48) để giữ Dyno luôn ấm (không bị sleep sau 30 phút)
+    - cron: '*/12 * * * *'
+  workflow_dispatch: # Cho phép kích hoạt thủ công từ GitHub Actions UI
+
+concurrency:
+  group: keep-alive
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    name: Ping Health Endpoint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Ping Heroku /api/v1/health
+        run: |
+          STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" -m 25 https://heroku-7usd-5a73e86b5b14.herokuapp.com/api/v1/health)
+          echo "Health check response code: $STATUS_CODE"
+          if [ "$STATUS_CODE" -eq 200 ]; then
+            echo "Heroku Dyno is healthy and warm!"
+          else
+            echo "Warning: Received unexpected status code $STATUS_CODE"
+          fi
