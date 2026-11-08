@@ -41,7 +41,7 @@ public class RateLimiterService {
         }
 
         if ("POST".equalsIgnoreCase(httpMethod)) {
-            if (requestUri.endsWith("/api/v1/auth/register")) {
+            if (requestUri.endsWith("/api/v1/auth/register") || requestUri.endsWith("/api/v1/auth/resend-otp")) {
                 return AuthEndpointType.REGISTER;
             }
             if (requestUri.endsWith("/api/v1/auth/verify")) {

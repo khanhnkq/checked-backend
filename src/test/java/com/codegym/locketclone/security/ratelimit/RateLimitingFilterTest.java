@@ -102,6 +102,11 @@ class RateLimitingFilterTest {
 
     @Test
     void resolveClientIp_extractsFromXForwardedFor_andNormalizes() {
+        MockHttpServletRequest cfRequest = new MockHttpServletRequest();
+        cfRequest.addHeader("CF-Connecting-IP", "103.21.244.2");
+        cfRequest.addHeader("X-Forwarded-For", "203.0.113.195, 70.41.3.18");
+        assertEquals("103.21.244.2", filter.resolveClientIp(cfRequest));
+
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.addHeader("X-Forwarded-For", "203.0.113.195, 70.41.3.18");
 

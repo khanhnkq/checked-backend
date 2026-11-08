@@ -74,6 +74,11 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     }
 
     public String resolveClientIp(HttpServletRequest request) {
+        String cfConnectingIp = request.getHeader("CF-Connecting-IP");
+        if (StringUtils.hasText(cfConnectingIp) && !"unknown".equalsIgnoreCase(cfConnectingIp)) {
+            return normalizeIp(cfConnectingIp.trim());
+        }
+
         String xForwardedFor = request.getHeader("X-Forwarded-For");
         if (StringUtils.hasText(xForwardedFor)) {
             String[] ips = xForwardedFor.split(",");

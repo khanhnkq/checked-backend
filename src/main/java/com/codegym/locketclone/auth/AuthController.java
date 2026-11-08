@@ -4,6 +4,7 @@ import com.codegym.locketclone.auth.dto.JwtResponse;
 import com.codegym.locketclone.auth.dto.LoginRequest;
 import com.codegym.locketclone.auth.dto.RegisterRequest;
 import com.codegym.locketclone.auth.dto.RegisterResponse;
+import com.codegym.locketclone.auth.dto.ResendOtpRequest;
 import com.codegym.locketclone.auth.dto.VerifyOtpRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -27,6 +28,12 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<RegisterResponse> register(@Valid @RequestBody RegisterRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(request));
+    }
+
+    @Operation(summary = "Gửi lại mã OTP", description = "Gửi lại mã OTP mới cho tài khoản đang chờ xác thực mà không làm thay đổi mật khẩu đã đăng ký.")
+    @PostMapping("/resend-otp")
+    public ResponseEntity<RegisterResponse> resendOtp(@Valid @RequestBody ResendOtpRequest request) {
+        return ResponseEntity.ok(authService.resendOtp(request));
     }
 
     @Operation(summary = "Xác minh mã OTP", description = "Xác nhận mã OTP 6 chữ số gửi qua email. Nếu thành công trả về JWT token và kích hoạt tài khoản. Cho phép thử tối đa 5 lần.")

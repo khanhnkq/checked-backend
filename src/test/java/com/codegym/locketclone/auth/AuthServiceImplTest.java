@@ -3,6 +3,7 @@ package com.codegym.locketclone.auth;
 import com.codegym.locketclone.auth.dto.LoginRequest;
 import com.codegym.locketclone.auth.dto.RegisterRequest;
 import com.codegym.locketclone.auth.dto.RegisterResponse;
+import com.codegym.locketclone.auth.dto.ResendOtpRequest;
 import com.codegym.locketclone.auth.dto.VerifyOtpRequest;
 import com.codegym.locketclone.common.exception.AppException;
 import com.codegym.locketclone.common.exception.ErrorCode;
@@ -292,6 +293,75 @@ class AuthServiceImplTest {
 
         AppException exception = assertThrows(AppException.class, () -> authService.register(request));
 
+        assertEquals(ErrorCode.EMAIL_ALREADY_EXISTS, exception.getErrorCode());
+    }
+
+    @Test
+    void resendOtp_success_preservesExistingPassword() {
+        ResendOtpRequest request = new ResendOtpRequest("Khanh@Example.com");
+        User pendingUser = User.builder()
+                .id(UUID.randomUUID())
+                .email("khanh@example.com")
+                .firstName("Khanh")
+                .username("khanh_dev")
+                .password("original-hashed-password")
+                .isVerified(false)
+                .otpExpiresAt(LocalDateTime.now().plusMinutes(2)) // > 60s cooldown passed (expiry 5 min, now+2 <= now+4)
+                .build();
+
+        when(userRepository.findByEmailIgnoreCase("khanh@example.com")).thenReturn(Optional.of(pendingUser));
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        RegisterResponse result = authService.resendOtp(request);
+
+        assertEquals("Mã OTP mới đã được gửi tới email của bạn", result.message());
+        assertEquals("khanh@example.com", result.email());
+        assertEquals("VERIFY_OTP", result.nextStep());
+        assertEquals("original-hashed-password", pendingUser.getPassword(), "Mật khẩu gốc phải được giữ nguyên tuyệt đối");
+        assertNotNull(pendingUser.getOtpCode());
+        assertEquals(6, pendingUser.getOtpCode().length());
+        verify(emailService).sendOtpEmail(eq("khanh@example.com"), eq("Khanh"), eq(pendingUser.getOtpCode()));
+        verifyNoInteractions(passwordEncoder);
+    }
+
+    @Test
+    void resendOtp_throwsOtpResendCooldown_whenCooldownActive() {
+        ResendOtpRequest request = new ResendOtpRequest("khanh@example.com");
+        User pendingUser = User.builder()
+                .id(UUID.randomUUID())
+                .email("khanh@example.com")
+                .isVerified(false)
+                .otpExpiresAt(LocalDateTime.now().plusMinutes(4).plusSeconds(30)) // less than 60s since generation
+                .build();
+
+        when(userRepository.findByEmailIgnoreCase("khanh@example.com")).thenReturn(Optional.of(pendingUser));
+
+        AppException exception = assertThrows(AppException.class, () -> authService.resendOtp(request));
+        assertEquals(ErrorCode.OTP_RESEND_COOLDOWN, exception.getErrorCode());
+        verify(emailService, never()).sendOtpEmail(any(), any(), any());
+    }
+
+    @Test
+    void resendOtp_throwsUserNotFound_whenUserDoesNotExist() {
+        ResendOtpRequest request = new ResendOtpRequest("unknown@example.com");
+        when(userRepository.findByEmailIgnoreCase("unknown@example.com")).thenReturn(Optional.empty());
+
+        AppException exception = assertThrows(AppException.class, () -> authService.resendOtp(request));
+        assertEquals(ErrorCode.USER_NOT_FOUND, exception.getErrorCode());
+    }
+
+    @Test
+    void resendOtp_throwsEmailAlreadyExists_whenUserAlreadyVerified() {
+        ResendOtpRequest request = new ResendOtpRequest("khanh@example.com");
+        User verifiedUser = User.builder()
+                .id(UUID.randomUUID())
+                .email("khanh@example.com")
+                .isVerified(true)
+                .build();
+
+        when(userRepository.findByEmailIgnoreCase("khanh@example.com")).thenReturn(Optional.of(verifiedUser));
+
+        AppException exception = assertThrows(AppException.class, () -> authService.resendOtp(request));
         assertEquals(ErrorCode.EMAIL_ALREADY_EXISTS, exception.getErrorCode());
     }
 }

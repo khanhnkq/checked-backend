@@ -5,6 +5,7 @@ import com.codegym.locketclone.auth.dto.LoginRequest;
 import com.codegym.locketclone.auth.dto.OnboardingStep;
 import com.codegym.locketclone.auth.dto.RegisterRequest;
 import com.codegym.locketclone.auth.dto.RegisterResponse;
+import com.codegym.locketclone.auth.dto.ResendOtpRequest;
 import com.codegym.locketclone.auth.dto.VerifyOtpRequest;
 import com.codegym.locketclone.common.exception.AppException;
 import com.codegym.locketclone.common.exception.ErrorCode;
@@ -63,6 +64,42 @@ public class AuthServiceImpl implements AuthService {
         log.info("OTP registration created for email={}", user.getEmail());
         return new RegisterResponse(
                 "Đăng ký thành công, vui lòng kiểm tra email để lấy mã OTP",
+                user.getEmail(),
+                "VERIFY_OTP"
+        );
+    }
+
+    @Override
+    @Transactional
+    public RegisterResponse resendOtp(ResendOtpRequest request) {
+        String email = normalizeEmail(request.email());
+        User user = userRepository.findByEmailIgnoreCase(email)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        if (Boolean.TRUE.equals(user.getIsVerified())) {
+            throw new AppException(ErrorCode.EMAIL_ALREADY_EXISTS);
+        }
+
+        // Enforce 60-second cooldown between OTP requests
+        if (user.getOtpExpiresAt() != null
+                && user.getOtpExpiresAt().isAfter(LocalDateTime.now().plusMinutes(OTP_EXPIRY_MINUTES - 1))) {
+            throw new AppException(ErrorCode.OTP_RESEND_COOLDOWN);
+        }
+
+        String otpCode = generateOtpCode();
+        LocalDateTime otpExpiresAt = LocalDateTime.now().plusMinutes(OTP_EXPIRY_MINUTES);
+
+        // Update OTP state WITHOUT changing existing user password!
+        user.setOtpCode(otpCode);
+        user.setOtpExpiresAt(otpExpiresAt);
+        user.setOtpFailedAttempts(0);
+
+        userRepository.save(user);
+        emailService.sendOtpEmail(user.getEmail(), user.getDisplayName(), otpCode);
+
+        log.info("OTP resent for pending user email={}", user.getEmail());
+        return new RegisterResponse(
+                "Mã OTP mới đã được gửi tới email của bạn",
                 user.getEmail(),
                 "VERIFY_OTP"
         );

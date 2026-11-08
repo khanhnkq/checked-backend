@@ -5,6 +5,7 @@ import com.codegym.locketclone.auth.dto.LoginRequest;
 import com.codegym.locketclone.auth.dto.OnboardingStep;
 import com.codegym.locketclone.auth.dto.RegisterRequest;
 import com.codegym.locketclone.auth.dto.RegisterResponse;
+import com.codegym.locketclone.auth.dto.ResendOtpRequest;
 import com.codegym.locketclone.auth.dto.VerifyOtpRequest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -66,6 +67,23 @@ class AuthControllerTest {
         assertEquals(200, response.getStatusCode().value());
         assertEquals(jwtResponse, response.getBody());
         verify(authService).verify(request);
+    }
+
+    @Test
+    void resendOtp_returnsOkMessage() {
+        ResendOtpRequest request = new ResendOtpRequest("khanh@example.com");
+        RegisterResponse resendResponse = new RegisterResponse(
+                "Mã OTP mới đã được gửi tới email của bạn",
+                "khanh@example.com",
+                "VERIFY_OTP"
+        );
+        when(authService.resendOtp(request)).thenReturn(resendResponse);
+
+        var response = authController.resendOtp(request);
+
+        assertEquals(200, response.getStatusCode().value());
+        assertEquals(resendResponse, response.getBody());
+        verify(authService).resendOtp(request);
     }
 
     @Test

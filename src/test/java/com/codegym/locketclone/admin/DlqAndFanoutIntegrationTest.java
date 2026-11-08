@@ -24,6 +24,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.test.context.support.WithMockUser;
 
 import java.util.List;
 import java.util.Map;
@@ -216,7 +218,8 @@ class DlqAndFanoutIntegrationTest {
     }
 
     @Test
-    @DisplayName("Verify DLQ Admin Controller: Gọi endpoint GET /stats và POST /replay hoạt động trơn tru")
+    @WithMockUser(roles = "ADMIN")
+    @DisplayName("Verify DLQ Admin Controller: Gọi endpoint GET /stats và POST /replay hoạt động trơn tru khi có quyền ADMIN")
     void testDlqAdminControllerEndpoints() {
         ResponseEntity<DlqStatsResponse> statsEntity = dlqAdminController.getDlqStats();
         assertNotNull(statsEntity);
@@ -228,5 +231,12 @@ class DlqAndFanoutIntegrationTest {
         assertNotNull(replayEntity);
         assertEquals(200, replayEntity.getStatusCode().value());
         assertNotNull(replayEntity.getBody());
+    }
+
+    @Test
+    @WithMockUser(roles = "USER")
+    @DisplayName("Verify DLQ Admin Controller: Bị từ chối truy cập khi role chỉ là USER")
+    void testDlqAdminControllerDeniedForNonAdmin() {
+        assertThrows(AccessDeniedException.class, () -> dlqAdminController.getDlqStats());
     }
 }
